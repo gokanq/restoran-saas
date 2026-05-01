@@ -40,6 +40,15 @@ export class OrdersController {
     return this.ordersService.findByRestaurant(req.user.restaurantId);
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.ordersService.findOneByRestaurant(id, req.user.restaurantId);
+  }
+
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   create(

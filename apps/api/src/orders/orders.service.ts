@@ -27,6 +27,27 @@ export class OrdersService {
     });
   }
 
+  async findOneByRestaurant(orderId: string, restaurantId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+      include: {
+        branch: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Sipariş bulunamadı');
+    }
+
+    if (order.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu siparişi görüntüleme yetkiniz yok');
+    }
+
+    return order;
+  }
+
   async create(data: {
     restaurantId: string;
     branchId: string;
