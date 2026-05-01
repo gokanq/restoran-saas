@@ -9,7 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { OrderStatus, UserRole } from '@prisma/client';
+import { OrderStatus, OrderType, UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -56,8 +56,13 @@ export class OrdersController {
     body: {
       branchId: string;
       code: string;
+      type?: OrderType;
       status?: OrderStatus;
       total?: string | number;
+      customerName?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+      note?: string;
     },
     @Req() req: AuthenticatedRequest,
   ) {
@@ -69,8 +74,13 @@ export class OrdersController {
       restaurantId: req.user.restaurantId,
       branchId: body.branchId,
       code: body.code,
+      type: body.type,
       status: body.status,
       total: body.total,
+      customerName: body.customerName,
+      customerPhone: body.customerPhone,
+      customerAddress: body.customerAddress,
+      note: body.note,
     });
   }
 

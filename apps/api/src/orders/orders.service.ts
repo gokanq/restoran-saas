@@ -4,10 +4,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, OrderType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ORDER_STATUSES = Object.values(OrderStatus);
+const ORDER_TYPES = Object.values(OrderType);
+
+function optionalText(value?: string | null) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue.length > 0 ? trimmedValue : null;
+}
 
 @Injectable()
 export class OrdersService {
@@ -52,8 +63,13 @@ export class OrdersService {
     restaurantId: string;
     branchId: string;
     code: string;
+    type?: OrderType;
     status?: OrderStatus;
     total?: string | number;
+    customerName?: string;
+    customerPhone?: string;
+    customerAddress?: string;
+    note?: string;
   }) {
     if (!data.branchId) {
       throw new BadRequestException('branchId zorunludur');
@@ -61,6 +77,10 @@ export class OrdersService {
 
     if (!data.code) {
       throw new BadRequestException('code zorunludur');
+    }
+
+    if (data.type && !ORDER_TYPES.includes(data.type)) {
+      throw new BadRequestException('Geçersiz sipariş tipi');
     }
 
     if (data.status && !ORDER_STATUSES.includes(data.status)) {
@@ -93,9 +113,14 @@ export class OrdersService {
       data: {
         restaurantId: data.restaurantId,
         branchId: data.branchId,
-        code: data.code,
+        code: data.code.trim(),
+        type: data.type ?? OrderType.DELIVERY,
         status: data.status,
         total: data.total ?? 0,
+        customerName: optionalText(data.customerName),
+        customerPhone: optionalText(data.customerPhone),
+        customerAddress: optionalText(data.customerAddress),
+        note: optionalText(data.note),
       },
       include: {
         branch: true,

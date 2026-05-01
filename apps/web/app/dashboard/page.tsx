@@ -26,17 +26,36 @@ type OrderStatus =
   | 'DELIVERED'
   | 'CANCELLED';
 
+type OrderType = 'TABLE' | 'DELIVERY' | 'TAKEAWAY';
+
 type OrderFilter = 'ALL' | OrderStatus;
 
 type Order = {
   id: string;
   code: string;
+  type?: OrderType | string;
   status: OrderStatus | string;
   total: string | number;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  note?: string | null;
   createdAt: string;
   branch?: {
     name: string;
   } | null;
+};
+
+const ORDER_TYPE_OPTIONS: { value: OrderType; label: string }[] = [
+  { value: 'DELIVERY', label: 'Paket' },
+  { value: 'TABLE', label: 'Masa' },
+  { value: 'TAKEAWAY', label: 'Gel-al' },
+];
+
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  DELIVERY: 'Paket',
+  TABLE: 'Masa',
+  TAKEAWAY: 'Gel-al',
 };
 
 const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
@@ -139,7 +158,12 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [orderCode, setOrderCode] = useState('');
+  const [orderType, setOrderType] = useState<OrderType>('DELIVERY');
   const [orderTotal, setOrderTotal] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [orderNote, setOrderNote] = useState('');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('ALL');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -280,7 +304,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const numericOrderTotal = Number(orderTotal);
+    const numericOrderTotal = getOrderNumericTotal(orderTotal);
 
     if (!Number.isFinite(numericOrderTotal) || numericOrderTotal <= 0) {
       setError('Toplam tutar 0’dan büyük olmalıdır');
@@ -299,7 +323,12 @@ export default function DashboardPage() {
         body: JSON.stringify({
           branchId: selectedBranchId,
           code: orderCode.trim(),
-          total: orderTotal,
+          type: orderType,
+          total: numericOrderTotal,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          customerAddress: customerAddress.trim(),
+          note: orderNote.trim(),
         }),
       });
 
@@ -310,7 +339,12 @@ export default function DashboardPage() {
         return;
       }
 
+      setOrderType('DELIVERY');
       setOrderTotal('');
+      setCustomerName('');
+      setCustomerPhone('');
+      setCustomerAddress('');
+      setOrderNote('');
       setSuccess('Sipariş oluşturuldu');
 
       const latestOrders = await loadOrders(token);
@@ -464,7 +498,7 @@ export default function DashboardPage() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
           <h2 className="text-xl font-bold">Yeni Sipariş</h2>
 
-          <form onSubmit={createOrder} className="mt-6 grid gap-4 md:grid-cols-4">
+          <form onSubmit={createOrder} className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <label className="block text-sm font-semibold text-slate-200">
               Şube
               <select
@@ -481,6 +515,21 @@ export default function DashboardPage() {
                     </option>
                   ))
                 )}
+              </select>
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-200">
+              Sipariş Tipi
+              <select
+                value={orderType}
+                onChange={(event) => setOrderType(event.target.value as OrderType)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+              >
+                {ORDER_TYPE_OPTIONS.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -503,6 +552,46 @@ export default function DashboardPage() {
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                 placeholder="180"
                 required
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-200">
+              Müşteri Adı
+              <input
+                value={customerName}
+                onChange={(event) => setCustomerName(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                placeholder="Ahmet Yılmaz"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-200">
+              Telefon
+              <input
+                value={customerPhone}
+                onChange={(event) => setCustomerPhone(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                placeholder="05xx xxx xx xx"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-200 xl:col-span-2">
+              Adres
+              <input
+                value={customerAddress}
+                onChange={(event) => setCustomerAddress(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                placeholder="Mahalle, sokak, bina, daire"
+              />
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-200 md:col-span-2 xl:col-span-3">
+              Not
+              <input
+                value={orderNote}
+                onChange={(event) => setOrderNote(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                placeholder="Zil çalışmıyor, acısız olsun, kapıya bırak vb."
               />
             </label>
 
@@ -564,10 +653,13 @@ export default function DashboardPage() {
                 Bu filtrede sipariş yok.
               </div>
             ) : (
-              <table className="w-full min-w-[900px] overflow-hidden rounded-2xl text-left text-sm">
+              <table className="w-full min-w-[1100px] overflow-hidden rounded-2xl text-left text-sm">
                 <thead className="bg-slate-900 text-slate-300">
                   <tr>
                     <th className="px-4 py-3">Kod</th>
+                    <th className="px-4 py-3">Tip</th>
+                    <th className="px-4 py-3">Müşteri</th>
+                    <th className="px-4 py-3">Telefon</th>
                     <th className="px-4 py-3">Şube</th>
                     <th className="px-4 py-3">Durum</th>
                     <th className="px-4 py-3">Toplam</th>
@@ -578,6 +670,7 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-white/10">
                   {filteredOrders.map((order) => {
                     const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
+                    const typeLabel = ORDER_TYPE_LABELS[order.type || ''] || '-';
                     const statusBadgeClass =
                       ORDER_STATUS_BADGE_CLASSES[order.status] ||
                       'border-slate-400/30 bg-slate-500/10 text-slate-200';
@@ -585,6 +678,25 @@ export default function DashboardPage() {
                     return (
                       <tr key={order.id} className="bg-slate-950/40 transition hover:bg-white/5">
                         <td className="px-4 py-4 font-bold">{order.code}</td>
+                        <td className="px-4 py-4">
+                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-200">
+                            {typeLabel}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-semibold">{order.customerName || '-'}</div>
+                          {order.customerAddress ? (
+                            <div className="mt-1 max-w-[220px] truncate text-xs text-slate-400">
+                              {order.customerAddress}
+                            </div>
+                          ) : null}
+                          {order.note ? (
+                            <div className="mt-1 max-w-[220px] truncate text-xs text-amber-200">
+                              Not: {order.note}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-4 py-4">{order.customerPhone || '-'}</td>
                         <td className="px-4 py-4">{order.branch?.name || '-'}</td>
                         <td className="px-4 py-4">
                           <span
