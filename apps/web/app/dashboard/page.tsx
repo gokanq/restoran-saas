@@ -150,6 +150,19 @@ function isTodayOrder(createdAt: string) {
   );
 }
 
+function formatOrderDate(createdAt: string) {
+  const orderDate = new Date(createdAt);
+
+  if (Number.isNaN(orderDate.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(orderDate);
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -165,6 +178,7 @@ export default function DashboardPage() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [orderNote, setOrderNote] = useState('');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('ALL');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -385,7 +399,17 @@ export default function DashboardPage() {
         return;
       }
 
-      await loadOrders(token);
+      const latestOrders = await loadOrders(token);
+      const latestSelectedOrder = latestOrders.find((order) => order.id === orderId);
+
+      setSelectedOrder((currentOrder) => {
+        if (!currentOrder || currentOrder.id !== orderId) {
+          return currentOrder;
+        }
+
+        return latestSelectedOrder || data;
+      });
+
       setSuccess('Sipariş durumu güncellendi');
     } catch {
       setError('Sipariş durumu güncellenirken hata oluştu');
@@ -653,7 +677,7 @@ export default function DashboardPage() {
                 Bu filtrede sipariş yok.
               </div>
             ) : (
-              <table className="w-full min-w-[1100px] overflow-hidden rounded-2xl text-left text-sm">
+              <table className="w-full min-w-[1200px] overflow-hidden rounded-2xl text-left text-sm">
                 <thead className="bg-slate-900 text-slate-300">
                   <tr>
                     <th className="px-4 py-3">Kod</th>
@@ -663,6 +687,7 @@ export default function DashboardPage() {
                     <th className="px-4 py-3">Şube</th>
                     <th className="px-4 py-3">Durum</th>
                     <th className="px-4 py-3">Toplam</th>
+                    <th className="px-4 py-3">Detay</th>
                     <th className="px-4 py-3">Durum Güncelle</th>
                   </tr>
                 </thead>
@@ -707,6 +732,15 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-4 py-4 font-semibold">{order.total} TL</td>
                         <td className="px-4 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOrder(order)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                          >
+                            Detay
+                          </button>
+                        </td>
+                        <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-2">
                             {ORDER_STATUS_OPTIONS.map((status) => {
                               const actionClass =
@@ -738,6 +772,130 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {selectedOrder ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black">
+            <div className="flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">
+                  Sipariş Detayı
+                </p>
+                <h3 className="mt-2 text-2xl font-black">{selectedOrder.code}</h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  {formatOrderDate(selectedOrder.createdAt)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Sipariş Tipi
+                </p>
+                <p className="mt-2 text-lg font-bold">
+                  {ORDER_TYPE_LABELS[selectedOrder.type || ''] || '-'}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Durum
+                </p>
+                <span
+                  className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold ${
+                    ORDER_STATUS_BADGE_CLASSES[selectedOrder.status] ||
+                    'border-slate-400/30 bg-slate-500/10 text-slate-200'
+                  }`}
+                >
+                  {ORDER_STATUS_LABELS[selectedOrder.status] || selectedOrder.status}
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Müşteri
+                </p>
+                <p className="mt-2 text-lg font-bold">{selectedOrder.customerName || '-'}</p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Telefon
+                </p>
+                <p className="mt-2 text-lg font-bold">{selectedOrder.customerPhone || '-'}</p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Şube
+                </p>
+                <p className="mt-2 text-lg font-bold">{selectedOrder.branch?.name || '-'}</p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Toplam
+                </p>
+                <p className="mt-2 text-lg font-bold">{selectedOrder.total} TL</p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Adres
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                  {selectedOrder.customerAddress || '-'}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                  Not
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-100">
+                  {selectedOrder.note || '-'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-white/10 pt-5">
+              <p className="mb-3 text-sm font-bold text-slate-300">Durum Güncelle</p>
+
+              <div className="flex flex-wrap gap-2">
+                {ORDER_STATUS_OPTIONS.map((status) => {
+                  const actionClass =
+                    ORDER_ACTION_BUTTON_CLASSES[status.value] ||
+                    'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10';
+
+                  return (
+                    <button
+                      key={status.value}
+                      type="button"
+                      onClick={() => updateOrderStatus(selectedOrder.id, status.value)}
+                      disabled={
+                        updatingOrderId === selectedOrder.id ||
+                        selectedOrder.status === status.value
+                      }
+                      className={`rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${actionClass}`}
+                    >
+                      {status.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
