@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type User = {
@@ -10,6 +10,11 @@ type User = {
   email: string;
   role: string;
   isActive: boolean;
+};
+
+type Branch = {
+  id: string;
+  name: string;
 };
 
 type Order = {
@@ -51,13 +56,30 @@ const USER_ROLE_LABELS: Record<string, string> = {
   CUSTOMER: 'Müşteri',
 };
 
+function generateNextOrderCode(orders: Order[]) {
+  const maxNumber = orders.reduce((max, order) => {
+    const match = order.code.match(/(\d+)$/);
+    const orderNumber = match ? Number(match[1]) : 0;
+
+    return Number.isFinite(orderNumber) && orderNumber > max ? orderNumber : max;
+  }, 0);
+
+  return `ORD-${String(maxNumber + 1).padStart(4, '0')}`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [orderCode, setOrderCode] = useState('');
+  const [orderTotal, setOrderTotal] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   async function loadOrders(token: string) {
@@ -69,6 +91,25 @@ export default function DashboardPage() {
 
     const ordersData = ordersResponse.ok ? await ordersResponse.json() : [];
     setOrders(ordersData);
+
+    setOrderCode((currentCode) => currentCode || generateNextOrderCode(ordersData));
+
+    return ordersData;
+  }
+
+  async function loadBranches(token: string) {
+    const branchesResponse = await fetch('/api/branches', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const branchesData = branchesResponse.ok ? await branchesResponse.json() : [];
+    setBranches(branchesData);
+
+    if (branchesData.length > 0) {
+      setSelectedBranchId((currentBranchId) => currentBranchId || branchesData[0].id);
+    }
   }
 
   useEffect(() => {
@@ -97,7 +138,7 @@ export default function DashboardPage() {
         const meData = await meResponse.json();
 
         setUser(meData);
-        await loadOrders(token);
+        await Promise.all([loadBranches(token), loadOrders(token)]);
       } catch {
         setError('Dashboard verileri yüklenirken hata oluştu');
       } finally {
@@ -108,6 +149,74 @@ export default function DashboardPage() {
     loadDashboard();
   }, [router]);
 
+  async function createOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    if (!selectedBranchId) {
+      setError('Lütfen şube seçin');
+      return;
+    }
+
+    if (!orderCode.trim()) {
+      setError('Sipariş kodu zorunludur');
+      return;
+    }
+
+    if (!orderTotal.trim()) {
+      setError('Toplam tutar zorunludur');
+      return;
+    }
+
+    if (Number(orderTotal) <= 0) {
+      setError('Toplam tutar 0’dan büyük olmalıdır');
+      return;
+    }
+
+    setIsCreatingOrder(true);
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          branchId: selectedBranchId,
+          code: orderCode.trim(),
+          total: orderTotal || '0',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Sipariş oluşturulamadı');
+        return;
+      }
+
+      setOrderTotal('');
+      setSuccess('Sipariş oluşturuldu');
+
+      const latestOrders = await loadOrders(token);
+      setOrderCode(generateNextOrderCode(latestOrders));
+    } catch {
+      setError('Sipariş oluşturulurken hata oluştu');
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  }
+
   async function updateOrderStatus(orderId: string, status: string) {
     const token = localStorage.getItem('accessToken');
 
@@ -117,6 +226,7 @@ export default function DashboardPage() {
     }
 
     setError('');
+    setSuccess('');
     setUpdatingOrderId(orderId);
 
     try {
@@ -188,6 +298,12 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
+        {success ? (
+          <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {success}
+          </div>
+        ) : null}
+
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
             <p className="text-sm text-slate-400">API Oturumu</p>
@@ -203,6 +319,75 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-400">Sipariş Sayısı</p>
             <p className="mt-2 text-2xl font-bold text-sky-400">{orders.length}</p>
           </div>
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6">
+          <h2 className="text-2xl font-bold">Yeni Sipariş</h2>
+
+          <form onSubmit={createOrder} className="mt-6 grid gap-4 md:grid-cols-4">
+            <div>
+              <label className="text-sm font-medium text-slate-300" htmlFor="branch">
+                Şube
+              </label>
+              <select
+                id="branch"
+                value={selectedBranchId}
+                onChange={(event) => setSelectedBranchId(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+              >
+                {branches.length === 0 ? (
+                  <option value="">Şube yok</option>
+                ) : (
+                  branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-slate-300" htmlFor="code">
+                Sipariş Kodu
+              </label>
+              <input
+                id="code"
+                value={orderCode}
+                onChange={(event) => setOrderCode(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                placeholder="Otomatik oluşturulur"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-slate-300" htmlFor="total">
+                Toplam Tutar
+              </label>
+              <input
+                id="total"
+                type="number"
+                min="0"
+                step="0.01"
+                value={orderTotal}
+                onChange={(event) => setOrderTotal(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                placeholder="180"
+                required
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="submit"
+                disabled={isCreatingOrder || branches.length === 0}
+                className="w-full rounded-2xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreatingOrder ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
+              </button>
+            </div>
+          </form>
         </div>
 
         <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6">
