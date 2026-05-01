@@ -33,31 +33,35 @@ enum OrderType {
 }
 
 model Restaurant {
-  id             String         @id @default(cuid())
-  name           String
-  slug           String         @unique
-  isActive       Boolean        @default(true)
-  users          User[]
-  branches       Branch[]
-  orders         Order[]
-  menuCategories MenuCategory[]
-  menuItems      MenuItem[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                   String                @id @default(cuid())
+  name                 String
+  slug                 String                @unique
+  isActive             Boolean               @default(true)
+  users                User[]
+  branches             Branch[]
+  orders               Order[]
+  menuCategories       MenuCategory[]
+  menuItems            MenuItem[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  menuItemOptionGroups MenuItemOptionGroup[]
+  menuItemOptions      MenuItemOption[]
 }
 
 model Branch {
-  id             String         @id @default(cuid())
-  restaurantId   String
-  name           String
-  address        String?
-  phone          String?
-  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id])
-  orders         Order[]
-  menuCategories MenuCategory[]
-  menuItems      MenuItem[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                   String                @id @default(cuid())
+  restaurantId         String
+  name                 String
+  address              String?
+  phone                String?
+  restaurant           Restaurant            @relation(fields: [restaurantId], references: [id])
+  orders               Order[]
+  menuCategories       MenuCategory[]
+  menuItems            MenuItem[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  menuItemOptionGroups MenuItemOptionGroup[]
+  menuItemOptions      MenuItemOption[]
 }
 
 model User {
@@ -98,20 +102,21 @@ model MenuCategory {
 }
 
 model MenuItem {
-  id           String        @id @default(cuid())
+  id           String                @id @default(cuid())
   restaurantId String
   branchId     String?
   categoryId   String?
   name         String
   description  String?
-  price        Decimal       @default(0) @db.Decimal(10, 2)
-  isActive     Boolean       @default(true)
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id])
-  branch       Branch?       @relation(fields: [branchId], references: [id])
-  category     MenuCategory? @relation(fields: [categoryId], references: [id])
+  price        Decimal               @default(0) @db.Decimal(10, 2)
+  isActive     Boolean               @default(true)
+  restaurant   Restaurant            @relation(fields: [restaurantId], references: [id])
+  branch       Branch?               @relation(fields: [branchId], references: [id])
+  category     MenuCategory?         @relation(fields: [categoryId], references: [id])
   orderItems   OrderItem[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  optionGroups MenuItemOptionGroup[]
 }
 
 model Order {
@@ -135,16 +140,79 @@ model Order {
 }
 
 model OrderItem {
-  id         String    @id @default(cuid())
+  id         String            @id @default(cuid())
   orderId    String
   menuItemId String?
   name       String
-  quantity   Int       @default(1)
-  unitPrice  Decimal   @default(0) @db.Decimal(10, 2)
-  totalPrice Decimal   @default(0) @db.Decimal(10, 2)
+  quantity   Int               @default(1)
+  unitPrice  Decimal           @default(0) @db.Decimal(10, 2)
+  totalPrice Decimal           @default(0) @db.Decimal(10, 2)
   note       String?
-  order      Order     @relation(fields: [orderId], references: [id])
-  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  order      Order             @relation(fields: [orderId], references: [id])
+  menuItem   MenuItem?         @relation(fields: [menuItemId], references: [id])
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  options    OrderItemOption[]
+}
+
+model MenuItemOptionGroup {
+  id           String   @id @default(cuid())
+  restaurantId String
+  branchId     String?
+  menuItemId   String
+  name         String
+  isRequired   Boolean  @default(false)
+  minSelect    Int      @default(0)
+  maxSelect    Int      @default(1)
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant       @relation(fields: [restaurantId], references: [id])
+  branch     Branch?          @relation(fields: [branchId], references: [id])
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  options    MenuItemOption[]
+
+  @@index([restaurantId])
+  @@index([branchId])
+  @@index([menuItemId])
+}
+
+model MenuItemOption {
+  id           String   @id @default(cuid())
+  restaurantId String
+  branchId     String?
+  groupId      String
+  name         String
+  priceDelta   Decimal  @default(0)
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant       Restaurant          @relation(fields: [restaurantId], references: [id])
+  branch           Branch?             @relation(fields: [branchId], references: [id])
+  group            MenuItemOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderItemOptions OrderItemOption[]
+
+  @@index([restaurantId])
+  @@index([branchId])
+  @@index([groupId])
+}
+
+model OrderItemOption {
+  id          String   @id @default(cuid())
+  orderItemId String
+  optionId    String?
+  groupName   String
+  optionName  String
+  priceDelta  Decimal  @default(0)
+  createdAt   DateTime @default(now())
+
+  orderItem OrderItem       @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  option    MenuItemOption? @relation(fields: [optionId], references: [id], onDelete: SetNull)
+
+  @@index([orderItemId])
+  @@index([optionId])
 }
