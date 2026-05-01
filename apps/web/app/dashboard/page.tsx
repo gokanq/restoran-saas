@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type User = {
@@ -17,15 +17,26 @@ type Branch = {
   name: string;
 };
 
+type OrderStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'PREPARING'
+  | 'READY'
+  | 'ON_DELIVERY'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+type OrderFilter = 'ALL' | OrderStatus;
+
 type Order = {
   id: string;
   code: string;
-  status: string;
-  total: string;
+  status: OrderStatus | string;
+  total: string | number;
   createdAt: string;
   branch?: {
     name: string;
-  };
+  } | null;
 };
 
 const ORDER_STATUS_OPTIONS = [
@@ -35,6 +46,17 @@ const ORDER_STATUS_OPTIONS = [
   { value: 'ON_DELIVERY', label: 'Yola Çıkar' },
   { value: 'DELIVERED', label: 'Teslim Et' },
   { value: 'CANCELLED', label: 'İptal Et' },
+];
+
+const ORDER_FILTER_OPTIONS: { value: OrderFilter; label: string }[] = [
+  { value: 'ALL', label: 'Tümü' },
+  { value: 'PENDING', label: 'Bekliyor' },
+  { value: 'ACCEPTED', label: 'Kabul Edildi' },
+  { value: 'PREPARING', label: 'Hazırlanıyor' },
+  { value: 'READY', label: 'Hazır' },
+  { value: 'ON_DELIVERY', label: 'Yolda' },
+  { value: 'DELIVERED', label: 'Teslim Edildi' },
+  { value: 'CANCELLED', label: 'İptal Edildi' },
 ];
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -76,11 +98,30 @@ export default function DashboardPage() {
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [orderCode, setOrderCode] = useState('');
   const [orderTotal, setOrderTotal] = useState('');
+  const [orderFilter, setOrderFilter] = useState<OrderFilter>('ALL');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
+  const filteredOrders = useMemo(() => {
+    if (orderFilter === 'ALL') {
+      return orders;
+    }
+
+    return orders.filter((order) => order.status === orderFilter);
+  }, [orders, orderFilter]);
+
+  const orderCountsByStatus = useMemo(() => {
+    return orders.reduce<Record<string, number>>((counts, order) => {
+      counts[order.status] = (counts[order.status] || 0) + 1;
+      return counts;
+    }, {});
+  }, [orders]);
+
+  const selectedFilterLabel =
+    ORDER_FILTER_OPTIONS.find((filter) => filter.value === orderFilter)?.label || 'Tümü';
 
   async function loadOrders(token: string) {
     const ordersResponse = await fetch('/api/orders', {
@@ -90,11 +131,12 @@ export default function DashboardPage() {
     });
 
     const ordersData = ordersResponse.ok ? await ordersResponse.json() : [];
-    setOrders(ordersData);
+    const safeOrders = Array.isArray(ordersData) ? ordersData : [];
 
-    setOrderCode((currentCode) => currentCode || generateNextOrderCode(ordersData));
+    setOrders(safeOrders);
+    setOrderCode((currentCode) => currentCode || generateNextOrderCode(safeOrders));
 
-    return ordersData;
+    return safeOrders;
   }
 
   async function loadBranches(token: string) {
@@ -105,10 +147,12 @@ export default function DashboardPage() {
     });
 
     const branchesData = branchesResponse.ok ? await branchesResponse.json() : [];
-    setBranches(branchesData);
+    const safeBranches = Array.isArray(branchesData) ? branchesData : [];
 
-    if (branchesData.length > 0) {
-      setSelectedBranchId((currentBranchId) => currentBranchId || branchesData[0].id);
+    setBranches(safeBranches);
+
+    if (safeBranches.length > 0) {
+      setSelectedBranchId((currentBranchId) => currentBranchId || safeBranches[0].id);
     }
   }
 
@@ -177,7 +221,9 @@ export default function DashboardPage() {
       return;
     }
 
-    if (Number(orderTotal) <= 0) {
+    const numericOrderTotal = Number(orderTotal);
+
+    if (!Number.isFinite(numericOrderTotal) || numericOrderTotal <= 0) {
       setError('Toplam tutar 0’dan büyük olmalıdır');
       return;
     }
@@ -194,7 +240,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           branchId: selectedBranchId,
           code: orderCode.trim(),
-          total: orderTotal || '0',
+          total: orderTotal,
         }),
       });
 
@@ -247,6 +293,7 @@ export default function DashboardPage() {
       }
 
       await loadOrders(token);
+      setSuccess('Sipariş durumu güncellendi');
     } catch {
       setError('Sipariş durumu güncellenirken hata oluştu');
     } finally {
@@ -263,7 +310,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        <p className="text-slate-300">Dashboard yükleniyor...</p>
+        <p className="text-lg font-semibold">Dashboard yükleniyor...</p>
       </main>
     );
   }
@@ -271,11 +318,11 @@ export default function DashboardPage() {
   const roleLabel = user ? USER_ROLE_LABELS[user.role] || user.role : '-';
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <section className="mx-auto max-w-7xl px-6 py-10">
-        <div className="flex flex-col justify-between gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl md:flex-row md:items-center">
+    <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
               Restoran SaaS
             </p>
             <h1 className="mt-2 text-3xl font-bold">Dashboard</h1>
@@ -285,52 +332,55 @@ export default function DashboardPage() {
           </div>
 
           <button
+            type="button"
             onClick={logout}
-            className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+            className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-400"
           >
             Çıkış Yap
           </button>
-        </div>
+        </header>
 
         {error ? (
-          <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
             {error}
           </div>
         ) : null}
 
         {success ? (
-          <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-200">
             {success}
           </div>
         ) : null}
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
             <p className="text-sm text-slate-400">API Oturumu</p>
             <p className="mt-2 text-2xl font-bold text-emerald-400">Aktif</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
             <p className="text-sm text-slate-400">Rol</p>
             <p className="mt-2 text-2xl font-bold">{roleLabel}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <p className="text-sm text-slate-400">Sipariş Sayısı</p>
-            <p className="mt-2 text-2xl font-bold text-sky-400">{orders.length}</p>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <p className="text-sm text-slate-400">Toplam Sipariş</p>
+            <p className="mt-2 text-2xl font-bold">{orders.length}</p>
           </div>
-        </div>
 
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-2xl font-bold">Yeni Sipariş</h2>
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            <p className="text-sm text-slate-400">Filtrelenen</p>
+            <p className="mt-2 text-2xl font-bold">{filteredOrders.length}</p>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <h2 className="text-xl font-bold">Yeni Sipariş</h2>
 
           <form onSubmit={createOrder} className="mt-6 grid gap-4 md:grid-cols-4">
-            <div>
-              <label className="text-sm font-medium text-slate-300" htmlFor="branch">
-                Şube
-              </label>
+            <label className="block text-sm font-semibold text-slate-200">
+              Şube
               <select
-                id="branch"
                 value={selectedBranchId}
                 onChange={(event) => setSelectedBranchId(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
@@ -345,59 +395,89 @@ export default function DashboardPage() {
                   ))
                 )}
               </select>
-            </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-medium text-slate-300" htmlFor="code">
-                Sipariş Kodu
-              </label>
+            <label className="block text-sm font-semibold text-slate-200">
+              Sipariş Kodu
               <input
-                id="code"
                 value={orderCode}
                 onChange={(event) => setOrderCode(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                 placeholder="Otomatik oluşturulur"
                 required
               />
-            </div>
+            </label>
 
-            <div>
-              <label className="text-sm font-medium text-slate-300" htmlFor="total">
-                Toplam Tutar
-              </label>
+            <label className="block text-sm font-semibold text-slate-200">
+              Toplam Tutar
               <input
-                id="total"
-                type="number"
-                min="0"
-                step="0.01"
                 value={orderTotal}
                 onChange={(event) => setOrderTotal(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
                 placeholder="180"
                 required
               />
-            </div>
+            </label>
 
-            <div className="flex items-end">
-              <button
-                type="submit"
-                disabled={isCreatingOrder || branches.length === 0}
-                className="w-full rounded-2xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCreatingOrder ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isCreatingOrder}
+              className="mt-7 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCreatingOrder ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
+            </button>
           </form>
-        </div>
+        </section>
 
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-2xl font-bold">Son Siparişler</h2>
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Son Siparişler</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Aktif filtre: {selectedFilterLabel}
+              </p>
+            </div>
 
-          {orders.length === 0 ? (
-            <p className="mt-4 text-slate-400">Henüz sipariş yok.</p>
-          ) : (
-            <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
-              <table className="w-full text-left text-sm">
+            <div className="flex flex-wrap gap-2">
+              {ORDER_FILTER_OPTIONS.map((filter) => {
+                const isActive = orderFilter === filter.value;
+                const count =
+                  filter.value === 'ALL'
+                    ? orders.length
+                    : orderCountsByStatus[filter.value] || 0;
+
+                return (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() => setOrderFilter(filter.value)}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-bold transition ${
+                      isActive
+                        ? 'border-emerald-400 bg-emerald-500 text-slate-950'
+                        : 'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
+                    }`}
+                  >
+                    {filter.label}
+                    <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-xs">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 overflow-x-auto">
+            {orders.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+                Henüz sipariş yok.
+              </div>
+            ) : filteredOrders.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+                Bu filtrede sipariş yok.
+              </div>
+            ) : (
+              <table className="w-full min-w-[900px] overflow-hidden rounded-2xl text-left text-sm">
                 <thead className="bg-slate-900 text-slate-300">
                   <tr>
                     <th className="px-4 py-3">Kod</th>
@@ -407,34 +487,29 @@ export default function DashboardPage() {
                     <th className="px-4 py-3">Durum Güncelle</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {orders.map((order) => {
-                    const statusLabel =
-                      ORDER_STATUS_LABELS[order.status] || order.status;
+
+                <tbody className="divide-y divide-white/10">
+                  {filteredOrders.map((order) => {
+                    const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
 
                     return (
-                      <tr key={order.id} className="border-t border-white/10 align-top">
-                        <td className="px-4 py-3 font-semibold">{order.code}</td>
-                        <td className="px-4 py-3 text-slate-300">
-                          {order.branch?.name || '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                      <tr key={order.id} className="bg-slate-950/40">
+                        <td className="px-4 py-4 font-bold">{order.code}</td>
+                        <td className="px-4 py-4">{order.branch?.name || '-'}</td>
+                        <td className="px-4 py-4">
+                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300">
                             {statusLabel}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-300">{order.total} TL</td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">{order.total} TL</td>
+                        <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-2">
                             {ORDER_STATUS_OPTIONS.map((status) => (
                               <button
                                 key={status.value}
                                 type="button"
-                                disabled={
-                                  updatingOrderId === order.id ||
-                                  order.status === status.value
-                                }
                                 onClick={() => updateOrderStatus(order.id, status.value)}
+                                disabled={updatingOrderId === order.id || order.status === status.value}
                                 className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 {status.label}
@@ -447,10 +522,10 @@ export default function DashboardPage() {
                   })}
                 </tbody>
               </table>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
