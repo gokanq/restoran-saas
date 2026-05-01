@@ -247,6 +247,24 @@ export default function DashboardPage() {
     currency: 'TRY',
   }).format(operationalSummary.todayRevenue);
 
+  const isDeliveryOrder = orderType === 'DELIVERY';
+  const isTableOrder = orderType === 'TABLE';
+  const isTakeawayOrder = orderType === 'TAKEAWAY';
+
+  const orderTypeDescription = isDeliveryOrder
+    ? 'Paket siparişlerde adres bilgisi alınır.'
+    : isTableOrder
+      ? 'Masa siparişinde adres alanı gizlenir. Masa numarası özelliğine hazır yapı.'
+      : 'Gel-al siparişinde adres gerekmez, müşteri adı ve telefon yeterlidir.';
+
+  const customerNamePlaceholder = isTableOrder ? 'Masa müşterisi' : 'Ahmet Yılmaz';
+
+  const orderNotePlaceholder = isTableOrder
+    ? 'Masa notu, servis tercihi vb.'
+    : isTakeawayOrder
+      ? 'Gel-al saati, ödeme notu vb.'
+      : 'Zil çalışmıyor, acısız olsun, kapıya bırak vb.';
+
   async function loadOrders(token: string) {
     const ordersResponse = await fetch('/api/orders', {
       headers: {
@@ -345,6 +363,11 @@ export default function DashboardPage() {
       return;
     }
 
+    if (orderType === 'DELIVERY' && !customerAddress.trim()) {
+      setError('Paket siparişlerde adres zorunludur');
+      return;
+    }
+
     const numericOrderTotal = getOrderNumericTotal(orderTotal);
 
     if (!Number.isFinite(numericOrderTotal) || numericOrderTotal <= 0) {
@@ -368,7 +391,7 @@ export default function DashboardPage() {
           total: numericOrderTotal,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
-          customerAddress: customerAddress.trim(),
+          customerAddress: orderType === 'DELIVERY' ? customerAddress.trim() : '',
           note: orderNote.trim(),
         }),
       });
@@ -573,7 +596,15 @@ export default function DashboardPage() {
               Sipariş Tipi
               <select
                 value={orderType}
-                onChange={(event) => setOrderType(event.target.value as OrderType)}
+                onChange={(event) => {
+                  const nextOrderType = event.target.value as OrderType;
+
+                  setOrderType(nextOrderType);
+
+                  if (nextOrderType !== 'DELIVERY') {
+                    setCustomerAddress('');
+                  }
+                }}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
               >
                 {ORDER_TYPE_OPTIONS.map((type) => (
@@ -582,6 +613,9 @@ export default function DashboardPage() {
                   </option>
                 ))}
               </select>
+              <span className="mt-2 block text-xs font-medium text-slate-400">
+                {orderTypeDescription}
+              </span>
             </label>
 
             <label className="block text-sm font-semibold text-slate-200">
@@ -612,7 +646,7 @@ export default function DashboardPage() {
                 value={customerName}
                 onChange={(event) => setCustomerName(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="Ahmet Yılmaz"
+                placeholder={customerNamePlaceholder}
               />
             </label>
 
@@ -626,15 +660,28 @@ export default function DashboardPage() {
               />
             </label>
 
-            <label className="block text-sm font-semibold text-slate-200 xl:col-span-2">
-              Adres
-              <input
-                value={customerAddress}
-                onChange={(event) => setCustomerAddress(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="Mahalle, sokak, bina, daire"
-              />
-            </label>
+            {isDeliveryOrder ? (
+              <label className="block text-sm font-semibold text-slate-200 xl:col-span-2">
+                Adres
+                <input
+                  value={customerAddress}
+                  onChange={(event) => setCustomerAddress(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  placeholder="Mahalle, sokak, bina, daire"
+                />
+              </label>
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300 xl:col-span-2">
+                <p className="font-bold text-slate-100">
+                  {isTableOrder ? 'Masa siparişi' : 'Gel-al siparişi'}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  {isTableOrder
+                    ? 'Bu sipariş türünde adres alınmaz. Bir sonraki geliştirmede masa numarası alanını ekleyeceğiz.'
+                    : 'Bu sipariş türünde adres alınmaz. Müşteri adı ve telefon bilgisiyle takip edilebilir.'}
+                </p>
+              </div>
+            )}
 
             <label className="block text-sm font-semibold text-slate-200 md:col-span-2 xl:col-span-3">
               Not
@@ -642,7 +689,7 @@ export default function DashboardPage() {
                 value={orderNote}
                 onChange={(event) => setOrderNote(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="Zil çalışmıyor, acısız olsun, kapıya bırak vb."
+                placeholder={orderNotePlaceholder}
               />
             </label>
 
