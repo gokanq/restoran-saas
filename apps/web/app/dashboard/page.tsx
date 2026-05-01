@@ -108,6 +108,29 @@ function generateNextOrderCode(orders: Order[]) {
   return `ORD-${String(maxNumber + 1).padStart(4, '0')}`;
 }
 
+function getOrderNumericTotal(total: string | number) {
+  const normalizedTotal = String(total).replace(',', '.');
+  const numericTotal = Number(normalizedTotal);
+
+  return Number.isFinite(numericTotal) ? numericTotal : 0;
+}
+
+function isTodayOrder(createdAt: string) {
+  const orderDate = new Date(createdAt);
+
+  if (Number.isNaN(orderDate.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+
+  return (
+    orderDate.getFullYear() === today.getFullYear() &&
+    orderDate.getMonth() === today.getMonth() &&
+    orderDate.getDate() === today.getDate()
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -139,8 +162,25 @@ export default function DashboardPage() {
     }, {});
   }, [orders]);
 
+  const operationalSummary = useMemo(() => {
+    const todayOrders = orders.filter((order) => isTodayOrder(order.createdAt));
+
+    return {
+      pending: orderCountsByStatus.PENDING || 0,
+      preparing: orderCountsByStatus.PREPARING || 0,
+      onDelivery: orderCountsByStatus.ON_DELIVERY || 0,
+      todayOrderCount: todayOrders.length,
+      todayRevenue: todayOrders.reduce((total, order) => total + getOrderNumericTotal(order.total), 0),
+    };
+  }, [orders, orderCountsByStatus]);
+
   const selectedFilterLabel =
     ORDER_FILTER_OPTIONS.find((filter) => filter.value === orderFilter)?.label || 'Tümü';
+
+  const formattedTodayRevenue = new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+  }).format(operationalSummary.todayRevenue);
 
   async function loadOrders(token: string) {
     const ordersResponse = await fetch('/api/orders', {
@@ -282,7 +322,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function updateOrderStatus(orderId: string, status: string) {
+  async function updateOrderStatus(orderId: string, status: OrderStatus) {
     const token = localStorage.getItem('accessToken');
 
     if (!token) {
@@ -371,25 +411,53 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
-            <p className="text-sm text-slate-400">API Oturumu</p>
-            <p className="mt-2 text-2xl font-bold text-emerald-400">Aktif</p>
-          </div>
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <button
+            type="button"
+            onClick={() => setOrderFilter('PENDING')}
+            className="rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-yellow-500/20"
+          >
+            <p className="text-sm font-semibold text-yellow-200">Bekleyen</p>
+            <p className="mt-2 text-3xl font-black text-yellow-100">{operationalSummary.pending}</p>
+            <p className="mt-1 text-xs text-yellow-100/70">Aksiyon bekleyen sipariş</p>
+          </button>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
-            <p className="text-sm text-slate-400">Rol</p>
-            <p className="mt-2 text-2xl font-bold">{roleLabel}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setOrderFilter('PREPARING')}
+            className="rounded-3xl border border-orange-400/20 bg-orange-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-orange-500/20"
+          >
+            <p className="text-sm font-semibold text-orange-200">Hazırlanıyor</p>
+            <p className="mt-2 text-3xl font-black text-orange-100">{operationalSummary.preparing}</p>
+            <p className="mt-1 text-xs text-orange-100/70">Mutfakta olan sipariş</p>
+          </button>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
-            <p className="text-sm text-slate-400">Toplam Sipariş</p>
-            <p className="mt-2 text-2xl font-bold">{orders.length}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setOrderFilter('ON_DELIVERY')}
+            className="rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-cyan-500/20"
+          >
+            <p className="text-sm font-semibold text-cyan-200">Yolda</p>
+            <p className="mt-2 text-3xl font-black text-cyan-100">{operationalSummary.onDelivery}</p>
+            <p className="mt-1 text-xs text-cyan-100/70">Kurye teslimatında</p>
+          </button>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
-            <p className="text-sm text-slate-400">Filtrelenen</p>
-            <p className="mt-2 text-2xl font-bold">{filteredOrders.length}</p>
+          <button
+            type="button"
+            onClick={() => setOrderFilter('ALL')}
+            className="rounded-3xl border border-emerald-400/20 bg-emerald-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-emerald-500/20"
+          >
+            <p className="text-sm font-semibold text-emerald-200">Bugünkü Sipariş</p>
+            <p className="mt-2 text-3xl font-black text-emerald-100">
+              {operationalSummary.todayOrderCount}
+            </p>
+            <p className="mt-1 text-xs text-emerald-100/70">Bugün oluşturulan sipariş</p>
+          </button>
+
+          <div className="rounded-3xl border border-purple-400/20 bg-purple-500/10 p-5 shadow-xl shadow-black/10">
+            <p className="text-sm font-semibold text-purple-200">Bugünkü Ciro</p>
+            <p className="mt-2 text-3xl font-black text-purple-100">{formattedTodayRevenue}</p>
+            <p className="mt-1 text-xs text-purple-100/70">Bugünkü sipariş toplamı</p>
           </div>
         </section>
 
@@ -453,7 +521,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-xl font-bold">Son Siparişler</h2>
               <p className="mt-1 text-sm text-slate-400">
-                Aktif filtre: {selectedFilterLabel}
+                Aktif filtre: {selectedFilterLabel} • Gösterilen: {filteredOrders.length}
               </p>
             </div>
 
