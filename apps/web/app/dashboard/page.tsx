@@ -1073,7 +1073,15 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold">Menü Yönetimi</h2>
+            <a
+              href="/dashboard/options"
+              className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20"
+            >
+              Opsiyon Yönetimi
+            </a>
+          </div>
             <p className="text-sm text-slate-400">
               QR menü için kategori ve ürünleri buradan hazırlıyoruz.
             </p>
