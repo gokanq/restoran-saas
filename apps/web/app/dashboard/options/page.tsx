@@ -12,6 +12,11 @@ type MenuItemOption = {
 
 type MenuItemOptionGroup = {
   id: string;
+  menuItemId?: string;
+  menuItem?: {
+    id: string;
+    name: string;
+  } | null;
   name: string;
   isRequired?: boolean;
   minSelect?: number;
@@ -48,6 +53,23 @@ function formatMoney(value: string | number) {
     style: 'currency',
     currency: 'TRY',
   }).format(toNumber(value));
+}
+
+function uniqueOptionGroups(groups: MenuItemOptionGroup[]) {
+  const seen = new Set<string>();
+
+  return groups.filter((group) => {
+    const key =
+      group.id ||
+      `${group.menuItem?.id || group.menuItemId || ''}:${group.name.trim().toLocaleLowerCase('tr-TR')}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 async function readJson(response: Response) {
@@ -149,8 +171,12 @@ export default function DashboardOptionsPage() {
     setError('');
 
     try {
-      const data = await apiRequest(`/api/menu/items/${itemId}/option-groups`);
-      const safeGroups = Array.isArray(data) ? data : [];
+      const data = await apiRequest('/api/menu/option-groups');
+      const allGroups = Array.isArray(data) ? data : [];
+
+      const safeGroups = uniqueOptionGroups(
+        allGroups.filter((group) => group.menuItem?.id === itemId || group.menuItemId === itemId),
+      );
 
       setOptionGroups(safeGroups);
       setSelectedGroupId((currentGroupId) => {
@@ -161,7 +187,7 @@ export default function DashboardOptionsPage() {
         return safeGroups[0]?.id || '';
       });
     } catch (requestError) {
-      const fallbackGroups = selectedItem?.optionGroups || [];
+      const fallbackGroups = uniqueOptionGroups(selectedItem?.optionGroups || []);
 
       setOptionGroups(fallbackGroups);
       setSelectedGroupId(fallbackGroups[0]?.id || '');
@@ -202,9 +228,11 @@ export default function DashboardOptionsPage() {
     setMessage('');
 
     try {
-      const createdGroup = await apiRequest(`/api/menu/items/${selectedItemId}/option-groups`, {
+      const createdGroup = await apiRequest('/api/menu/option-groups', {
         method: 'POST',
         body: JSON.stringify({
+          menuItemId: selectedItemId,
+          branchId: selectedItem?.branch?.id || null,
           name: groupName.trim(),
           isRequired: groupRequired,
           minSelect: Number(groupMinSelect) || 0,
@@ -246,11 +274,12 @@ export default function DashboardOptionsPage() {
     setMessage('');
 
     try {
-      await apiRequest(`/api/menu/option-groups/${selectedGroupId}/options`, {
+      await apiRequest('/api/menu/options', {
         method: 'POST',
         body: JSON.stringify({
+          optionGroupId: selectedGroupId,
           name: optionName.trim(),
-          priceDelta: toNumber(optionPriceDelta),
+          price: toNumber(optionPriceDelta),
           sortOrder: 0,
           isActive: true,
         }),
@@ -284,12 +313,6 @@ export default function DashboardOptionsPage() {
             <a
               href="/dashboard"
               className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold hover:bg-slate-800"
-            >
-              Dashboarda Dön
-            </a>
-            <a
-              href="/dashboard"
-              className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-100 hover:border-emerald-400/50"
             >
               Dashboarda Dön
             </a>
