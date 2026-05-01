@@ -23,6 +23,7 @@ export class PublicController {
         menuItemId: string;
         quantity: number;
         note?: string | null;
+        optionIds?: string[];
       }[];
     },
   ) {

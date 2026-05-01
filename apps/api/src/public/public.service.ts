@@ -70,6 +70,36 @@ export class PublicService {
               },
             ],
           },
+          include: {
+            optionGroups: {
+              where: {
+                isActive: true,
+              },
+              include: {
+                options: {
+                  where: {
+                    isActive: true,
+                  },
+                  orderBy: [
+                    {
+                      sortOrder: 'asc',
+                    },
+                    {
+                      name: 'asc',
+                    },
+                  ],
+                },
+              },
+              orderBy: [
+                {
+                  sortOrder: 'asc',
+                },
+                {
+                  name: 'asc',
+                },
+              ],
+            },
+          },
           orderBy: {
             name: 'asc',
           },
@@ -111,6 +141,7 @@ export class PublicService {
       menuItemId: string;
       quantity: number;
       note?: string | null;
+      optionIds?: string[];
     }[];
   }) {
     if (!data.branchId) {
@@ -145,6 +176,9 @@ export class PublicService {
       menuItemId: item.menuItemId,
       quantity: normalizeQuantity(item.quantity),
       note: optionalText(item.note),
+      optionIds: Array.isArray(item.optionIds)
+        ? Array.from(new Set(item.optionIds.filter((optionId) => typeof optionId === 'string' && optionId.trim().length > 0)))
+        : [],
     }));
 
     if (normalizedItems.some((item) => !item.menuItemId || !item.quantity)) {
@@ -169,6 +203,20 @@ export class PublicService {
           },
         ],
       },
+      include: {
+        optionGroups: {
+          where: {
+            isActive: true,
+          },
+          include: {
+            options: {
+              where: {
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (menuItems.length !== menuItemIds.length) {
@@ -184,16 +232,47 @@ export class PublicService {
         throw new BadRequestException('Ürün bilgisi geçersiz');
       }
 
-      const unitPrice = Number(menuItem.price);
+      const optionMap = new Map(
+        menuItem.optionGroups.flatMap((group) =>
+          group.options.map((option) => [
+            option.id,
+            {
+              id: option.id,
+              groupName: group.name,
+              optionName: option.name,
+              priceDelta: Number(option.priceDelta),
+            },
+          ]),
+        ),
+      );
+
+      const selectedOptions = item.optionIds.map((optionId) => optionMap.get(optionId));
+
+      if (selectedOptions.some((option) => !option)) {
+        throw new BadRequestException('Seçilen opsiyonlardan bazıları geçersiz');
+      }
+
+      const safeSelectedOptions = selectedOptions.filter((option): option is NonNullable<typeof option> => Boolean(option));
+      const optionTotal = safeSelectedOptions.reduce((sum, option) => sum + option.priceDelta, 0);
+      const unitPrice = Number(menuItem.price) + optionTotal;
       const totalPrice = unitPrice * item.quantity;
+      const optionText = safeSelectedOptions.length > 0 ? ` (${safeSelectedOptions.map((option) => option.optionName).join(', ')})` : '';
 
       return {
         menuItemId: menuItem.id,
-        name: menuItem.name,
+        name: `${menuItem.name}${optionText}`,
         quantity: item.quantity,
         unitPrice,
         totalPrice,
         note: item.note,
+        options: {
+          create: safeSelectedOptions.map((option) => ({
+            optionId: option.id,
+            groupName: option.groupName,
+            optionName: option.optionName,
+            priceDelta: option.priceDelta,
+          })),
+        },
       };
     });
 

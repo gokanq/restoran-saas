@@ -3,11 +3,27 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+type MenuItemOption = {
+  id: string;
+  name: string;
+  priceDelta: string | number;
+};
+
+type MenuItemOptionGroup = {
+  id: string;
+  name: string;
+  isRequired: boolean;
+  minSelect: number;
+  maxSelect: number;
+  options: MenuItemOption[];
+};
+
 type MenuItem = {
   id: string;
   name: string;
   description?: string | null;
   price: string | number;
+  optionGroups?: MenuItemOptionGroup[];
 };
 
 type MenuCategory = {
@@ -32,10 +48,14 @@ type PublicMenuResponse = {
 };
 
 type CartItem = {
+  key: string;
   menuItemId: string;
   name: string;
+  basePrice: number;
   price: number;
   quantity: number;
+  optionIds: string[];
+  optionNames: string[];
 };
 
 function toNumber(value: string | number) {
@@ -68,6 +88,8 @@ function QrPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successCode, setSuccessCode] = useState('');
+  const [selectedOptionsByItem, setSelectedOptionsByItem] = useState<Record<string, string[]>>({});
+
 
   const cartList = useMemo(() => Object.values(cartItems), [cartItems]);
 
@@ -116,19 +138,81 @@ function QrPageContent() {
     loadMenu();
   }, [branchId, tableNumber]);
 
+  function getSelectedOptions(item: MenuItem) {
+    const selectedOptionIds = selectedOptionsByItem[item.id] || [];
+    const allOptions = (item.optionGroups || []).flatMap((group) => group.options || []);
+    return allOptions.filter((option) => selectedOptionIds.includes(option.id));
+  }
+
+  function getCartKey(item: MenuItem) {
+    const selectedOptionIds = [...(selectedOptionsByItem[item.id] || [])].sort();
+    return `${item.id}:${selectedOptionIds.join(',')}`;
+  }
+
+  function toggleOption(item: MenuItem, group: MenuItemOptionGroup, option: MenuItemOption) {
+    setSelectedOptionsByItem((current) => {
+      const selected = current[item.id] || [];
+      const groupOptionIds = new Set((group.options || []).map((groupOption) => groupOption.id));
+      const groupSelected = selected.filter((optionId) => groupOptionIds.has(optionId));
+      const otherSelected = selected.filter((optionId) => !groupOptionIds.has(optionId));
+
+      if (group.maxSelect <= 1) {
+        if (groupSelected.includes(option.id)) {
+          return {
+            ...current,
+            [item.id]: otherSelected,
+          };
+        }
+
+        return {
+          ...current,
+          [item.id]: [...otherSelected, option.id],
+        };
+      }
+
+      if (groupSelected.includes(option.id)) {
+        return {
+          ...current,
+          [item.id]: [...otherSelected, ...groupSelected.filter((optionId) => optionId !== option.id)],
+        };
+      }
+
+      if (groupSelected.length >= group.maxSelect) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [item.id]: [...otherSelected, ...groupSelected, option.id],
+      };
+    });
+
+    setSuccessCode('');
+  }
+
   function increaseItem(item: MenuItem) {
-    const price = toNumber(item.price);
+    const selectedOptions = getSelectedOptions(item);
+    const optionIds = selectedOptions.map((option) => option.id);
+    const optionNames = selectedOptions.map((option) => option.name);
+    const basePrice = toNumber(item.price);
+    const optionTotal = selectedOptions.reduce((sum, option) => sum + toNumber(option.priceDelta), 0);
+    const price = basePrice + optionTotal;
+    const key = getCartKey(item);
 
     setCartItems((currentItems) => {
-      const currentItem = currentItems[item.id];
+      const currentItem = currentItems[key];
 
       return {
         ...currentItems,
-        [item.id]: {
+        [key]: {
+          key,
           menuItemId: item.id,
           name: item.name,
+          basePrice,
           price,
           quantity: currentItem ? currentItem.quantity + 1 : 1,
+          optionIds,
+          optionNames,
         },
       };
     });
@@ -138,7 +222,8 @@ function QrPageContent() {
 
   function decreaseItem(item: MenuItem) {
     setCartItems((currentItems) => {
-      const currentItem = currentItems[item.id];
+      const key = getCartKey(item);
+      const currentItem = currentItems[key];
 
       if (!currentItem) {
         return currentItems;
@@ -146,13 +231,13 @@ function QrPageContent() {
 
       if (currentItem.quantity <= 1) {
         const nextItems = { ...currentItems };
-        delete nextItems[item.id];
+        delete nextItems[key];
         return nextItems;
       }
 
       return {
         ...currentItems,
-        [item.id]: {
+        [key]: {
           ...currentItem,
           quantity: currentItem.quantity - 1,
         },
@@ -198,6 +283,7 @@ function QrPageContent() {
           items: cartList.map((item) => ({
             menuItemId: item.menuItemId,
             quantity: item.quantity,
+            optionIds: item.optionIds,
           })),
         }),
       });
@@ -291,7 +377,10 @@ function QrPageContent() {
                 ) : (
                   <div className="mt-4 space-y-3">
                     {category.items.map((item) => {
-                      const quantity = cartItems[item.id]?.quantity || 0;
+                      const cartKey = getCartKey(item);
+                      const quantity = cartItems[cartKey]?.quantity || 0;
+                      const selectedOptions = getSelectedOptions(item);
+                      const optionTotal = selectedOptions.reduce((sum, option) => sum + toNumber(option.priceDelta), 0);
 
                       return (
                         <div
@@ -307,8 +396,14 @@ function QrPageContent() {
                                 </p>
                               ) : null}
                               <p className="mt-2 text-base font-black text-emerald-300">
-                                {formatMoney(item.price)}
+                                {formatMoney(toNumber(item.price) + optionTotal)}
                               </p>
+
+                              {selectedOptions.length > 0 ? (
+                                <p className="mt-1 text-xs font-semibold text-emerald-200">
+                                  Seçili: {selectedOptions.map((option) => option.name).join(', ')}
+                                </p>
+                              ) : null}
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -333,6 +428,54 @@ function QrPageContent() {
                               </button>
                             </div>
                           </div>
+
+                          {(item.optionGroups || []).length > 0 ? (
+                            <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+                              {(item.optionGroups || []).map((group) => {
+                                const selectedIds = selectedOptionsByItem[item.id] || [];
+                                const groupSelectedCount = (group.options || []).filter((option) => selectedIds.includes(option.id)).length;
+
+                                return (
+                                  <div key={group.id}>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-sm font-black text-slate-200">{group.name}</p>
+                                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-bold text-slate-400">
+                                        {group.maxSelect <= 1 ? 'Tek seçim' : `En fazla ${group.maxSelect} seçim`}
+                                      </span>
+                                      {group.isRequired ? (
+                                        <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-200">
+                                          Zorunlu
+                                        </span>
+                                      ) : null}
+                                    </div>
+
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      {(group.options || []).map((option) => {
+                                        const isSelected = selectedIds.includes(option.id);
+                                        const isDisabled = !isSelected && group.maxSelect > 1 && groupSelectedCount >= group.maxSelect;
+
+                                        return (
+                                          <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => toggleOption(item, group, option)}
+                                            disabled={isDisabled}
+                                            className={`rounded-full border px-3 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                              isSelected
+                                                ? 'border-emerald-400 bg-emerald-500 text-slate-950'
+                                                : 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10'
+                                            }`}
+                                          >
+                                            {option.name} {toNumber(option.priceDelta) > 0 ? `+${formatMoney(option.priceDelta)}` : ''}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}
@@ -356,12 +499,17 @@ function QrPageContent() {
               <div className="mt-5 space-y-3">
                 {cartList.map((item) => (
                   <div
-                    key={item.menuItemId}
+                    key={item.key}
                     className="rounded-2xl border border-white/10 bg-slate-900 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-bold">{item.name}</p>
+                        {item.optionNames.length > 0 ? (
+                          <p className="mt-1 text-xs text-emerald-200">
+                            {item.optionNames.join(', ')}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-xs text-slate-400">
                           {item.quantity} x {formatMoney(item.price)}
                         </p>
