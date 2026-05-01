@@ -163,6 +163,29 @@ function formatOrderDate(createdAt: string) {
   }).format(orderDate);
 }
 
+function normalizeSearchValue(value: string | number | null | undefined) {
+  return String(value || '').toLocaleLowerCase('tr-TR').trim();
+}
+
+function orderMatchesSearch(order: Order, searchValue: string) {
+  if (!searchValue) {
+    return true;
+  }
+
+  const searchableValues = [
+    order.code,
+    order.customerName,
+    order.customerPhone,
+    order.customerAddress,
+    order.note,
+    order.branch?.name,
+    ORDER_TYPE_LABELS[order.type || ''],
+    ORDER_STATUS_LABELS[order.status],
+  ];
+
+  return searchableValues.some((value) => normalizeSearchValue(value).includes(searchValue));
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -178,6 +201,7 @@ export default function DashboardPage() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [orderNote, setOrderNote] = useState('');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('ALL');
+  const [orderSearch, setOrderSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -186,12 +210,15 @@ export default function DashboardPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const filteredOrders = useMemo(() => {
-    if (orderFilter === 'ALL') {
-      return orders;
-    }
+    const normalizedSearch = normalizeSearchValue(orderSearch);
 
-    return orders.filter((order) => order.status === orderFilter);
-  }, [orders, orderFilter]);
+    return orders.filter((order) => {
+      const statusMatches = orderFilter === 'ALL' || order.status === orderFilter;
+      const searchMatches = orderMatchesSearch(order, normalizedSearch);
+
+      return statusMatches && searchMatches;
+    });
+  }, [orders, orderFilter, orderSearch]);
 
   const orderCountsByStatus = useMemo(() => {
     return orders.reduce<Record<string, number>>((counts, order) => {
@@ -667,6 +694,30 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4 md:flex-row md:items-center md:justify-between">
+            <div className="w-full">
+              <label className="text-sm font-semibold text-slate-200">
+                Sipariş Ara
+                <input
+                  value={orderSearch}
+                  onChange={(event) => setOrderSearch(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
+                  placeholder="Kod, müşteri, telefon, adres, not, şube..."
+                />
+              </label>
+            </div>
+
+            {orderSearch ? (
+              <button
+                type="button"
+                onClick={() => setOrderSearch('')}
+                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/10 md:mt-6"
+              >
+                Temizle
+              </button>
+            ) : null}
+          </div>
+
           <div className="mt-6 overflow-x-auto">
             {orders.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
@@ -674,7 +725,7 @@ export default function DashboardPage() {
               </div>
             ) : filteredOrders.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
-                Bu filtrede sipariş yok.
+                Bu filtre veya arama sonucunda sipariş bulunamadı.
               </div>
             ) : (
               <table className="w-full min-w-[1200px] overflow-hidden rounded-2xl text-left text-sm">
