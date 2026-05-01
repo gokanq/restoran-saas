@@ -252,6 +252,30 @@ export default function DashboardPage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [qrBranchId, setQrBranchId] = useState('');
+  const [qrTableNumber, setQrTableNumber] = useState('5');
+  const [qrLinkCopied, setQrLinkCopied] = useState(false);
+  const [publicBaseUrl, setPublicBaseUrl] = useState('');
+
+  useEffect(() => {
+    setPublicBaseUrl(window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    if (!qrBranchId && branches.length > 0) {
+      setQrBranchId(branches[0].id);
+    }
+  }, [branches, qrBranchId]);
+
+  const qrLink = useMemo(() => {
+    const tableNumber = qrTableNumber.trim();
+
+    if (!publicBaseUrl || !qrBranchId || !tableNumber) {
+      return '';
+    }
+
+    return `${publicBaseUrl}/qr?branchId=${qrBranchId}&table=${encodeURIComponent(tableNumber)}`;
+  }, [publicBaseUrl, qrBranchId, qrTableNumber]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -959,6 +983,96 @@ export default function DashboardPage() {
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
           <div className="flex flex-col gap-2">
+            <div className="mb-8 rounded-3xl border border-emerald-400/20 bg-emerald-500/10 p-5">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+                    QR Link Oluşturucu
+                  </p>
+                  <h2 className="mt-2 text-xl font-black text-white">Masa QR Linki</h2>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Masa numarası gir, müşterinin açacağı QR sipariş linkini oluştur.
+                  </p>
+                </div>
+
+                {qrLink ? (
+                  <a
+                    href={qrLink}
+                    target="_blank"
+                    className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-center text-sm font-black text-emerald-200 transition hover:bg-emerald-500/20"
+                  >
+                    Linki Aç
+                  </a>
+                ) : null}
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-[1fr_180px]">
+                <label className="block text-sm font-semibold text-slate-200">
+                  Şube
+                  <select
+                    value={qrBranchId}
+                    onChange={(event) => {
+                      setQrBranchId(event.target.value);
+                      setQrLinkCopied(false);
+                    }}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  >
+                    {branches.length === 0 ? (
+                      <option value="">Şube yok</option>
+                    ) : (
+                      branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-200">
+                  Masa No
+                  <input
+                    value={qrTableNumber}
+                    onChange={(event) => {
+                      setQrTableNumber(event.target.value);
+                      setQrLinkCopied(false);
+                    }}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
+                    placeholder="5"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px]">
+                <input
+                  readOnly
+                  value={qrLink || 'Şube ve masa seçince QR linki oluşur'}
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-emerald-100 outline-none"
+                />
+
+                <button
+                  type="button"
+                  disabled={!qrLink}
+                  onClick={async () => {
+                    if (!qrLink) {
+                      return;
+                    }
+
+                    try {
+                      await navigator.clipboard.writeText(qrLink);
+                      setQrLinkCopied(true);
+                      window.setTimeout(() => setQrLinkCopied(false), 1800);
+                    } catch {
+                      window.prompt('QR linkini kopyalayın:', qrLink);
+                    }
+                  }}
+                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {qrLinkCopied ? 'Kopyalandı' : 'Linki Kopyala'}
+                </button>
+              </div>
+            </div>
+
             <h2 className="text-xl font-bold">Menü Yönetimi</h2>
             <p className="text-sm text-slate-400">
               QR menü için kategori ve ürünleri buradan hazırlıyoruz.
