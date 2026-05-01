@@ -1,3 +1,13 @@
+type Branch = {
+  id: string;
+  restaurantId: string;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type Restaurant = {
   id: string;
   name: string;
@@ -19,8 +29,23 @@ async function getRestaurants(): Promise<Restaurant[]> {
   return res.json();
 }
 
+async function getBranches(): Promise<Branch[]> {
+  const res = await fetch('http://localhost:4000/branches', {
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    return [];
+  }
+
+  return res.json();
+}
+
 export default async function Home() {
-  const restaurants = await getRestaurants();
+  const [restaurants, branches] = await Promise.all([
+    getRestaurants(),
+    getBranches(),
+  ]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -50,38 +75,73 @@ export default async function Home() {
             </div>
 
             <div className="rounded-2xl bg-slate-900 p-5">
-              <p className="text-sm text-slate-400">Veritabanı</p>
-              <p className="mt-2 text-2xl font-bold text-sky-400">PostgreSQL</p>
+              <p className="text-sm text-slate-400">Şube Sayısı</p>
+              <p className="mt-2 text-2xl font-bold text-sky-400">{branches.length}</p>
             </div>
           </div>
         </div>
 
         <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-8">
-          <h2 className="text-2xl font-bold">Restoranlar</h2>
+          <h2 className="text-2xl font-bold">Restoranlar ve Şubeler</h2>
 
           {restaurants.length === 0 ? (
             <p className="mt-4 text-slate-300">Henüz restoran kaydı yok.</p>
           ) : (
             <div className="mt-6 grid gap-4">
-              {restaurants.map((restaurant) => (
-                <div
-                  key={restaurant.id}
-                  className="rounded-2xl border border-white/10 bg-slate-900 p-5"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-xl font-semibold">{restaurant.name}</h3>
-                      <p className="mt-1 text-sm text-slate-400">
-                        Slug: {restaurant.slug}
-                      </p>
+              {restaurants.map((restaurant) => {
+                const restaurantBranches = branches.filter(
+                  (branch) => branch.restaurantId === restaurant.id,
+                );
+
+                return (
+                  <div
+                    key={restaurant.id}
+                    className="rounded-2xl border border-white/10 bg-slate-900 p-5"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-xl font-semibold">{restaurant.name}</h3>
+                        <p className="mt-1 text-sm text-slate-400">
+                          Slug: {restaurant.slug}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-400">
+                        Aktif
+                      </span>
                     </div>
 
-                    <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-400">
-                      Aktif
-                    </span>
+                    <div className="mt-5 border-t border-white/10 pt-5">
+                      <p className="text-sm font-semibold text-slate-300">
+                        Şubeler
+                      </p>
+
+                      {restaurantBranches.length === 0 ? (
+                        <p className="mt-3 text-sm text-slate-500">
+                          Bu restorana bağlı şube yok.
+                        </p>
+                      ) : (
+                        <div className="mt-3 grid gap-3">
+                          {restaurantBranches.map((branch) => (
+                            <div
+                              key={branch.id}
+                              className="rounded-xl bg-slate-950 p-4"
+                            >
+                              <p className="font-semibold">{branch.name}</p>
+                              <p className="mt-1 text-sm text-slate-400">
+                                {branch.address || 'Adres yok'}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-400">
+                                {branch.phone || 'Telefon yok'}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
