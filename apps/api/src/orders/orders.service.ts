@@ -58,4 +58,40 @@ export class OrdersService {
       },
     });
   }
+
+  async updateStatus(data: {
+    orderId: string;
+    restaurantId: string;
+    status: OrderStatus;
+  }) {
+    const order = await this.prisma.order.findUnique({
+      where: {
+        id: data.orderId,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Sipariş bulunamadı');
+    }
+
+    if (order.restaurantId !== data.restaurantId) {
+      throw new ForbiddenException('Bu siparişi güncelleme yetkiniz yok');
+    }
+
+    return this.prisma.order.update({
+      where: {
+        id: data.orderId,
+      },
+      data: {
+        status: data.status,
+      },
+      include: {
+        branch: true,
+      },
+    });
+  }
 }

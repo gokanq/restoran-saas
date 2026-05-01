@@ -3,6 +3,8 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -60,6 +62,24 @@ export class OrdersController {
       code: body.code,
       status: body.status,
       total: body.total,
+    });
+  }
+
+  @Patch(':id/status')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.COURIER)
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: OrderStatus },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.ordersService.updateStatus({
+      orderId: id,
+      restaurantId: req.user.restaurantId,
+      status: body.status,
     });
   }
 }
