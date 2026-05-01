@@ -100,4 +100,75 @@ export class MenuController {
       isActive: body.isActive,
     });
   }
+
+  @Get('option-groups')
+  findOptionGroups(@Req() req: AuthenticatedRequest) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.findOptionGroups(req.user.restaurantId);
+  }
+
+  @Post('option-groups')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  createOptionGroup(
+    @Body()
+    body: {
+      branchId?: string | null;
+      menuItemId: string;
+      name: string;
+      isRequired?: boolean;
+      minSelect?: number;
+      maxSelect?: number;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.createOptionGroup({
+      restaurantId: req.user.restaurantId,
+      branchId: body.branchId,
+      menuItemId: body.menuItemId,
+      name: body.name,
+      isRequired: body.isRequired,
+      minSelect: body.minSelect,
+      maxSelect: body.maxSelect,
+      sortOrder: body.sortOrder,
+      isActive: body.isActive,
+    });
+  }
+
+  @Post('options')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  createOption(
+    @Body()
+    body: {
+      branchId?: string | null;
+      optionGroupId: string;
+      name: string;
+      price?: string | number;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.createOption({
+      restaurantId: req.user.restaurantId,
+      branchId: body.branchId,
+      optionGroupId: body.optionGroupId,
+      name: body.name,
+      price: body.price,
+      sortOrder: body.sortOrder,
+      isActive: body.isActive,
+    });
+  }
 }
