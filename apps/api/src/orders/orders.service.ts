@@ -31,6 +31,11 @@ export class OrdersService {
       },
       include: {
         branch: true,
+        items: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -45,6 +50,11 @@ export class OrdersService {
       },
       include: {
         branch: true,
+        items: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
 
@@ -133,6 +143,11 @@ export class OrdersService {
       },
       include: {
         branch: true,
+        items: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
   }
@@ -177,6 +192,11 @@ export class OrdersService {
       },
       include: {
         branch: true,
+        items: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
   }

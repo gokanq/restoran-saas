@@ -53,6 +53,15 @@ type OrderStatus =
 
 type OrderType = 'TABLE' | 'DELIVERY' | 'TAKEAWAY';
 
+type OrderItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: string | number;
+  totalPrice: string | number;
+  note?: string | null;
+};
+
 type OrderFilter = 'ALL' | OrderStatus;
 
 type Order = {
@@ -66,6 +75,7 @@ type Order = {
   customerPhone?: string | null;
   customerAddress?: string | null;
   note?: string | null;
+  items?: OrderItem[];
   createdAt: string;
   branch?: {
     name: string;
@@ -1361,6 +1371,39 @@ export default function DashboardPage() {
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.total} TL</p>
               </div>
+
+              {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+                    Sipariş Ürünleri
+                  </p>
+
+                  <div className="mt-3 space-y-2">
+                    {selectedOrder.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4"
+                      >
+                        <div>
+                          <p className="font-bold text-white">{item.name}</p>
+                          {item.note ? (
+                            <p className="mt-1 text-xs text-amber-200">Not: {item.note}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-slate-300">
+                            {item.quantity} x {formatMoney(item.unitPrice)}
+                          </p>
+                          <p className="mt-1 text-base font-black text-emerald-300">
+                            {formatMoney(item.totalPrice)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
