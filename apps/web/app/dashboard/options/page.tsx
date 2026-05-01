@@ -288,10 +288,10 @@ export default function DashboardOptionsPage() {
               Dashboarda Dön
             </a>
             <a
-              href="/qr"
-              className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20"
+              href="/dashboard"
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-100 hover:border-emerald-400/50"
             >
-              QR Sayfasını Aç
+              Dashboarda Dön
             </a>
           </div>
         </header>
