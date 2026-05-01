@@ -1,6 +1,13 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+const ORDER_STATUSES = Object.values(OrderStatus);
 
 @Injectable()
 export class OrdersService {
@@ -27,6 +34,22 @@ export class OrdersService {
     status?: OrderStatus;
     total?: string | number;
   }) {
+    if (!data.branchId) {
+      throw new BadRequestException('branchId zorunludur');
+    }
+
+    if (!data.code) {
+      throw new BadRequestException('code zorunludur');
+    }
+
+    if (data.status && !ORDER_STATUSES.includes(data.status)) {
+      throw new BadRequestException('Geçersiz sipariş durumu');
+    }
+
+    if (data.total !== undefined && Number(data.total) < 0) {
+      throw new BadRequestException('total negatif olamaz');
+    }
+
     const branch = await this.prisma.branch.findUnique({
       where: {
         id: data.branchId,
@@ -64,6 +87,14 @@ export class OrdersService {
     restaurantId: string;
     status: OrderStatus;
   }) {
+    if (!data.status) {
+      throw new BadRequestException('status zorunludur');
+    }
+
+    if (!ORDER_STATUSES.includes(data.status)) {
+      throw new BadRequestException('Geçersiz sipariş durumu');
+    }
+
     const order = await this.prisma.order.findUnique({
       where: {
         id: data.orderId,
