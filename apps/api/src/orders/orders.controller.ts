@@ -57,6 +57,7 @@ export class OrdersController {
       branchId: string;
       code: string;
       type?: OrderType;
+      tableNumber?: string;
       status?: OrderStatus;
       total?: string | number;
       customerName?: string;
@@ -75,6 +76,7 @@ export class OrdersController {
       branchId: body.branchId,
       code: body.code,
       type: body.type,
+      tableNumber: body.tableNumber,
       status: body.status,
       total: body.total,
       customerName: body.customerName,

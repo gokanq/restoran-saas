@@ -64,6 +64,7 @@ export class OrdersService {
     branchId: string;
     code: string;
     type?: OrderType;
+    tableNumber?: string;
     status?: OrderStatus;
     total?: string | number;
     customerName?: string;
@@ -91,6 +92,13 @@ export class OrdersService {
       throw new BadRequestException('total negatif olamaz');
     }
 
+    const orderType = data.type ?? OrderType.DELIVERY;
+    const tableNumber = optionalText(data.tableNumber);
+
+    if (orderType === OrderType.TABLE && !tableNumber) {
+      throw new BadRequestException('Masa siparişlerinde masa numarası zorunludur');
+    }
+
     const branch = await this.prisma.branch.findUnique({
       where: {
         id: data.branchId,
@@ -114,12 +122,13 @@ export class OrdersService {
         restaurantId: data.restaurantId,
         branchId: data.branchId,
         code: data.code.trim(),
-        type: data.type ?? OrderType.DELIVERY,
+        type: orderType,
+        tableNumber: orderType === OrderType.TABLE ? tableNumber : null,
         status: data.status,
         total: data.total ?? 0,
         customerName: optionalText(data.customerName),
         customerPhone: optionalText(data.customerPhone),
-        customerAddress: optionalText(data.customerAddress),
+        customerAddress: orderType === OrderType.DELIVERY ? optionalText(data.customerAddress) : null,
         note: optionalText(data.note),
       },
       include: {

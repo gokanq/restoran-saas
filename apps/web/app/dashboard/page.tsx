@@ -34,6 +34,7 @@ type Order = {
   id: string;
   code: string;
   type?: OrderType | string;
+  tableNumber?: string | null;
   status: OrderStatus | string;
   total: string | number;
   customerName?: string | null;
@@ -167,6 +168,16 @@ function normalizeSearchValue(value: string | number | null | undefined) {
   return String(value || '').toLocaleLowerCase('tr-TR').trim();
 }
 
+function getOrderTypeDisplay(order: Order) {
+  const typeLabel = ORDER_TYPE_LABELS[order.type || ''] || '-';
+
+  if (order.type === 'TABLE' && order.tableNumber) {
+    return `${typeLabel} ${order.tableNumber}`;
+  }
+
+  return typeLabel;
+}
+
 function orderMatchesSearch(order: Order, searchValue: string) {
   if (!searchValue) {
     return true;
@@ -174,11 +185,13 @@ function orderMatchesSearch(order: Order, searchValue: string) {
 
   const searchableValues = [
     order.code,
+    order.tableNumber,
     order.customerName,
     order.customerPhone,
     order.customerAddress,
     order.note,
     order.branch?.name,
+    getOrderTypeDisplay(order),
     ORDER_TYPE_LABELS[order.type || ''],
     ORDER_STATUS_LABELS[order.status],
   ];
@@ -195,6 +208,7 @@ export default function DashboardPage() {
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [orderCode, setOrderCode] = useState('');
   const [orderType, setOrderType] = useState<OrderType>('DELIVERY');
+  const [tableNumber, setTableNumber] = useState('');
   const [orderTotal, setOrderTotal] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -254,7 +268,7 @@ export default function DashboardPage() {
   const orderTypeDescription = isDeliveryOrder
     ? 'Paket siparişlerde adres bilgisi alınır.'
     : isTableOrder
-      ? 'Masa siparişinde adres alanı gizlenir. Masa numarası özelliğine hazır yapı.'
+      ? 'Masa siparişinde masa numarası zorunludur. QR masa siparişi altyapısı için temel alan.'
       : 'Gel-al siparişinde adres gerekmez, müşteri adı ve telefon yeterlidir.';
 
   const customerNamePlaceholder = isTableOrder ? 'Masa müşterisi' : 'Ahmet Yılmaz';
@@ -358,6 +372,11 @@ export default function DashboardPage() {
       return;
     }
 
+    if (orderType === 'TABLE' && !tableNumber.trim()) {
+      setError('Masa siparişlerinde masa numarası zorunludur');
+      return;
+    }
+
     if (!orderTotal.trim()) {
       setError('Toplam tutar zorunludur');
       return;
@@ -388,6 +407,7 @@ export default function DashboardPage() {
           branchId: selectedBranchId,
           code: orderCode.trim(),
           type: orderType,
+          tableNumber: orderType === 'TABLE' ? tableNumber.trim() : '',
           total: numericOrderTotal,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
@@ -404,6 +424,7 @@ export default function DashboardPage() {
       }
 
       setOrderType('DELIVERY');
+      setTableNumber('');
       setOrderTotal('');
       setCustomerName('');
       setCustomerPhone('');
@@ -604,6 +625,10 @@ export default function DashboardPage() {
                   if (nextOrderType !== 'DELIVERY') {
                     setCustomerAddress('');
                   }
+
+                  if (nextOrderType !== 'TABLE') {
+                    setTableNumber('');
+                  }
                 }}
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
               >
@@ -618,16 +643,42 @@ export default function DashboardPage() {
               </span>
             </label>
 
-            <label className="block text-sm font-semibold text-slate-200">
-              Sipariş Kodu
-              <input
-                value={orderCode}
-                onChange={(event) => setOrderCode(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="Otomatik oluşturulur"
-                required
-              />
-            </label>
+            {isTableOrder ? (
+              <label className="block text-sm font-semibold text-slate-200">
+                Masa No
+                <input
+                  value={tableNumber}
+                  onChange={(event) => setTableNumber(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  placeholder="5"
+                  required
+                />
+              </label>
+            ) : (
+              <label className="block text-sm font-semibold text-slate-200">
+                Sipariş Kodu
+                <input
+                  value={orderCode}
+                  onChange={(event) => setOrderCode(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  placeholder="Otomatik oluşturulur"
+                  required
+                />
+              </label>
+            )}
+
+            {isTableOrder ? (
+              <label className="block text-sm font-semibold text-slate-200">
+                Sipariş Kodu
+                <input
+                  value={orderCode}
+                  onChange={(event) => setOrderCode(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  placeholder="Otomatik oluşturulur"
+                  required
+                />
+              </label>
+            ) : null}
 
             <label className="block text-sm font-semibold text-slate-200">
               Toplam Tutar
@@ -677,7 +728,7 @@ export default function DashboardPage() {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-400">
                   {isTableOrder
-                    ? 'Bu sipariş türünde adres alınmaz. Bir sonraki geliştirmede masa numarası alanını ekleyeceğiz.'
+                    ? 'Masa numarası artık siparişe kaydedilir. QR sipariş bağlantılarında bu alan kullanılacak.'
                     : 'Bu sipariş türünde adres alınmaz. Müşteri adı ve telefon bilgisiyle takip edilebilir.'}
                 </p>
               </div>
@@ -749,7 +800,7 @@ export default function DashboardPage() {
                   value={orderSearch}
                   onChange={(event) => setOrderSearch(event.target.value)}
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
-                  placeholder="Kod, müşteri, telefon, adres, not, şube..."
+                  placeholder="Kod, masa no, müşteri, telefon, adres, not, şube..."
                 />
               </label>
             </div>
@@ -793,7 +844,7 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-white/10">
                   {filteredOrders.map((order) => {
                     const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
-                    const typeLabel = ORDER_TYPE_LABELS[order.type || ''] || '-';
+                    const typeLabel = getOrderTypeDisplay(order);
                     const statusBadgeClass =
                       ORDER_STATUS_BADGE_CLASSES[order.status] ||
                       'border-slate-400/30 bg-slate-500/10 text-slate-200';
@@ -902,6 +953,13 @@ export default function DashboardPage() {
                 <p className="mt-2 text-lg font-bold">
                   {ORDER_TYPE_LABELS[selectedOrder.type || ''] || '-'}
                 </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  Masa No
+                </p>
+                <p className="mt-2 text-lg font-bold">{selectedOrder.tableNumber || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
