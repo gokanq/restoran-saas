@@ -18,7 +18,7 @@ export class UsersController {
       restaurantId?: string;
       name: string;
       email: string;
-      passwordHash: string;
+      password: string;
       role?: UserRole;
     },
   ) {
