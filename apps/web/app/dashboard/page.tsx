@@ -39,7 +39,7 @@ type Order = {
   } | null;
 };
 
-const ORDER_STATUS_OPTIONS = [
+const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
   { value: 'ACCEPTED', label: 'Kabul Et' },
   { value: 'PREPARING', label: 'Hazırlamaya Al' },
   { value: 'READY', label: 'Hazır Yap' },
@@ -67,6 +67,25 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   ON_DELIVERY: 'Yolda',
   DELIVERED: 'Teslim Edildi',
   CANCELLED: 'İptal Edildi',
+};
+
+const ORDER_STATUS_BADGE_CLASSES: Record<string, string> = {
+  PENDING: 'border-yellow-400/30 bg-yellow-500/10 text-yellow-200',
+  ACCEPTED: 'border-blue-400/30 bg-blue-500/10 text-blue-200',
+  PREPARING: 'border-orange-400/30 bg-orange-500/10 text-orange-200',
+  READY: 'border-purple-400/30 bg-purple-500/10 text-purple-200',
+  ON_DELIVERY: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200',
+  DELIVERED: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
+  CANCELLED: 'border-red-400/30 bg-red-500/10 text-red-200',
+};
+
+const ORDER_ACTION_BUTTON_CLASSES: Record<string, string> = {
+  ACCEPTED: 'border-blue-400/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20',
+  PREPARING: 'border-orange-400/30 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20',
+  READY: 'border-purple-400/30 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20',
+  ON_DELIVERY: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20',
+  DELIVERED: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20',
+  CANCELLED: 'border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20',
 };
 
 const USER_ROLE_LABELS: Record<string, string> = {
@@ -353,28 +372,28 @@ export default function DashboardPage() {
         ) : null}
 
         <section className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
             <p className="text-sm text-slate-400">API Oturumu</p>
             <p className="mt-2 text-2xl font-bold text-emerald-400">Aktif</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
             <p className="text-sm text-slate-400">Rol</p>
             <p className="mt-2 text-2xl font-bold">{roleLabel}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
             <p className="text-sm text-slate-400">Toplam Sipariş</p>
             <p className="mt-2 text-2xl font-bold">{orders.length}</p>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/10">
             <p className="text-sm text-slate-400">Filtrelenen</p>
             <p className="mt-2 text-2xl font-bold">{filteredOrders.length}</p>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
           <h2 className="text-xl font-bold">Yeni Sipariş</h2>
 
           <form onSubmit={createOrder} className="mt-6 grid gap-4 md:grid-cols-4">
@@ -429,7 +448,7 @@ export default function DashboardPage() {
           </form>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-xl font-bold">Son Siparişler</h2>
@@ -491,30 +510,43 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-white/10">
                   {filteredOrders.map((order) => {
                     const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
+                    const statusBadgeClass =
+                      ORDER_STATUS_BADGE_CLASSES[order.status] ||
+                      'border-slate-400/30 bg-slate-500/10 text-slate-200';
 
                     return (
-                      <tr key={order.id} className="bg-slate-950/40">
+                      <tr key={order.id} className="bg-slate-950/40 transition hover:bg-white/5">
                         <td className="px-4 py-4 font-bold">{order.code}</td>
                         <td className="px-4 py-4">{order.branch?.name || '-'}</td>
                         <td className="px-4 py-4">
-                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeClass}`}
+                          >
                             {statusLabel}
                           </span>
                         </td>
-                        <td className="px-4 py-4">{order.total} TL</td>
+                        <td className="px-4 py-4 font-semibold">{order.total} TL</td>
                         <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-2">
-                            {ORDER_STATUS_OPTIONS.map((status) => (
-                              <button
-                                key={status.value}
-                                type="button"
-                                onClick={() => updateOrderStatus(order.id, status.value)}
-                                disabled={updatingOrderId === order.id || order.status === status.value}
-                                className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                              >
-                                {status.label}
-                              </button>
-                            ))}
+                            {ORDER_STATUS_OPTIONS.map((status) => {
+                              const actionClass =
+                                ORDER_ACTION_BUTTON_CLASSES[status.value] ||
+                                'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10';
+
+                              return (
+                                <button
+                                  key={status.value}
+                                  type="button"
+                                  onClick={() => updateOrderStatus(order.id, status.value)}
+                                  disabled={
+                                    updatingOrderId === order.id || order.status === status.value
+                                  }
+                                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${actionClass}`}
+                                >
+                                  {status.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>
