@@ -17,6 +17,31 @@ type Branch = {
   name: string;
 };
 
+type MenuCategory = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  branch?: {
+    name: string;
+  } | null;
+};
+
+type MenuItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: string | number;
+  isActive: boolean;
+  category?: {
+    id: string;
+    name: string;
+  } | null;
+  branch?: {
+    name: string;
+  } | null;
+};
+
 type OrderStatus =
   | 'PENDING'
   | 'ACCEPTED'
@@ -164,6 +189,19 @@ function formatOrderDate(createdAt: string) {
   }).format(orderDate);
 }
 
+function formatMoney(value: string | number) {
+  const numericValue = Number(String(value).replace(',', '.'));
+
+  if (!Number.isFinite(numericValue)) {
+    return `${value} TL`;
+  }
+
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+  }).format(numericValue);
+}
+
 function normalizeSearchValue(value: string | number | null | undefined) {
   return String(value || '').toLocaleLowerCase('tr-TR').trim();
 }
@@ -205,6 +243,9 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [orderCode, setOrderCode] = useState('');
   const [orderType, setOrderType] = useState<OrderType>('DELIVERY');
@@ -217,10 +258,19 @@ export default function DashboardPage() {
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('ALL');
   const [orderSearch, setOrderSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const [categoryName, setCategoryName] = useState('');
+  const [itemCategoryId, setItemCategoryId] = useState('');
+  const [itemName, setItemName] = useState('');
+  const [itemDescription, setItemDescription] = useState('');
+  const [itemPrice, setItemPrice] = useState('');
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const filteredOrders = useMemo(() => {
@@ -312,6 +362,34 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadMenu(token: string) {
+    const [categoriesResponse, itemsResponse] = await Promise.all([
+      fetch('/api/menu/categories', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+      fetch('/api/menu/items', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+    ]);
+
+    const categoriesData = categoriesResponse.ok ? await categoriesResponse.json() : [];
+    const itemsData = itemsResponse.ok ? await itemsResponse.json() : [];
+
+    const safeCategories = Array.isArray(categoriesData) ? categoriesData : [];
+    const safeItems = Array.isArray(itemsData) ? itemsData : [];
+
+    setMenuCategories(safeCategories);
+    setMenuItems(safeItems);
+
+    if (safeCategories.length > 0) {
+      setItemCategoryId((currentCategoryId) => currentCategoryId || safeCategories[0].id);
+    }
+  }
+
   useEffect(() => {
     async function loadDashboard() {
       const token = localStorage.getItem('accessToken');
@@ -338,7 +416,7 @@ export default function DashboardPage() {
         const meData = await meResponse.json();
 
         setUser(meData);
-        await Promise.all([loadBranches(token), loadOrders(token)]);
+        await Promise.all([loadBranches(token), loadOrders(token), loadMenu(token)]);
       } catch {
         setError('Dashboard verileri yüklenirken hata oluştu');
       } finally {
@@ -438,6 +516,121 @@ export default function DashboardPage() {
       setError('Sipariş oluşturulurken hata oluştu');
     } finally {
       setIsCreatingOrder(false);
+    }
+  }
+
+  async function createCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    if (!categoryName.trim()) {
+      setError('Kategori adı zorunludur');
+      return;
+    }
+
+    setIsCreatingCategory(true);
+
+    try {
+      const response = await fetch('/api/menu/categories', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: categoryName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Kategori oluşturulamadı');
+        return;
+      }
+
+      setCategoryName('');
+      setSuccess('Kategori oluşturuldu');
+      await loadMenu(token);
+    } catch {
+      setError('Kategori oluşturulurken hata oluştu');
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  }
+
+  async function createMenuItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    if (!itemName.trim()) {
+      setError('Ürün adı zorunludur');
+      return;
+    }
+
+    if (!itemPrice.trim()) {
+      setError('Ürün fiyatı zorunludur');
+      return;
+    }
+
+    const numericItemPrice = Number(itemPrice.replace(',', '.'));
+
+    if (!Number.isFinite(numericItemPrice) || numericItemPrice < 0) {
+      setError('Ürün fiyatı geçerli olmalıdır');
+      return;
+    }
+
+    setIsCreatingItem(true);
+
+    try {
+      const response = await fetch('/api/menu/items', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          categoryId: itemCategoryId || null,
+          name: itemName.trim(),
+          description: itemDescription.trim(),
+          price: numericItemPrice,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Ürün oluşturulamadı');
+        return;
+      }
+
+      setItemName('');
+      setItemDescription('');
+      setItemPrice('');
+      setSuccess('Ürün oluşturuldu');
+      await loadMenu(token);
+    } catch {
+      setError('Ürün oluşturulurken hata oluştu');
+    } finally {
+      setIsCreatingItem(false);
     }
   }
 
@@ -752,6 +945,171 @@ export default function DashboardPage() {
               {isCreatingOrder ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
             </button>
           </form>
+        </section>
+
+        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl font-bold">Menü Yönetimi</h2>
+            <p className="text-sm text-slate-400">
+              QR menü için kategori ve ürünleri buradan hazırlıyoruz.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <form
+              onSubmit={createCategory}
+              className="rounded-3xl border border-white/10 bg-slate-900/70 p-5"
+            >
+              <h3 className="text-lg font-bold">Kategori Ekle</h3>
+
+              <label className="mt-4 block text-sm font-semibold text-slate-200">
+                Kategori Adı
+                <input
+                  value={categoryName}
+                  onChange={(event) => setCategoryName(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  placeholder="Pizza, İçecek, Tatlı..."
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isCreatingCategory}
+                className="mt-4 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreatingCategory ? 'Ekleniyor...' : 'Kategori Ekle'}
+              </button>
+            </form>
+
+            <form
+              onSubmit={createMenuItem}
+              className="rounded-3xl border border-white/10 bg-slate-900/70 p-5"
+            >
+              <h3 className="text-lg font-bold">Ürün Ekle</h3>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="block text-sm font-semibold text-slate-200">
+                  Kategori
+                  <select
+                    value={itemCategoryId}
+                    onChange={(event) => setItemCategoryId(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                  >
+                    {menuCategories.length === 0 ? (
+                      <option value="">Kategori yok</option>
+                    ) : (
+                      menuCategories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-200">
+                  Fiyat
+                  <input
+                    value={itemPrice}
+                    onChange={(event) => setItemPrice(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                    placeholder="250"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-200 md:col-span-2">
+                  Ürün Adı
+                  <input
+                    value={itemName}
+                    onChange={(event) => setItemName(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                    placeholder="Karışık Pizza"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-slate-200 md:col-span-2">
+                  Açıklama
+                  <input
+                    value={itemDescription}
+                    onChange={(event) => setItemDescription(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                    placeholder="Sucuk, sosis, mantar, mozzarella..."
+                  />
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isCreatingItem}
+                className="mt-4 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreatingItem ? 'Ekleniyor...' : 'Ürün Ekle'}
+              </button>
+            </form>
+          </div>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-5">
+              <h3 className="text-lg font-bold">Kategoriler</h3>
+
+              {menuCategories.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950 p-4 text-sm text-slate-400">
+                  Henüz kategori yok.
+                </p>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {menuCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950 px-4 py-3"
+                    >
+                      <span className="font-semibold">{category.name}</span>
+                      <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                        Aktif
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-slate-900/70 p-5">
+              <h3 className="text-lg font-bold">Ürünler</h3>
+
+              {menuItems.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950 p-4 text-sm text-slate-400">
+                  Henüz ürün yok.
+                </p>
+              ) : (
+                <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+                  {menuItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-white/10 bg-slate-950 p-4"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="font-bold">{item.name}</p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {item.category?.name || 'Kategorisiz'}
+                          </p>
+                          {item.description ? (
+                            <p className="mt-2 text-sm leading-5 text-slate-300">
+                              {item.description}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <span className="rounded-full border border-purple-400/20 bg-purple-500/10 px-3 py-1 text-sm font-black text-purple-200">
+                          {formatMoney(item.price)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
