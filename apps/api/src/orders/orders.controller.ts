@@ -55,7 +55,7 @@ export class OrdersController {
     @Body()
     body: {
       branchId: string;
-      code: string;
+      code?: string;
       type?: OrderType;
       tableNumber?: string;
       status?: OrderStatus;

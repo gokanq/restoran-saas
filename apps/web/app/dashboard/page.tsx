@@ -1135,6 +1135,10 @@ export default function DashboardPage() {
 
   const roleLabel = user ? USER_ROLE_LABELS[user.role] || user.role : '-';
 
+  function shouldShowCancelAction(order: Order) {
+    return ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ON_DELIVERY'].includes(order.status);
+  }
+
   function renderOrderActionArea(order: Order) {
     const primaryAction = getPrimaryOrderAction(order);
     const isDispatchAction = primaryAction?.value === 'ON_DELIVERY' && order.type === 'DELIVERY';
@@ -1162,40 +1166,67 @@ export default function DashboardPage() {
     ) : null;
 
     return (
-      <div className="flex min-w-[220px] flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">{primaryButton}</div>
-
-        {isDispatchAction && activeCouriers.length === 0 ? (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">
-            Aktif kurye yok.
-          </div>
-        ) : null}
+      <div className="flex min-w-[290px] flex-wrap items-center gap-3">
+        {primaryButton}
 
         {shouldShowCancelAction(order) ? (
           <button
             type="button"
             onClick={() => updateOrderStatus(order.id, 'CANCELLED')}
             disabled={updatingOrderId === order.id}
-            className="w-fit rounded-2xl border border-red-300/50 bg-red-500/15 px-5 py-3 text-sm font-black text-red-100 shadow-lg shadow-red-950/20 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl border border-red-300/50 bg-red-500/15 px-5 py-3 text-sm font-black text-red-100 shadow-lg shadow-red-950/20 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
           >
             İptal Et
           </button>
+        ) : null}
+
+        {isDispatchAction && activeCouriers.length === 0 ? (
+          <div className="basis-full rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">
+            Aktif kurye yok.
+          </div>
         ) : null}
       </div>
     );
   }
 
   function renderCourierAssignment(order: Order) {
-    if (order.courierName) {
+    const orderWithCourier = order as Order & {
+      courierId?: string | null;
+      courierName?: string | null;
+      courier?: { name?: string | null } | null;
+    };
+
+    const assignedCourierId = orderWithCourier.courierId || '';
+    const courierName =
+      orderWithCourier.courierName ||
+      orderWithCourier.courier?.name ||
+      activeCouriers.find((courier) => courier.id === assignedCourierId)?.name ||
+      '';
+
+    if (!courierName) {
+      return null;
+    }
+
+    if (order.status === 'ON_DELIVERY') {
       return (
-        <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100">
-          Kurye: {order.courierName}
-        </div>
+        <button
+          type="button"
+          onClick={() => setCourierChangeOrder(order)}
+          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100 transition hover:bg-cyan-500/20"
+          title="Kuryeyi değiştir"
+        >
+          Kurye: {courierName}
+        </button>
       );
     }
 
-    return null;
+    return (
+      <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100">
+        Kurye: {courierName}
+      </div>
+    );
   }
+
 
   function renderOperationalOrderSection(title: string, description: string, rows: Order[], emptyMessage: string) {
     return (

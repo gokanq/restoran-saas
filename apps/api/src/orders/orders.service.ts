@@ -113,7 +113,7 @@ export class OrdersService {
   async create(data: {
     restaurantId: string;
     branchId: string;
-    code: string;
+    code?: string;
     type?: OrderType;
     tableNumber?: string;
     status?: OrderStatus;
@@ -127,12 +127,7 @@ export class OrdersService {
     if (!data.branchId) {
       throw new BadRequestException('branchId zorunludur');
     }
-
-    if (!data.code) {
-      throw new BadRequestException('code zorunludur');
-    }
-
-    if (data.type && !ORDER_TYPES.includes(data.type)) {
+if (data.type && !ORDER_TYPES.includes(data.type)) {
       throw new BadRequestException('Geçersiz sipariş tipi');
     }
 
@@ -145,7 +140,7 @@ export class OrdersService {
     }
 
     const orderType = data.type ?? OrderType.DELIVERY;
-    const orderCode = await this.generateOrderCode(data.restaurantId);
+    const orderCode = data.code?.trim() || (await this.generateOrderCode(data.restaurantId));
     const paymentMethod = data.paymentMethod ?? PaymentMethod.CASH;
 
     if (data.paymentMethod && !PAYMENT_METHODS.includes(data.paymentMethod)) {
