@@ -1383,7 +1383,14 @@ export default function DashboardPage() {
               CALLER ID
             </a>
 
-            <a
+                        <a
+              href="/dashboard/table-service"
+              className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-800"
+            >
+              Masa Servis
+            </a>
+
+<a
               href="/dashboard/menu"
               className="rounded-2xl border border-white/10 bg-slate-800/80 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-700"
             >
