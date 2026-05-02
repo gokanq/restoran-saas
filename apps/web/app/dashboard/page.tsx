@@ -139,6 +139,13 @@ const ACTIVE_ORDER_STATUSES = new Set<string>([
   'ON_DELIVERY',
 ]);
 
+const DISPATCH_READY_STATUSES = new Set<string>(['ACCEPTED', 'PREPARING', 'READY']);
+
+type PrimaryOrderAction = {
+  value: OrderStatus;
+  label: string;
+};
+
 
 const ORDER_STATUS_BADGE_CLASSES: Record<string, string> = {
   PENDING: 'border-yellow-400/30 bg-yellow-500/10 text-yellow-200',
@@ -263,6 +270,48 @@ function orderMatchesSearch(order: Order, searchValue: string) {
   return searchableValues.some((value) => normalizeSearchValue(value).includes(searchValue));
 }
 
+function getPrimaryOrderAction(order: Order): PrimaryOrderAction | null {
+  if (order.status === 'PENDING') {
+    return {
+      value: 'ACCEPTED',
+      label: 'Kabul Et',
+    };
+  }
+
+  if (DISPATCH_READY_STATUSES.has(order.status)) {
+    if (order.type === 'DELIVERY') {
+      return {
+        value: 'ON_DELIVERY',
+        label: 'Yola Çıkar',
+      };
+    }
+
+    return {
+      value: 'DELIVERED',
+      label: 'Tamamla',
+    };
+  }
+
+  if (order.status === 'ON_DELIVERY') {
+    return {
+      value: 'DELIVERED',
+      label: 'Teslim Et',
+    };
+  }
+
+  return null;
+}
+
+function shouldShowCourierSelect(order: Order) {
+  const primaryAction = getPrimaryOrderAction(order);
+
+  return primaryAction?.value === 'ON_DELIVERY' && order.type === 'DELIVERY';
+}
+
+function shouldShowCancelAction(order: Order) {
+  return order.status === 'PENDING' || DISPATCH_READY_STATUSES.has(order.status);
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -382,6 +431,18 @@ export default function DashboardPage() {
     });
   }, [activeOrders, orderFilter, orderSearch]);
 
+  const newOrderRows = useMemo(() => {
+    return filteredOrders.filter((order) => order.status === 'PENDING');
+  }, [filteredOrders]);
+
+  const dispatchReadyRows = useMemo(() => {
+    return filteredOrders.filter((order) => DISPATCH_READY_STATUSES.has(order.status));
+  }, [filteredOrders]);
+
+  const deliveryRows = useMemo(() => {
+    return filteredOrders.filter((order) => order.status === 'ON_DELIVERY');
+  }, [filteredOrders]);
+
   const orderCountsByStatus = useMemo(() => {
     return activeOrders.reduce<Record<string, number>>((counts, order) => {
       counts[order.status] = (counts[order.status] || 0) + 1;
@@ -394,7 +455,10 @@ export default function DashboardPage() {
 
     return {
       pending: orderCountsByStatus.PENDING || 0,
-      preparing: orderCountsByStatus.PREPARING || 0,
+      preparing:
+        (orderCountsByStatus.ACCEPTED || 0) +
+        (orderCountsByStatus.PREPARING || 0) +
+        (orderCountsByStatus.READY || 0),
       onDelivery: orderCountsByStatus.ON_DELIVERY || 0,
       todayOrderCount: todayOrders.length,
       todayRevenue: todayOrders.reduce((total, order) => total + getOrderNumericTotal(order.total), 0),
@@ -804,6 +868,174 @@ export default function DashboardPage() {
 
   const roleLabel = user ? USER_ROLE_LABELS[user.role] || user.role : '-';
 
+  function renderOrderActionArea(order: Order) {
+    const primaryAction = getPrimaryOrderAction(order);
+    const showCourierSelect = shouldShowCourierSelect(order);
+    const primaryActionClass = primaryAction
+      ? ORDER_ACTION_BUTTON_CLASSES[primaryAction.value] ||
+        'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
+      : '';
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {showCourierSelect ? (
+          <select
+            value={selectedCourierByOrderId[order.id] || ''}
+            onChange={(event) =>
+              setSelectedCourierByOrderId((current) => ({
+                ...current,
+                [order.id]: event.target.value,
+              }))
+            }
+            disabled={activeCouriers.length === 0}
+            className="min-w-[170px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">
+              {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
+            </option>
+            {activeCouriers.map((courier) => (
+              <option key={courier.id} value={courier.id}>
+                {courier.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+
+        {primaryAction ? (
+          <button
+            type="button"
+            onClick={() => updateOrderStatus(order.id, primaryAction.value)}
+            disabled={
+              updatingOrderId === order.id ||
+              (primaryAction.value === 'ON_DELIVERY' &&
+                (order.type !== 'DELIVERY' ||
+                  activeCouriers.length === 0 ||
+                  !selectedCourierByOrderId[order.id]))
+            }
+            className={`rounded-xl border px-4 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${primaryActionClass}`}
+          >
+            {primaryAction.label}
+          </button>
+        ) : null}
+
+        {shouldShowCancelAction(order) ? (
+          <button
+            type="button"
+            onClick={() => updateOrderStatus(order.id, 'CANCELLED')}
+            disabled={updatingOrderId === order.id}
+            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-xs font-black text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            İptal Et
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderOperationalOrderSection(title: string, description: string, rows: Order[], emptyMessage: string) {
+    return (
+      <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/40 p-4">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-slate-100">{title}</h3>
+            <p className="mt-1 text-sm text-slate-400">{description}</p>
+          </div>
+
+          <span className="w-fit rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black text-slate-200">
+            {rows.length} sipariş
+          </span>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-slate-900 p-5 text-sm text-slate-300">
+            {emptyMessage}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1250px] overflow-hidden rounded-2xl text-left text-sm">
+              <thead className="bg-slate-900 text-slate-300">
+                <tr>
+                  <th className="px-4 py-3">Kod</th>
+                  <th className="px-4 py-3">Tip</th>
+                  <th className="px-4 py-3">Müşteri</th>
+                  <th className="px-4 py-3">Telefon</th>
+                  <th className="px-4 py-3">Şube</th>
+                  <th className="px-4 py-3">Durum</th>
+                  <th className="px-4 py-3">Toplam</th>
+                  <th className="px-4 py-3">Tarih</th>
+                  <th className="px-4 py-3">Detay</th>
+                  <th className="px-4 py-3">İşlem</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-white/10">
+                {rows.map((order) => {
+                  const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
+                  const typeLabel = getOrderTypeDisplay(order);
+                  const statusBadgeClass =
+                    ORDER_STATUS_BADGE_CLASSES[order.status] ||
+                    'border-slate-400/30 bg-slate-500/10 text-slate-200';
+
+                  return (
+                    <tr key={order.id} className="bg-slate-950/40 transition hover:bg-white/5">
+                      <td className="px-4 py-4 font-bold">{order.code}</td>
+                      <td className="px-4 py-4">
+                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-200">
+                          {typeLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="font-semibold">{order.customerName || '-'}</div>
+                        {order.customerAddress ? (
+                          <div className="mt-1 max-w-[220px] truncate text-xs text-slate-400">
+                            {order.customerAddress}
+                          </div>
+                        ) : null}
+                        {order.note ? (
+                          <div className="mt-1 max-w-[220px] truncate text-xs text-amber-200">
+                            Not: {order.note}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-4">{order.customerPhone || '-'}</td>
+                      <td className="px-4 py-4">{order.branch?.name || '-'}</td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeClass}`}
+                        >
+                          {statusLabel}
+                        </span>
+                        {order.courierName ? (
+                          <div className="mt-2 text-xs font-bold text-cyan-200">
+                            Kurye: {order.courierName}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-4 font-semibold">{formatMoney(order.total)}</td>
+                      <td className="px-4 py-4 text-xs text-slate-300">
+                        {formatOrderDate(order.createdAt)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrder(order)}
+                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                        >
+                          Detay
+                        </button>
+                      </td>
+                      <td className="px-4 py-4">{renderOrderActionArea(order)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
       <div className="mx-auto max-w-7xl space-y-8">
@@ -1087,39 +1319,22 @@ export default function DashboardPage() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-bold">Anlık Siparişler</h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">
+                Operasyon
+              </p>
+              <h2 className="mt-2 text-2xl font-black">Sipariş Operasyon Ekranı V2</h2>
               <p className="mt-1 text-sm text-slate-400">
-                Gösterilen: {filteredOrders.length} • Kabul edilen, yola çıkan veya tamamlanan siparişler Geçmiş Siparişler bölümüne aktarılır
+                Siparişler aşama aşama ilerler: Kabul Et → Yola Çıkar → Teslim Et. Teslim edilen ve iptal edilen siparişler Geçmiş Siparişler bölümüne aktarılır.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {ORDER_FILTER_OPTIONS.map((filter) => {
-                const isActive = orderFilter === filter.value;
-                const count =
-                  filter.value === 'ALL'
-                    ? orders.length
-                    : orderCountsByStatus[filter.value] || 0;
-
-                return (
-                  <button
-                    key={filter.value}
-                    type="button"
-                    onClick={() => setOrderFilter(filter.value)}
-                    className={`rounded-2xl border px-4 py-2 text-sm font-bold transition ${
-                      isActive
-                        ? 'border-emerald-400 bg-emerald-500 text-slate-950'
-                        : 'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
-                    }`}
-                  >
-                    {filter.label}
-                    <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-xs">
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/dashboard/couriers')}
+              className="w-fit rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-5 py-3 text-sm font-black text-cyan-200 transition hover:bg-cyan-500/20"
+            >
+              Kurye Takip / Gün Sonu
+            </button>
           </div>
 
           <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4 md:flex-row md:items-center md:justify-between">
@@ -1146,136 +1361,38 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          <div className="mt-6 overflow-x-auto">
-            {orders.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
-                Henüz sipariş yok.
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
-                Bu filtre veya arama sonucunda sipariş bulunamadı.
-              </div>
-            ) : (
-              <table className="w-full min-w-[1200px] overflow-hidden rounded-2xl text-left text-sm">
-                <thead className="bg-slate-900 text-slate-300">
-                  <tr>
-                    <th className="px-4 py-3">Kod</th>
-                    <th className="px-4 py-3">Tip</th>
-                    <th className="px-4 py-3">Müşteri</th>
-                    <th className="px-4 py-3">Telefon</th>
-                    <th className="px-4 py-3">Şube</th>
-                    <th className="px-4 py-3">Durum</th>
-                    <th className="px-4 py-3">Toplam</th>
-                    <th className="px-4 py-3">Detay</th>
-                    <th className="px-4 py-3">Durum Güncelle</th>
-                  </tr>
-                </thead>
+          {activeOrders.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+              Aktif sipariş yok.
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+              Bu arama sonucunda sipariş bulunamadı.
+            </div>
+          ) : (
+            <>
+              {renderOperationalOrderSection(
+                'Yeni Siparişler',
+                'Yeni gelen siparişlerde sadece Kabul Et ana aksiyonu görünür.',
+                newOrderRows,
+                'Yeni sipariş yok.',
+              )}
 
-                <tbody className="divide-y divide-white/10">
-                  {filteredOrders.map((order) => {
-                    const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
-                    const typeLabel = getOrderTypeDisplay(order);
-                    const statusBadgeClass =
-                      ORDER_STATUS_BADGE_CLASSES[order.status] ||
-                      'border-slate-400/30 bg-slate-500/10 text-slate-200';
+              {renderOperationalOrderSection(
+                'Yola Çıkarılması Gereken Siparişler',
+                'Kabul edilen siparişlerde kurye seçilir ve sipariş yola çıkarılır.',
+                dispatchReadyRows,
+                'Yola çıkarılması gereken sipariş yok.',
+              )}
 
-                    return (
-                      <tr key={order.id} className="bg-slate-950/40 transition hover:bg-white/5">
-                        <td className="px-4 py-4 font-bold">{order.code}</td>
-                        <td className="px-4 py-4">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-200">
-                            {typeLabel}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="font-semibold">{order.customerName || '-'}</div>
-                          {order.customerAddress ? (
-                            <div className="mt-1 max-w-[220px] truncate text-xs text-slate-400">
-                              {order.customerAddress}
-                            </div>
-                          ) : null}
-                          {order.note ? (
-                            <div className="mt-1 max-w-[220px] truncate text-xs text-amber-200">
-                              Not: {order.note}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-4">{order.customerPhone || '-'}</td>
-                        <td className="px-4 py-4">{order.branch?.name || '-'}</td>
-                        <td className="px-4 py-4">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeClass}`}
-                          >
-                            {statusLabel}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 font-semibold">{order.total} TL</td>
-                        <td className="px-4 py-4">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedOrder(order)}
-                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
-                          >
-                            Detay
-                          </button>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            {order.type === 'DELIVERY' && order.status !== 'ON_DELIVERY' && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' ? (
-                              <select
-                                value={selectedCourierByOrderId[order.id] || ''}
-                                onChange={(event) =>
-                                  setSelectedCourierByOrderId((current) => ({
-                                    ...current,
-                                    [order.id]: event.target.value,
-                                  }))
-                                }
-                                disabled={activeCouriers.length === 0}
-                                className="min-w-[170px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                <option value="">
-                                  {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
-                                </option>
-                                {activeCouriers.map((courier) => (
-                                  <option key={courier.id} value={courier.id}>
-                                    {courier.name}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : null}
-                            {ORDER_STATUS_OPTIONS.map((status) => {
-                              const actionClass =
-                                ORDER_ACTION_BUTTON_CLASSES[status.value] ||
-                                'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10';
-
-                              return (
-                                <button
-                                  key={status.value}
-                                  type="button"
-                                  onClick={() => updateOrderStatus(order.id, status.value)}
-                                  disabled={
-                                    updatingOrderId === order.id ||
-                                    order.status === status.value ||
-                                    (status.value === 'ON_DELIVERY' &&
-                                      (order.type !== 'DELIVERY' ||
-                                        activeCouriers.length === 0 ||
-                                        !selectedCourierByOrderId[order.id]))
-                                  }
-                                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${actionClass}`}
-                                >
-                                  {status.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
+              {renderOperationalOrderSection(
+                'Teslim Edilmesi Gereken Siparişler',
+                'Yola çıkan siparişlerde sadece Teslim Et ana aksiyonu görünür.',
+                deliveryRows,
+                'Teslim edilmesi gereken sipariş yok.',
+              )}
+            </>
+          )}
         </section>
       </div>
 
@@ -1416,50 +1533,7 @@ export default function DashboardPage() {
             <div className="mt-6 border-t border-white/10 pt-5">
               <p className="mb-3 text-sm font-bold text-slate-300">Durum Güncelle</p>
 
-              <div className="flex flex-wrap gap-2">
-                {selectedOrder.type === 'DELIVERY' && selectedOrder.status !== 'ON_DELIVERY' && selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' ? (
-                  <select
-                    value={selectedCourierByOrderId[selectedOrder.id] || ''}
-                    onChange={(event) =>
-                      setSelectedCourierByOrderId((current) => ({
-                        ...current,
-                        [selectedOrder.id]: event.target.value,
-                      }))
-                    }
-                    disabled={activeCouriers.length === 0}
-                    className="min-w-[170px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <option value="">
-                      {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
-                    </option>
-                    {activeCouriers.map((courier) => (
-                      <option key={courier.id} value={courier.id}>
-                        {courier.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
-                {ORDER_STATUS_OPTIONS.map((status) => {
-                  const actionClass =
-                    ORDER_ACTION_BUTTON_CLASSES[status.value] ||
-                    'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10';
-
-                  return (
-                    <button
-                      key={status.value}
-                      type="button"
-                      onClick={() => updateOrderStatus(selectedOrder.id, status.value)}
-                      disabled={
-                        updatingOrderId === selectedOrder.id ||
-                        selectedOrder.status === status.value
-                      }
-                      className={`rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${actionClass}`}
-                    >
-                      {status.label}
-                    </button>
-                  );
-                })}
-              </div>
+              {renderOrderActionArea(selectedOrder)}
             </div>
           </div>
         </div>
