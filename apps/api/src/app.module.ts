@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PublicModule } from './public/public.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { UsersModule } from './users/users.module';
+import { TableServiceModule } from './table-service/table-service.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     CouriersModule,
     UsersModule,
     OrdersModule,
+    TableServiceModule,
     MenuModule,
     PublicModule,
   ],
