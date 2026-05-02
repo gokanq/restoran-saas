@@ -10,7 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { TableSessionItemStatus, UserRole } from '@prisma/client';
+import { PaymentMethod, TableSessionItemStatus, UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -188,8 +188,17 @@ export class TableServiceController {
   }
 
   @Post('sessions/:id/close')
-  closeSession(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.tableService.closeSession(this.getRestaurantId(req), id, req.user.id);
+  closeSession(
+    @Param('id') id: string,
+    @Body() body: { paymentMethod?: PaymentMethod },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.tableService.closeSession(
+      this.getRestaurantId(req),
+      id,
+      req.user.id,
+      body.paymentMethod,
+    );
   }
 
   @Post('sessions/:id/cancel')

@@ -5,10 +5,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, TableSessionItemStatus, TableSessionStatus } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentMethod, Prisma, TableSessionItemStatus, TableSessionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const OPEN_SESSION_STATUSES = [TableSessionStatus.OPEN, TableSessionStatus.PAYMENT_PENDING];
+const PAYMENT_METHODS = Object.values(PaymentMethod);
 
 type SessionItemOptionInput = {
   optionId?: string | null;
@@ -864,8 +865,206 @@ export class TableServiceService {
     return this.setSessionStatus(restaurantId, id, TableSessionStatus.PAYMENT_PENDING);
   }
 
-  closeSession(restaurantId: string, id: string, userId: string) {
-    return this.setSessionStatus(restaurantId, id, TableSessionStatus.CLOSED, userId);
+  async closeSession(
+    restaurantId: string,
+    id: string,
+    userId: string,
+    paymentMethod?: PaymentMethod,
+  ) {
+    const finalPaymentMethod = paymentMethod ?? PaymentMethod.CASH;
+
+    if (!PAYMENT_METHODS.includes(finalPaymentMethod)) {
+      throw new BadRequestException('Geçersiz ödeme tipi');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const session = await tx.tableSession.findUnique({
+        where: { id },
+        include: {
+          table: {
+            include: {
+              diningArea: true,
+            },
+          },
+          items: {
+            include: {
+              options: true,
+              menuItem: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
+        },
+      });
+
+      if (!session) {
+        throw new NotFoundException('Adisyon bulunamadı');
+      }
+
+      if (session.restaurantId !== restaurantId) {
+        throw new ForbiddenException('Bu adisyonu kapatma yetkiniz yok');
+      }
+
+      if (session.status === TableSessionStatus.CLOSED || session.status === TableSessionStatus.CANCELLED) {
+        throw new BadRequestException('Kapalı veya iptal edilmiş adisyon tekrar kapatılamaz');
+      }
+
+      if (session.orderId) {
+        return tx.tableSession.update({
+          where: { id },
+          data: {
+            status: TableSessionStatus.CLOSED,
+            paymentMethod: finalPaymentMethod,
+            closedAt: session.closedAt ?? new Date(),
+            closedByUserId: userId,
+          },
+          include: {
+            table: {
+              include: {
+                diningArea: true,
+              },
+            },
+            order: true,
+            items: {
+              include: {
+                options: true,
+                menuItem: true,
+              },
+              orderBy: {
+                createdAt: 'asc',
+              },
+            },
+          },
+        });
+      }
+
+      const payableItems = session.items.filter((item) => item.status !== TableSessionItemStatus.VOID);
+
+      const total = payableItems.reduce(
+        (sum, item) => sum.add(new Prisma.Decimal(item.totalPrice)),
+        new Prisma.Decimal(0),
+      );
+
+      const existingOrders = await tx.order.findMany({
+        where: {
+          restaurantId,
+          code: {
+            startsWith: 'ORD-',
+          },
+        },
+        select: {
+          code: true,
+        },
+      });
+
+      const maxSequentialNumber = existingOrders.reduce((maxNumber, order) => {
+        const match = /^ORD-(\d{1,8})$/.exec(order.code);
+
+        if (!match) {
+          return maxNumber;
+        }
+
+        const orderNumber = Number(match[1]);
+
+        return Number.isFinite(orderNumber) ? Math.max(maxNumber, orderNumber) : maxNumber;
+      }, 0);
+
+      let nextNumber = maxSequentialNumber + 1;
+
+      while (
+        await tx.order.findFirst({
+          where: {
+            restaurantId,
+            code: `ORD-${nextNumber}`,
+          },
+        })
+      ) {
+        nextNumber += 1;
+      }
+
+      const orderCode = `ORD-${nextNumber}`;
+
+      const order = await tx.order.create({
+        data: {
+          restaurantId,
+          branchId: session.branchId,
+          code: orderCode,
+          type: OrderType.TABLE,
+          tableNumber: session.table.code || session.table.name,
+          status: OrderStatus.DELIVERED,
+          total,
+          paymentMethod: finalPaymentMethod,
+          customerName: null,
+          customerPhone: null,
+          customerAddress: null,
+          note: `Masa servis adisyonu: ${session.table.name}`,
+          items:
+            payableItems.length > 0
+              ? {
+                  create: payableItems.map((item) => ({
+                    menuItemId: item.menuItemId,
+                    name: item.name,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    totalPrice: item.totalPrice,
+                    note: item.note,
+                    options:
+                      item.options.length > 0
+                        ? {
+                            create: item.options.map((option) => ({
+                              optionId: option.optionId,
+                              groupName: option.groupName,
+                              optionName: option.optionName,
+                              priceDelta: option.priceDelta,
+                            })),
+                          }
+                        : undefined,
+                  })),
+                }
+              : undefined,
+        },
+        include: {
+          branch: true,
+          items: {
+            include: {
+              options: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
+        },
+      });
+
+      return tx.tableSession.update({
+        where: { id },
+        data: {
+          status: TableSessionStatus.CLOSED,
+          paymentMethod: finalPaymentMethod,
+          orderId: order.id,
+          closedAt: new Date(),
+          closedByUserId: userId,
+        },
+        include: {
+          table: {
+            include: {
+              diningArea: true,
+            },
+          },
+          order: true,
+          items: {
+            include: {
+              options: true,
+              menuItem: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
+        },
+      });
+    });
   }
 
   cancelSession(restaurantId: string, id: string, reason?: string) {

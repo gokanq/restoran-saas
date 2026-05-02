@@ -151,7 +151,9 @@ model TableSession {
   restaurantId    String
   branchId        String
   tableId         String
+  orderId         String?
   status          TableSessionStatus @default(OPEN)
+  paymentMethod   PaymentMethod?
   openedByUserId  String?
   closedByUserId  String?
   cancelledReason String?
@@ -163,11 +165,13 @@ model TableSession {
   restaurant Restaurant         @relation(fields: [restaurantId], references: [id])
   branch     Branch             @relation(fields: [branchId], references: [id])
   table      RestaurantTable    @relation(fields: [tableId], references: [id])
+  order      Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
   items      TableSessionItem[]
 
   @@index([restaurantId])
   @@index([branchId])
   @@index([tableId])
+  @@index([orderId])
   @@index([status])
 }
 
@@ -323,6 +327,7 @@ model Order {
   branch          Branch      @relation(fields: [branchId], references: [id])
   courier         Courier?    @relation(fields: [courierId], references: [id], onDelete: SetNull)
   items           OrderItem[]
+  tableSessions   TableSession[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
