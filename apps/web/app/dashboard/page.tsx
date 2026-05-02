@@ -1030,59 +1030,84 @@ export default function DashboardPage() {
   function renderOrderActionArea(order: Order) {
     const primaryAction = getPrimaryOrderAction(order);
     const showCourierSelect = shouldShowCourierSelect(order);
-    const primaryActionClass = primaryAction
-      ? ORDER_ACTION_BUTTON_CLASSES[primaryAction.value] ||
-        'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
-      : '';
+    const selectedCourierId = selectedCourierByOrderId[order.id] || '';
+    const selectedCourierName =
+      activeCouriers.find((courier) => courier.id === selectedCourierId)?.name || '';
+
+    const primaryActionClass =
+      primaryAction?.value === 'ACCEPTED'
+        ? 'border-emerald-300/60 bg-emerald-500 text-slate-950 shadow-emerald-950/30 hover:bg-emerald-400'
+        : primaryAction?.value === 'ON_DELIVERY'
+          ? 'border-cyan-300/60 bg-cyan-500 text-slate-950 shadow-cyan-950/30 hover:bg-cyan-400'
+          : primaryAction?.value === 'DELIVERED'
+            ? 'border-green-300/60 bg-green-500 text-slate-950 shadow-green-950/30 hover:bg-green-400'
+            : 'border-white/10 bg-slate-800 text-slate-100 hover:bg-slate-700';
+
+    const primaryDisabled =
+      updatingOrderId === order.id ||
+      (primaryAction?.value === 'ON_DELIVERY' &&
+        (order.type !== 'DELIVERY' || activeCouriers.length === 0 || !selectedCourierId));
+
+    const primaryButton = primaryAction ? (
+      <button
+        type="button"
+        onClick={() => updateOrderStatus(order.id, primaryAction.value)}
+        disabled={primaryDisabled}
+        className={`min-w-[130px] rounded-2xl border px-5 py-3 text-sm font-black shadow-lg transition disabled:cursor-not-allowed disabled:opacity-50 ${primaryActionClass}`}
+      >
+        {primaryAction.label}
+      </button>
+    ) : null;
 
     return (
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-[300px] flex-col gap-3">
         {showCourierSelect ? (
-          <select
-            value={selectedCourierByOrderId[order.id] || ''}
-            onChange={(event) =>
-              setSelectedCourierByOrderId((current) => ({
-                ...current,
-                [order.id]: event.target.value,
-              }))
-            }
-            disabled={activeCouriers.length === 0}
-            className="min-w-[170px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <option value="">
-              {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
-            </option>
-            {activeCouriers.map((courier) => (
-              <option key={courier.id} value={courier.id}>
-                {courier.name}
-              </option>
-            ))}
-          </select>
-        ) : null}
+          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={selectedCourierId}
+                onChange={(event) =>
+                  setSelectedCourierByOrderId((current) => ({
+                    ...current,
+                    [order.id]: event.target.value,
+                  }))
+                }
+                disabled={activeCouriers.length === 0}
+                className="min-w-[210px] rounded-2xl border-2 border-cyan-400/50 bg-slate-800 px-4 py-3 text-sm font-black text-slate-100 outline-none shadow-lg shadow-cyan-950/20 transition focus:border-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">
+                  {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
+                </option>
+                {activeCouriers.map((courier) => (
+                  <option key={courier.id} value={courier.id}>
+                    {courier.name}
+                  </option>
+                ))}
+              </select>
 
-        {primaryAction ? (
-          <button
-            type="button"
-            onClick={() => updateOrderStatus(order.id, primaryAction.value)}
-            disabled={
-              updatingOrderId === order.id ||
-              (primaryAction.value === 'ON_DELIVERY' &&
-                (order.type !== 'DELIVERY' ||
-                  activeCouriers.length === 0 ||
-                  !selectedCourierByOrderId[order.id]))
-            }
-            className={`rounded-xl border px-4 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${primaryActionClass}`}
-          >
-            {primaryAction.label}
-          </button>
-        ) : null}
+              {primaryButton}
+            </div>
+
+            {selectedCourierName ? (
+              <div className="mt-3 inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-1 text-xs font-black text-emerald-100">
+                Seçilen Kurye: {selectedCourierName}
+              </div>
+            ) : (
+              <div className="mt-3 text-xs font-semibold text-cyan-100/80">
+                Yola çıkarmak için önce kurye seç.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">{primaryButton}</div>
+        )}
 
         {shouldShowCancelAction(order) ? (
           <button
             type="button"
             onClick={() => updateOrderStatus(order.id, 'CANCELLED')}
             disabled={updatingOrderId === order.id}
-            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-xs font-black text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-fit rounded-2xl border border-red-300/50 bg-red-500/15 px-5 py-3 text-sm font-black text-red-100 shadow-lg shadow-red-950/20 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
           >
             İptal Et
           </button>
@@ -1097,7 +1122,7 @@ export default function DashboardPage() {
         <button
           type="button"
           onClick={() => openCourierChangeModal(order)}
-          className="mt-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-black text-cyan-200 transition hover:bg-cyan-500/20"
+          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/50 bg-cyan-500/15 px-3 py-2 text-xs font-black text-cyan-100 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-500/25"
           title="Kuryeyi değiştirmek için tıkla"
         >
           Kurye: {order.courierName || 'Kurye seç'}
@@ -1106,7 +1131,11 @@ export default function DashboardPage() {
     }
 
     if (order.courierName) {
-      return <div className="mt-2 text-xs font-bold text-cyan-200">Kurye: {order.courierName}</div>;
+      return (
+        <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100">
+          Kurye: {order.courierName}
+        </div>
+      );
     }
 
     return null;
@@ -1114,7 +1143,7 @@ export default function DashboardPage() {
 
   function renderOperationalOrderSection(title: string, description: string, rows: Order[], emptyMessage: string) {
     return (
-      <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/40 p-4">
+      <div className="mt-6 rounded-3xl border border-white/10 bg-slate-800/55 p-5 shadow-xl shadow-black/10">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-100">{title}</h3>
@@ -1127,13 +1156,13 @@ export default function DashboardPage() {
         </div>
 
         {rows.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-900 p-5 text-sm text-slate-300">
+          <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-5 text-sm text-slate-100">
             {emptyMessage}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px] overflow-hidden rounded-2xl text-left text-sm">
-              <thead className="bg-slate-900 text-slate-300">
+            <table className="w-full min-w-[1250px] overflow-hidden rounded-2xl text-left text-sm shadow-xl shadow-black/10">
+              <thead className="bg-slate-700/80 text-slate-100">
                 <tr>
                   <th className="px-4 py-3">Kod</th>
                   <th className="px-4 py-3">Tip</th>
@@ -1157,7 +1186,7 @@ export default function DashboardPage() {
                     'border-slate-400/30 bg-slate-500/10 text-slate-200';
 
                   return (
-                    <tr key={order.id} className="bg-slate-950/40 transition hover:bg-white/5">
+                    <tr key={order.id} className="bg-slate-800/45 transition hover:bg-slate-700/55">
                       <td className="px-4 py-4 font-bold">{order.code}</td>
                       <td className="px-4 py-4">
                         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-200">
@@ -1195,7 +1224,7 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedOrder(order)}
-                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                          className="rounded-2xl border border-white/10 bg-slate-700/80 px-4 py-3 text-sm font-black text-slate-100 shadow-lg transition hover:bg-slate-600/80"
                         >
                           Detay
                         </button>
