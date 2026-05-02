@@ -90,7 +90,9 @@ export class OrdersService {
         return maxNumber;
       }
 
-      return Math.max(maxNumber, Number(match[1]));
+      const orderNumber = Number(match[1]);
+
+      return Number.isFinite(orderNumber) ? Math.max(maxNumber, orderNumber) : maxNumber;
     }, 0);
 
     let nextNumber = maxSequentialNumber + 1;
@@ -143,6 +145,7 @@ export class OrdersService {
     }
 
     const orderType = data.type ?? OrderType.DELIVERY;
+    const orderCode = await this.generateOrderCode(data.restaurantId);
     const paymentMethod = data.paymentMethod ?? PaymentMethod.CASH;
 
     if (data.paymentMethod && !PAYMENT_METHODS.includes(data.paymentMethod)) {
@@ -177,7 +180,7 @@ export class OrdersService {
       data: {
         restaurantId: data.restaurantId,
         branchId: data.branchId,
-        code: data.code.trim(),
+        code: orderCode,
         type: orderType,
         tableNumber: orderType === OrderType.TABLE ? tableNumber : null,
         status: data.status,

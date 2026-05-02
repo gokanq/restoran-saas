@@ -1327,7 +1327,15 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <button
+                        <button
+                type="button"
+                onClick={() => router.push('/dashboard/caller-id')}
+                className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-500/20"
+              >
+                CALLER ID
+              </button>
+
+<button
             type="button"
             onClick={logout}
             className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-400"
@@ -1427,184 +1435,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
-          <h2 className="text-xl font-bold">Yeni Sipariş</h2>
 
-          <form onSubmit={createOrder} className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="block text-sm font-semibold text-slate-200">
-              Şube
-              <select
-                value={selectedBranchId}
-                onChange={(event) => setSelectedBranchId(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-              >
-                {branches.length === 0 ? (
-                  <option value="">Şube yok</option>
-                ) : (
-                  branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))
-                )}
-              </select>
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-200">
-              Sipariş Tipi
-              <select
-                value={orderType}
-                onChange={(event) => {
-                  const nextOrderType = event.target.value as OrderType;
-
-                  setOrderType(nextOrderType);
-
-                  if (nextOrderType !== 'DELIVERY') {
-                    setCustomerAddress('');
-                  }
-
-                  if (nextOrderType !== 'TABLE') {
-                    setTableNumber('');
-                  }
-                }}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-              >
-                {ORDER_TYPE_OPTIONS.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-              <span className="mt-2 block text-xs font-medium text-slate-400">
-                {orderTypeDescription}
-              </span>
-            </label>
-
-            {isTableOrder ? (
-              <label className="block text-sm font-semibold text-slate-200">
-                Masa No
-                <input
-                  value={tableNumber}
-                  onChange={(event) => setTableNumber(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  placeholder="5"
-                  required
-                />
-              </label>
-            ) : (
-              <label className="block text-sm font-semibold text-slate-200">
-                Sipariş Kodu
-                <input
-                  value={orderCode}
-                  onChange={(event) => setOrderCode(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  placeholder="Otomatik oluşturulur"
-                  required
-                />
-              </label>
-            )}
-
-            {isTableOrder ? (
-              <label className="block text-sm font-semibold text-slate-200">
-                Sipariş Kodu
-                <input
-                  value={orderCode}
-                  onChange={(event) => setOrderCode(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  placeholder="Otomatik oluşturulur"
-                  required
-                />
-              </label>
-            ) : null}
-
-            <label className="block text-sm font-semibold text-slate-200">
-              Toplam Tutar
-              <input
-                value={orderTotal}
-                onChange={(event) => setOrderTotal(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="180"
-                required
-              />
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-200">
-              Müşteri Adı
-              <input
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder={customerNamePlaceholder}
-              />
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-200">
-              Telefon
-              <input
-                value={customerPhone}
-                onChange={(event) => setCustomerPhone(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder="05xx xxx xx xx"
-              />
-            </label>
-
-            {isDeliveryOrder ? (
-              <label className="block text-sm font-semibold text-slate-200 xl:col-span-2">
-                Adres
-                <input
-                  value={customerAddress}
-                  onChange={(event) => setCustomerAddress(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                  placeholder="Mahalle, sokak, bina, daire"
-                />
-              </label>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 text-sm text-slate-300 xl:col-span-2">
-                <p className="font-bold text-slate-100">
-                  {isTableOrder ? 'Masa siparişi' : 'Gel-al siparişi'}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">
-                  {isTableOrder
-                    ? 'Masa numarası artık siparişe kaydedilir. QR sipariş bağlantılarında bu alan kullanılacak.'
-                    : 'Bu sipariş türünde adres alınmaz. Müşteri adı ve telefon bilgisiyle takip edilebilir.'}
-                </p>
-              </div>
-            )}
-
-            <label className="block text-sm font-semibold text-slate-200">
-              Ödeme Tipi
-              <select
-                value={orderPaymentMethod}
-                onChange={(event) => setOrderPaymentMethod(event.target.value as PaymentMethod)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-              >
-                {PAYMENT_METHOD_OPTIONS.map((method) => (
-                  <option key={method.value} value={method.value}>
-                    {method.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-200 md:col-span-2 xl:col-span-3">
-              Not
-              <input
-                value={orderNote}
-                onChange={(event) => setOrderNote(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
-                placeholder={orderNotePlaceholder}
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={isCreatingOrder}
-              className="mt-7 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isCreatingOrder ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
-            </button>
-          </form>
-        </section>
 
         
 
