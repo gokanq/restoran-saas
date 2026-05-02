@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import QRCode from 'qrcode';
 
 type Branch = {
   id: string;
@@ -131,6 +132,7 @@ export default function DashboardMenuPage() {
   const [qrTableNumber, setQrTableNumber] = useState('1');
   const [publicBaseUrl, setPublicBaseUrl] = useState('');
   const [qrCopied, setQrCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
@@ -164,6 +166,43 @@ export default function DashboardMenuPage() {
 
     return `${publicBaseUrl}/qr?branchId=${qrBranchId}&table=${encodeURIComponent(table)}`;
   }, [publicBaseUrl, qrBranchId, qrTableNumber]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function generateQrCode() {
+      if (!qrLink) {
+        setQrDataUrl('');
+        return;
+      }
+
+      try {
+        const dataUrl = await QRCode.toDataURL(qrLink, {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 360,
+          color: {
+            dark: '#020617',
+            light: '#ffffff',
+          },
+        });
+
+        if (isActive) {
+          setQrDataUrl(dataUrl);
+        }
+      } catch {
+        if (isActive) {
+          setQrDataUrl('');
+        }
+      }
+    }
+
+    generateQrCode();
+
+    return () => {
+      isActive = false;
+    };
+  }, [qrLink]);
 
   async function apiRequest(path: string, options: RequestInit = {}) {
     const token = localStorage.getItem('accessToken');
@@ -555,6 +594,16 @@ export default function DashboardMenuPage() {
     } catch {
       window.prompt('QR linkini kopyalayın:', qrLink);
     }
+  }
+
+  function downloadQrCode() {
+    if (!qrDataUrl) return;
+
+    const safeTableNumber = qrTableNumber.trim() || 'masa';
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = `masa-${safeTableNumber}-qr.png`;
+    link.click();
   }
 
   return (
@@ -1081,13 +1130,56 @@ export default function DashboardMenuPage() {
             </div>
 
             {qrLink ? (
-              <a
-                href={qrLink}
-                target="_blank"
-                className="mt-4 inline-flex rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-200 hover:bg-emerald-500/20"
-              >
-                Linki Aç
-              </a>
+              <div className="mt-5 grid gap-5 lg:grid-cols-[360px_1fr]">
+                <div className="rounded-3xl border border-white/10 bg-white p-5">
+                  {qrDataUrl ? (
+                    <img
+                      src={qrDataUrl}
+                      alt="Masa QR kodu"
+                      className="mx-auto h-auto w-full max-w-[320px]"
+                    />
+                  ) : (
+                    <div className="flex h-[320px] items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-500">
+                      QR hazırlanıyor...
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-slate-950 p-5">
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-emerald-300">
+                    QR Oluşturucu
+                  </p>
+
+                  <h3 className="mt-2 text-2xl font-black">Masa {qrTableNumber.trim()} QR Kodu</h3>
+
+                  <p className="mt-2 text-sm text-slate-400">
+                    Bu QR kodu yazdırıp masaya koyabilirsiniz. Müşteri kamerayla okuttuğunda direkt masa sipariş ekranı açılır.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      disabled={!qrDataUrl}
+                      onClick={downloadQrCode}
+                      className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60"
+                    >
+                      QR PNG İndir
+                    </button>
+
+                    <a
+                      href={qrLink}
+                      target="_blank"
+                      className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-200 hover:bg-emerald-500/20"
+                    >
+                      Linki Aç
+                    </a>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                    Not: Mobilde link açarken adresin başında <b>http://</b> olduğundan emin olun. SSL/domain eklediğimizde bunu profesyonel şekilde <b>https</b> yapacağız.
+                  </div>
+                </div>
+              </div>
             ) : null}
           </section>
         ) : null}
