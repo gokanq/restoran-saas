@@ -247,14 +247,14 @@ export class TableServiceService {
     return { prepared, optionsTotal };
   }
 
-  async getDiningAreas(restaurantId: string, branchId: string) {
+  async getDiningAreas(restaurantId: string, branchId: string, includeInactive = false) {
     await this.ensureBranch(restaurantId, branchId);
 
     return this.prisma.diningArea.findMany({
       where: {
         restaurantId,
         branchId,
-        isActive: true,
+        ...(includeInactive ? {} : { isActive: true }),
       },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
@@ -313,14 +313,45 @@ export class TableServiceService {
     });
   }
 
-  async getTables(restaurantId: string, branchId: string) {
+  async deleteDiningArea(restaurantId: string, id: string) {
+    const area = await this.prisma.diningArea.findUnique({
+      where: { id },
+    });
+
+    if (!area) {
+      throw new NotFoundException('Salon / alan bulunamadı');
+    }
+
+    if (area.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu salon / alanı silme yetkiniz yok');
+    }
+
+    const tableCount = await this.prisma.restaurantTable.count({
+      where: {
+        restaurantId,
+        diningAreaId: id,
+      },
+    });
+
+    if (tableCount > 0) {
+      throw new BadRequestException(
+        'Bu alana bağlı masalar olduğu için alan silinemez. Önce masaları silin veya pasife alın.',
+      );
+    }
+
+    return this.prisma.diningArea.delete({
+      where: { id },
+    });
+  }
+
+  async getTables(restaurantId: string, branchId: string, includeInactive = false) {
     await this.ensureBranch(restaurantId, branchId);
 
     return this.prisma.restaurantTable.findMany({
       where: {
         restaurantId,
         branchId,
-        isActive: true,
+        ...(includeInactive ? {} : { isActive: true }),
       },
       include: {
         diningArea: true,
@@ -505,6 +536,51 @@ export class TableServiceService {
 
       throw error;
     }
+  }
+
+  async deleteTable(restaurantId: string, id: string) {
+    const table = await this.prisma.restaurantTable.findUnique({
+      where: { id },
+    });
+
+    if (!table) {
+      throw new NotFoundException('Masa bulunamadı');
+    }
+
+    if (table.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu masayı silme yetkiniz yok');
+    }
+
+    const openSession = await this.prisma.tableSession.findFirst({
+      where: {
+        restaurantId,
+        tableId: id,
+        status: {
+          in: OPEN_SESSION_STATUSES,
+        },
+      },
+    });
+
+    if (openSession) {
+      throw new BadRequestException('Açık adisyonu olan masa silinemez. Önce adisyonu kapatın.');
+    }
+
+    const sessionCount = await this.prisma.tableSession.count({
+      where: {
+        restaurantId,
+        tableId: id,
+      },
+    });
+
+    if (sessionCount > 0) {
+      throw new BadRequestException(
+        'Bu masa geçmiş adisyon kayıtlarıyla ilişkili olduğu için kalıcı silinemez. Pasife alabilirsiniz.',
+      );
+    }
+
+    return this.prisma.restaurantTable.delete({
+      where: { id },
+    });
   }
 
   async reserveTable(

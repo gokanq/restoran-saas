@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Param,
@@ -47,8 +48,16 @@ export class TableServiceController {
   }
 
   @Get('dining-areas')
-  getDiningAreas(@Query('branchId') branchId: string, @Req() req: AuthenticatedRequest) {
-    return this.tableService.getDiningAreas(this.getRestaurantId(req), branchId);
+  getDiningAreas(
+    @Query('branchId') branchId: string,
+    @Query('includeInactive') includeInactive: string | undefined,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.tableService.getDiningAreas(
+      this.getRestaurantId(req),
+      branchId,
+      includeInactive === '1' || includeInactive === 'true',
+    );
   }
 
   @Post('dining-areas')
@@ -68,9 +77,22 @@ export class TableServiceController {
     return this.tableService.patchDiningArea(this.getRestaurantId(req), id, body);
   }
 
+  @Delete('dining-areas/:id')
+  deleteDiningArea(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.tableService.deleteDiningArea(this.getRestaurantId(req), id);
+  }
+
   @Get('tables')
-  getTables(@Query('branchId') branchId: string, @Req() req: AuthenticatedRequest) {
-    return this.tableService.getTables(this.getRestaurantId(req), branchId);
+  getTables(
+    @Query('branchId') branchId: string,
+    @Query('includeInactive') includeInactive: string | undefined,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.tableService.getTables(
+      this.getRestaurantId(req),
+      branchId,
+      includeInactive === '1' || includeInactive === 'true',
+    );
   }
 
   @Post('tables')
@@ -109,6 +131,11 @@ export class TableServiceController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.tableService.patchTable(this.getRestaurantId(req), id, body);
+  }
+
+  @Delete('tables/:id')
+  deleteTable(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.tableService.deleteTable(this.getRestaurantId(req), id);
   }
 
   @Post('tables/:id/reserve')

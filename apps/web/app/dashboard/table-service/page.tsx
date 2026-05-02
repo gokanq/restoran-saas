@@ -27,7 +27,7 @@ type RestaurantTable = {
   sortOrder?: number | null;
   isActive?: boolean;
   isReserved?: boolean;
-  reservationNote?: string | null;
+  reservedNote?: string | null;
   reservedAt?: string | null;
 };
 
@@ -381,6 +381,58 @@ export default function TableServicePage() {
     }
   }
 
+  async function deleteArea(area: DiningArea) {
+    const confirmed = window.confirm(
+      `"${area.name}" alanını silmek istediğinize emin misiniz?\n\nBu alana bağlı masa varsa silinmez.`,
+    );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await api(`/table-service/dining-areas/${area.id}`, {
+        method: 'DELETE',
+      });
+
+      setMessage('Salon / alan silindi');
+      if (areaForm.id === area.id) resetAreaForm();
+      await loadTableServiceData();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Salon / alan silinemedi');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteTable(table: RestaurantTable) {
+    const confirmed = window.confirm(
+      `"${tableLabel(table)}" masasını silmek istediğinize emin misiniz?\n\nAktif veya geçmiş adisyon ilişkisi varsa silinmez, pasife almanız gerekir.`,
+    );
+
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await api(`/table-service/tables/${table.id}`, {
+        method: 'DELETE',
+      });
+
+      setMessage('Masa silindi');
+      if (tableForm.id === table.id) resetTableForm();
+      await loadTableServiceData();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Masa silinemedi');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function toggleReservation(table: RestaurantTable) {
     const openSession = sessionByTableId.get(table.id);
 
@@ -394,13 +446,20 @@ export default function TableServicePage() {
     setMessage('');
 
     try {
-      await api(`/table-service/tables/${table.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          isReserved: !table.isReserved,
-          reservationNote: !table.isReserved ? 'Panel üzerinden rezerve edildi' : null,
-        }),
-      });
+      if (table.isReserved) {
+        await api(`/table-service/tables/${table.id}/clear-reservation`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+      } else {
+        await api(`/table-service/tables/${table.id}/reserve`, {
+          method: 'POST',
+          body: JSON.stringify({
+            reservedNote: 'Panel üzerinden rezerve edildi',
+            reservedAt: new Date().toISOString(),
+          }),
+        });
+      }
 
       setMessage(table.isReserved ? 'Rezervasyon kaldırıldı' : 'Masa rezerve edildi');
       await loadTableServiceData();
@@ -472,29 +531,39 @@ export default function TableServicePage() {
     )}`;
 
     const statusClass = !table.isActive
-      ? 'border-slate-400/30 bg-slate-500/10 text-slate-200'
+      ? 'border-slate-200 bg-slate-100 text-slate-600'
       : isPaymentPending
-        ? 'border-amber-400/40 bg-amber-500/15 text-amber-100'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
         : isOpen
-          ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
           : table.isReserved
-            ? 'border-violet-400/40 bg-violet-500/15 text-violet-100'
-            : 'border-sky-400/40 bg-sky-500/15 text-sky-100';
+            ? 'border-violet-300 bg-violet-100 text-violet-800'
+            : 'border-sky-200 bg-sky-50 text-sky-700';
 
     const statusLabel = !table.isActive
-      ? 'Pasif'
+      ? 'PASİF'
       : isPaymentPending
-        ? 'Hesap Bekliyor'
+        ? 'HESAP'
         : isOpen
-          ? 'Açık Adisyon'
+          ? 'AÇIK'
           : table.isReserved
-            ? 'Rezerve'
-            : 'Boş';
+            ? 'REZERVE'
+            : 'BOŞ';
+
+    const cardClass = !table.isActive
+      ? 'border-slate-200 opacity-70'
+      : isPaymentPending
+        ? 'border-amber-200 shadow-amber-100/60'
+        : isOpen
+          ? 'border-emerald-200 shadow-emerald-100/60'
+          : table.isReserved
+            ? 'border-violet-300 bg-violet-50/30 shadow-violet-100/70'
+            : 'border-slate-200';
 
     return (
       <article
         key={table.id}
-        className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl"
+        className={`rounded-3xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl ${cardClass}`}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -528,6 +597,13 @@ export default function TableServicePage() {
           </div>
         ) : null}
 
+        {table.isReserved && !session ? (
+          <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm font-bold text-violet-800">
+            Rezerve masa{table.reservedAt ? ` • ${formatDate(table.reservedAt)}` : ''}
+            {table.reservedNote ? ` • ${table.reservedNote}` : ''}
+          </div>
+        ) : null}
+
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {session ? (
             <Link
@@ -551,7 +627,11 @@ export default function TableServicePage() {
             type="button"
             onClick={() => void toggleReservation(table)}
             disabled={saving || Boolean(session) || table.isActive === false}
-            className="rounded-2xl border border-violet-200 bg-violet-50 px-5 py-4 text-sm font-black text-violet-800 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`rounded-2xl border px-5 py-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              table.isReserved
+                ? 'border-violet-500 bg-violet-600 text-white hover:bg-violet-700'
+                : 'border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'
+            }`}
           >
             {table.isReserved ? 'Rezervasyonu Kaldır' : 'Rezerve Yap'}
           </button>
@@ -769,6 +849,7 @@ export default function TableServicePage() {
         ) : null}
 
         {!loading && activeTab === 'settings' ? (
+          <>
           <section className="grid gap-6 xl:grid-cols-[420px_1fr]">
             <div className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -989,6 +1070,84 @@ export default function TableServicePage() {
               </div>
             </div>
           </section>
+
+          <section className="rounded-3xl border border-red-100 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-red-400">Tehlikeli Alan</p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">Alan / Masa Silme</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-500">
+                  Geçmiş adisyon ilişkisi olan masalar kalıcı silinmez. Bu durumda pasife alma kullanılmalıdır.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="text-lg font-black text-slate-950">Salon / Alanlar</h3>
+                <div className="mt-4 space-y-3">
+                  {areas.length === 0 ? (
+                    <p className="rounded-2xl bg-white p-4 text-sm font-bold text-slate-500">Alan yok.</p>
+                  ) : (
+                    areas.map((area) => (
+                      <div
+                        key={`delete-area-${area.id}`}
+                        className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-black text-slate-950">{area.name}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-400">
+                            {area.isActive === false ? 'Pasif alan' : 'Aktif alan'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void deleteArea(area)}
+                          disabled={saving}
+                          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Alanı Sil
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <h3 className="text-lg font-black text-slate-950">Masalar</h3>
+                <div className="mt-4 space-y-3">
+                  {tables.length === 0 ? (
+                    <p className="rounded-2xl bg-white p-4 text-sm font-bold text-slate-500">Masa yok.</p>
+                  ) : (
+                    tables.map((table) => (
+                      <div
+                        key={`delete-table-${table.id}`}
+                        className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-black text-slate-950">{tableLabel(table)}</p>
+                          <p className="mt-1 text-xs font-bold text-slate-400">
+                            {table.diningAreaId ? areaById.get(table.diningAreaId)?.name || 'Alan yok' : 'Genel Alan'} •{' '}
+                            {table.isActive === false ? 'Pasif masa' : 'Aktif masa'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void deleteTable(table)}
+                          disabled={saving || Boolean(sessionByTableId.get(table.id))}
+                          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Masayı Sil
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+          </>
         ) : null}
       </div>
     </main>
