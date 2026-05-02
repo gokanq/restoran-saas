@@ -43,6 +43,7 @@ export default function CallerIdPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [lastOrderCode, setLastOrderCode] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -146,7 +147,9 @@ export default function CallerIdPage() {
       setTotal('');
       setPaymentMethod('CASH');
       setNote('');
-      setSuccess(`${data.code || 'Sipariş'} oluşturuldu ve operasyon ekranına düştü.`);
+      const createdOrderCode = data?.code || data?.order?.code || data?.data?.code || '';
+      setLastOrderCode(createdOrderCode);
+      setSuccess(`${createdOrderCode || 'Sipariş'} oluşturuldu ve operasyon ekranına düştü.`);
     } catch {
       setError('Sipariş oluşturulurken hata oluştu.');
     } finally {
@@ -156,16 +159,16 @@ export default function CallerIdPage() {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-slate-800 text-white">
         <p className="text-lg font-semibold">CALLER ID yükleniyor...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 py-8 text-white">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-8 text-white">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 lg:flex-row lg:items-center lg:justify-between">
+        <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl shadow-black/20 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">
               Telefon Siparişi
@@ -207,7 +210,16 @@ export default function CallerIdPage() {
           </div>
         ) : null}
 
-        <section className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/20">
+        {lastOrderCode ? (
+          <div className="mb-5 rounded-3xl border border-cyan-400/40 bg-cyan-500/15 p-5 shadow-xl shadow-cyan-950/20">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-200">
+              Son Sipariş Kodu
+            </p>
+            <p className="mt-2 text-3xl font-black text-white">{lastOrderCode}</p>
+          </div>
+        ) : null}
+
+        <section className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl shadow-black/20">
           <div className="mb-6">
             <h2 className="text-xl font-black">Yeni Telefon Siparişi</h2>
             <p className="mt-1 text-sm text-slate-400">

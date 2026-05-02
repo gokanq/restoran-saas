@@ -624,7 +624,7 @@ export default function DashboardMenuPage() {
               href="/dashboard"
               className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold hover:bg-slate-800"
             >
-              Dashboarda Dön
+              Ana Sayfa
             </a>
           </div>
         </header>
