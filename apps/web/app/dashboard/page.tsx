@@ -17,6 +17,17 @@ type Branch = {
   name: string;
 };
 
+type Courier = {
+  id: string;
+  branchId?: string | null;
+  name: string;
+  phone?: string | null;
+  isActive: boolean;
+  branch?: {
+    name: string;
+  } | null;
+};
+
 type MenuCategory = {
   id: string;
   name: string;
@@ -74,6 +85,7 @@ type Order = {
   customerName?: string | null;
   customerPhone?: string | null;
   customerAddress?: string | null;
+  courierId?: string | null;
   courierName?: string | null;
   note?: string | null;
   items?: OrderItem[];
@@ -283,6 +295,8 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [couriers, setCouriers] = useState<Courier[]>([]);
+  const [selectedCourierByOrderId, setSelectedCourierByOrderId] = useState<Record<string, string>>({});
 
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [orderCode, setOrderCode] = useState('');
@@ -310,6 +324,48 @@ export default function DashboardPage() {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadCouriersForDashboard() {
+      try {
+        const response = await fetch('/api/couriers', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setCouriers(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        // Kurye listesi yüklenemezse dashboard çalışmaya devam eder.
+      }
+    }
+
+    loadCouriersForDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const activeCouriers = useMemo(() => {
+    return couriers.filter((courier) => courier.isActive !== false);
+  }, [couriers]);
 
   const activeOrders = useMemo(() => {
     return orders.filter((order) => ACTIVE_ORDER_STATUSES.has(order.status));
@@ -677,21 +733,12 @@ export default function DashboardPage() {
   }
 
   async function updateOrderStatus(orderId: string, status: OrderStatus) {
-    let courierName: string | undefined;
+    const courierId =
+      status === 'ON_DELIVERY' ? (selectedCourierByOrderId[orderId] || '').trim() : undefined;
 
-    if (status === 'ON_DELIVERY') {
-      const courierInput = window.prompt('Kurye adı girin:');
-
-      if (courierInput === null) {
-        return;
-      }
-
-      courierName = courierInput.trim();
-
-      if (!courierName) {
-        setError('Yola çıkarılan sipariş için kurye adı zorunludur.');
-        return;
-      }
+    if (status === 'ON_DELIVERY' && !courierId) {
+      setError('Yola çıkarılan sipariş için kayıtlı kurye seçilmelidir.');
+      return;
     }
 
     const token = localStorage.getItem('accessToken');
@@ -712,7 +759,7 @@ export default function DashboardPage() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status, courierName }),
+        body: JSON.stringify({ status, courierId }),
       });
 
       const data = await response.json();
@@ -1174,6 +1221,28 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-2">
+                            {order.type === 'DELIVERY' && order.status !== 'ON_DELIVERY' && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' ? (
+                              <select
+                                value={selectedCourierByOrderId[order.id] || ''}
+                                onChange={(event) =>
+                                  setSelectedCourierByOrderId((current) => ({
+                                    ...current,
+                                    [order.id]: event.target.value,
+                                  }))
+                                }
+                                disabled={activeCouriers.length === 0}
+                                className="min-w-[170px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <option value="">
+                                  {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
+                                </option>
+                                {activeCouriers.map((courier) => (
+                                  <option key={courier.id} value={courier.id}>
+                                    {courier.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : null}
                             {ORDER_STATUS_OPTIONS.map((status) => {
                               const actionClass =
                                 ORDER_ACTION_BUTTON_CLASSES[status.value] ||
@@ -1185,7 +1254,12 @@ export default function DashboardPage() {
                                   type="button"
                                   onClick={() => updateOrderStatus(order.id, status.value)}
                                   disabled={
-                                    updatingOrderId === order.id || order.status === status.value
+                                    updatingOrderId === order.id ||
+                                    order.status === status.value ||
+                                    (status.value === 'ON_DELIVERY' &&
+                                      (order.type !== 'DELIVERY' ||
+                                        activeCouriers.length === 0 ||
+                                        !selectedCourierByOrderId[order.id]))
                                   }
                                   className={`rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${actionClass}`}
                                 >
@@ -1343,6 +1417,28 @@ export default function DashboardPage() {
               <p className="mb-3 text-sm font-bold text-slate-300">Durum Güncelle</p>
 
               <div className="flex flex-wrap gap-2">
+                {selectedOrder.type === 'DELIVERY' && selectedOrder.status !== 'ON_DELIVERY' && selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' ? (
+                  <select
+                    value={selectedCourierByOrderId[selectedOrder.id] || ''}
+                    onChange={(event) =>
+                      setSelectedCourierByOrderId((current) => ({
+                        ...current,
+                        [selectedOrder.id]: event.target.value,
+                      }))
+                    }
+                    disabled={activeCouriers.length === 0}
+                    className="min-w-[170px] rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-100 outline-none transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option value="">
+                      {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
+                    </option>
+                    {activeCouriers.map((courier) => (
+                      <option key={courier.id} value={courier.id}>
+                        {courier.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
                 {ORDER_STATUS_OPTIONS.map((status) => {
                   const actionClass =
                     ORDER_ACTION_BUTTON_CLASSES[status.value] ||
