@@ -104,14 +104,8 @@ const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
 ];
 
 const ORDER_FILTER_OPTIONS: { value: OrderFilter; label: string }[] = [
-  { value: 'ALL', label: 'Tümü' },
+  { value: 'ALL', label: 'Yeni Siparişler' },
   { value: 'PENDING', label: 'Bekliyor' },
-  { value: 'ACCEPTED', label: 'Kabul Edildi' },
-  { value: 'PREPARING', label: 'Hazırlanıyor' },
-  { value: 'READY', label: 'Hazır' },
-  { value: 'ON_DELIVERY', label: 'Yolda' },
-  { value: 'DELIVERED', label: 'Teslim Edildi' },
-  { value: 'CANCELLED', label: 'İptal Edildi' },
 ];
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -1008,9 +1002,9 @@ export default function DashboardPage() {
         <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-bold">Son Siparişler</h2>
+              <h2 className="text-xl font-bold">Anlık Siparişler</h2>
               <p className="mt-1 text-sm text-slate-400">
-                Aktif filtre: {selectedFilterLabel} • Gösterilen: {filteredOrders.length}
+                Gösterilen: {filteredOrders.length} • Kabul edilen, yola çıkan veya tamamlanan siparişler Geçmiş Siparişler bölümüne aktarılır
               </p>
             </div>
 

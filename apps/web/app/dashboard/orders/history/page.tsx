@@ -41,12 +41,23 @@ type Order = {
   } | null;
 };
 
-type HistoryFilter = 'ALL' | 'DELIVERED' | 'CANCELLED';
+type HistoryFilter = 'ALL' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'ON_DELIVERY' | 'DELIVERED' | 'CANCELLED';
 
-const HISTORY_ORDER_STATUSES = new Set<string>(['DELIVERED', 'CANCELLED']);
+const HISTORY_ORDER_STATUSES = new Set<string>([
+  'ACCEPTED',
+  'PREPARING',
+  'READY',
+  'ON_DELIVERY',
+  'DELIVERED',
+  'CANCELLED',
+]);
 
 const HISTORY_FILTER_OPTIONS: { value: HistoryFilter; label: string }[] = [
   { value: 'ALL', label: 'Tümü' },
+  { value: 'ACCEPTED', label: 'Kabul Edildi' },
+  { value: 'PREPARING', label: 'Hazırlanıyor' },
+  { value: 'READY', label: 'Hazır' },
+  { value: 'ON_DELIVERY', label: 'Yolda' },
   { value: 'DELIVERED', label: 'Teslim Edildi' },
   { value: 'CANCELLED', label: 'İptal Edildi' },
 ];
@@ -241,7 +252,7 @@ export default function OrderHistoryPage() {
           </p>
           <h1 className="mt-2 text-3xl font-black">Geçmiş Siparişler</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-300">
-            Teslim edilen ve iptal edilen siparişleri günlük operasyon ekranından ayrı takip edin.
+            Kabul edilen, hazırlanan, yola çıkan, teslim edilen ve iptal edilen siparişleri ana ekrandan ayrı takip edin.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
@@ -269,7 +280,7 @@ export default function OrderHistoryPage() {
 
         <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm font-bold text-slate-400">Geçmiş Sipariş</p>
+            <p className="text-sm font-bold text-slate-400">İşlem Görmüş Sipariş</p>
             <p className="mt-2 text-3xl font-black">{historyOrders.length}</p>
           </div>
 
@@ -356,11 +367,11 @@ export default function OrderHistoryPage() {
               </div>
             ) : historyOrders.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
-                Henüz geçmiş sipariş yok.
+                Henüz işlem görmüş sipariş yok.
               </div>
             ) : filteredOrders.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
-                Bu filtre veya arama sonucunda geçmiş sipariş bulunamadı.
+                Bu filtre veya arama sonucunda sipariş bulunamadı.
               </div>
             ) : (
               <table className="w-full min-w-[1100px] overflow-hidden rounded-2xl text-left text-sm">
