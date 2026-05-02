@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 type MenuItemOption = {
   id: string;
@@ -42,8 +42,8 @@ type MenuItem = {
   optionGroups?: MenuItemOptionGroup[];
 };
 
-function toNumber(value: string | number) {
-  const parsedValue = Number(String(value).replace(',', '.'));
+function toNumber(value: string | number | undefined | null) {
+  const parsedValue = Number(String(value ?? 0).replace(',', '.'));
 
   return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
@@ -96,9 +96,23 @@ export default function DashboardOptionsPage() {
   const [optionName, setOptionName] = useState('');
   const [optionPriceDelta, setOptionPriceDelta] = useState('0');
 
+  const [editingGroup, setEditingGroup] = useState<MenuItemOptionGroup | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupRequired, setEditGroupRequired] = useState(false);
+  const [editGroupMinSelect, setEditGroupMinSelect] = useState('0');
+  const [editGroupMaxSelect, setEditGroupMaxSelect] = useState('1');
+  const [editGroupActive, setEditGroupActive] = useState(true);
+
+  const [editingOption, setEditingOption] = useState<MenuItemOption | null>(null);
+  const [editOptionName, setEditOptionName] = useState('');
+  const [editOptionPriceDelta, setEditOptionPriceDelta] = useState('0');
+  const [editOptionActive, setEditOptionActive] = useState(true);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
   const [isSavingOption, setIsSavingOption] = useState(false);
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
+  const [isUpdatingOption, setIsUpdatingOption] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -125,12 +139,12 @@ export default function DashboardOptionsPage() {
     const data = await readJson(response);
 
     if (!response.ok) {
-      const message =
+      const responseMessage =
         typeof data === 'object' && data && 'message' in data
           ? String(data.message)
           : 'İşlem başarısız oldu.';
 
-      throw new Error(message);
+      throw new Error(responseMessage);
     }
 
     return data;
@@ -143,10 +157,9 @@ export default function DashboardOptionsPage() {
 
     try {
       const data = await apiRequest('/api/menu/items');
-
       const safeItems = Array.isArray(data) ? data : [];
-      setItems(safeItems);
 
+      setItems(safeItems);
       setSelectedItemId((currentItemId) => {
         if (currentItemId && safeItems.some((item) => item.id === currentItemId)) {
           return currentItemId;
@@ -210,7 +223,7 @@ export default function DashboardOptionsPage() {
     loadOptionGroups(selectedItemId);
   }, [selectedItemId]);
 
-  async function createOptionGroup(event: React.FormEvent<HTMLFormElement>) {
+  async function createOptionGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedItemId) {
@@ -256,7 +269,7 @@ export default function DashboardOptionsPage() {
     }
   }
 
-  async function createOption(event: React.FormEvent<HTMLFormElement>) {
+  async function createOption(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedGroupId) {
@@ -296,52 +309,99 @@ export default function DashboardOptionsPage() {
     }
   }
 
-  async function editOptionGroup(group: MenuItemOptionGroup) {
-    const nextName = window.prompt('Opsiyon grubu adı:', group.name);
+  function openGroupEditModal(group: MenuItemOptionGroup) {
+    setEditingGroup(group);
+    setEditGroupName(group.name);
+    setEditGroupRequired(Boolean(group.isRequired));
+    setEditGroupMinSelect(String(group.minSelect ?? 0));
+    setEditGroupMaxSelect(String(group.maxSelect ?? 1));
+    setEditGroupActive(group.isActive !== false);
+    setError('');
+    setMessage('');
+  }
 
-    if (nextName === null) {
+  function openOptionEditModal(option: MenuItemOption) {
+    setEditingOption(option);
+    setEditOptionName(option.name);
+    setEditOptionPriceDelta(String(toNumber(option.priceDelta)));
+    setEditOptionActive(option.isActive !== false);
+    setError('');
+    setMessage('');
+  }
+
+  async function updateOptionGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingGroup) {
       return;
     }
 
-    if (!nextName.trim()) {
+    if (!editGroupName.trim()) {
       setError('Opsiyon grubu adı boş olamaz.');
       return;
     }
 
-    const nextMinSelect = window.prompt('Minimum seçim:', String(group.minSelect ?? 0));
-
-    if (nextMinSelect === null) {
-      return;
-    }
-
-    const nextMaxSelect = window.prompt('Maksimum seçim:', String(group.maxSelect ?? 1));
-
-    if (nextMaxSelect === null) {
-      return;
-    }
-
-    const nextIsRequired = window.confirm('Bu grup zorunlu seçim olsun mu?');
-
+    setIsUpdatingGroup(true);
     setError('');
     setMessage('');
 
     try {
-      await apiRequest(`/api/menu/option-groups/${group.id}`, {
+      await apiRequest(`/api/menu/option-groups/${editingGroup.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          name: nextName.trim(),
-          isRequired: nextIsRequired,
-          minSelect: Number(nextMinSelect) || 0,
-          maxSelect: Number(nextMaxSelect) || 1,
+          name: editGroupName.trim(),
+          isRequired: editGroupRequired,
+          minSelect: Number(editGroupMinSelect) || 0,
+          maxSelect: Number(editGroupMaxSelect) || 1,
+          isActive: editGroupActive,
         }),
       });
 
       setMessage('Opsiyon grubu güncellendi.');
+      setEditingGroup(null);
       await loadOptionGroups(selectedItemId);
     } catch (requestError) {
       setError(
         requestError instanceof Error ? requestError.message : 'Opsiyon grubu güncellenemedi.',
       );
+    } finally {
+      setIsUpdatingGroup(false);
+    }
+  }
+
+  async function updateOption(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingOption) {
+      return;
+    }
+
+    if (!editOptionName.trim()) {
+      setError('Opsiyon adı boş olamaz.');
+      return;
+    }
+
+    setIsUpdatingOption(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/options/${editingOption.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editOptionName.trim(),
+          price: toNumber(editOptionPriceDelta),
+          isActive: editOptionActive,
+        }),
+      });
+
+      setMessage('Opsiyon güncellendi.');
+      setEditingOption(null);
+      await loadOptionGroups(selectedItemId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Opsiyon güncellenemedi.');
+    } finally {
+      setIsUpdatingOption(false);
     }
   }
 
@@ -366,43 +426,6 @@ export default function DashboardOptionsPage() {
       await loadOptionGroups(selectedItemId);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Opsiyon grubu silinemedi.');
-    }
-  }
-
-  async function editOption(option: MenuItemOption) {
-    const nextName = window.prompt('Opsiyon adı:', option.name);
-
-    if (nextName === null) {
-      return;
-    }
-
-    if (!nextName.trim()) {
-      setError('Opsiyon adı boş olamaz.');
-      return;
-    }
-
-    const nextPriceDelta = window.prompt('Fiyat farkı:', String(toNumber(option.priceDelta)));
-
-    if (nextPriceDelta === null) {
-      return;
-    }
-
-    setError('');
-    setMessage('');
-
-    try {
-      await apiRequest(`/api/menu/options/${option.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name: nextName.trim(),
-          price: toNumber(nextPriceDelta),
-        }),
-      });
-
-      setMessage('Opsiyon güncellendi.');
-      await loadOptionGroups(selectedItemId);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Opsiyon güncellenemedi.');
     }
   }
 
@@ -437,8 +460,7 @@ export default function DashboardOptionsPage() {
           </p>
           <h1 className="mt-2 text-3xl font-black">Ürün Opsiyon Yönetimi</h1>
           <p className="mt-2 text-sm text-slate-300">
-            Pizza ekstra malzeme, içecek boyutu, pişirme tercihi gibi ürün opsiyonlarını buradan
-            yönetiyoruz.
+            Pizza ekstra malzeme, içecek boyutu, pişirme tercihi gibi ürün opsiyonlarını profesyonel şekilde yönetin.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
@@ -635,7 +657,7 @@ export default function DashboardOptionsPage() {
                       <p className="text-lg font-black">{group.name}</p>
                       <p className="mt-1 text-xs text-slate-400">
                         {group.isRequired ? 'Zorunlu' : 'Opsiyonel'} • Min {group.minSelect ?? 0} •
-                        Max {group.maxSelect ?? 1}
+                        Max {group.maxSelect ?? 1} • {group.isActive === false ? 'Pasif' : 'Aktif'}
                       </p>
                     </div>
 
@@ -646,7 +668,7 @@ export default function DashboardOptionsPage() {
 
                       <button
                         type="button"
-                        onClick={() => editOptionGroup(group)}
+                        onClick={() => openGroupEditModal(group)}
                         className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-200 hover:bg-sky-500/20"
                       >
                         Düzenle
@@ -673,15 +695,22 @@ export default function DashboardOptionsPage() {
                           key={option.id}
                           className="rounded-xl border border-white/10 bg-white/5 p-3"
                         >
-                          <p className="font-bold">{option.name}</p>
-                          <p className="mt-1 text-sm font-black text-emerald-300">
-                            +{formatMoney(option.priceDelta)}
-                          </p>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="font-bold">{option.name}</p>
+                              <p className="mt-1 text-sm font-black text-emerald-300">
+                                +{formatMoney(option.priceDelta)}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {option.isActive === false ? 'Pasif' : 'Aktif'}
+                              </p>
+                            </div>
+                          </div>
 
                           <div className="mt-3 flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => editOption(option)}
+                              onClick={() => openOptionEditModal(option)}
                               className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-200 hover:bg-sky-500/20"
                             >
                               Düzenle
@@ -705,6 +734,179 @@ export default function DashboardOptionsPage() {
           </div>
         </section>
       </div>
+
+      {editingGroup ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+          <form
+            onSubmit={updateOptionGroup}
+            className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+                  Opsiyon Grubu
+                </p>
+                <h2 className="mt-2 text-2xl font-black">Grubu Düzenle</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingGroup(null)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-black hover:bg-white/10"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <label className="block text-sm font-bold">
+                Grup Adı
+                <input
+                  value={editGroupName}
+                  onChange={(event) => setEditGroupName(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-bold">
+                  Minimum Seçim
+                  <input
+                    value={editGroupMinSelect}
+                    onChange={(event) => setEditGroupMinSelect(event.target.value)}
+                    type="number"
+                    min="0"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                  />
+                </label>
+
+                <label className="block text-sm font-bold">
+                  Maksimum Seçim
+                  <input
+                    value={editGroupMaxSelect}
+                    onChange={(event) => setEditGroupMaxSelect(event.target.value)}
+                    type="number"
+                    min="1"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                  />
+                </label>
+              </div>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-bold">
+                <input
+                  checked={editGroupRequired}
+                  onChange={(event) => setEditGroupRequired(event.target.checked)}
+                  type="checkbox"
+                  className="h-5 w-5"
+                />
+                Zorunlu seçim olsun
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-bold">
+                <input
+                  checked={editGroupActive}
+                  onChange={(event) => setEditGroupActive(event.target.checked)}
+                  type="checkbox"
+                  className="h-5 w-5"
+                />
+                Aktif olarak göster
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingGroup(null)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black hover:bg-white/10"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="submit"
+                disabled={isUpdatingGroup}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60"
+              >
+                {isUpdatingGroup ? 'Kaydediliyor...' : 'Kaydet'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {editingOption ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+          <form
+            onSubmit={updateOption}
+            className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+                  Opsiyon
+                </p>
+                <h2 className="mt-2 text-2xl font-black">Opsiyonu Düzenle</h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingOption(null)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-black hover:bg-white/10"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <label className="block text-sm font-bold">
+                Opsiyon Adı
+                <input
+                  value={editOptionName}
+                  onChange={(event) => setEditOptionName(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <label className="block text-sm font-bold">
+                Fiyat Farkı
+                <input
+                  value={editOptionPriceDelta}
+                  onChange={(event) => setEditOptionPriceDelta(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-bold">
+                <input
+                  checked={editOptionActive}
+                  onChange={(event) => setEditOptionActive(event.target.checked)}
+                  type="checkbox"
+                  className="h-5 w-5"
+                />
+                Aktif olarak göster
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingOption(null)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black hover:bg-white/10"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="submit"
+                disabled={isUpdatingOption}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60"
+              >
+                {isUpdatingOption ? 'Kaydediliyor...' : 'Kaydet'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </main>
   );
 }
