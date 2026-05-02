@@ -167,22 +167,22 @@ type PrimaryOrderAction = {
 
 
 const ORDER_STATUS_BADGE_CLASSES: Record<string, string> = {
-  PENDING: 'border-yellow-400/30 bg-yellow-500/10 text-yellow-200',
-  ACCEPTED: 'border-blue-400/30 bg-blue-500/10 text-blue-200',
-  PREPARING: 'border-orange-400/30 bg-orange-500/10 text-orange-200',
-  READY: 'border-purple-400/30 bg-purple-500/10 text-purple-200',
-  ON_DELIVERY: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200',
-  DELIVERED: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
-  CANCELLED: 'border-red-400/30 bg-red-500/10 text-red-200',
+  PENDING: 'border-amber-300 bg-amber-100 text-amber-800 shadow-sm',
+  ACCEPTED: 'border-blue-300 bg-blue-100 text-blue-800 shadow-sm',
+  PREPARING: 'border-orange-300 bg-orange-100 text-orange-800 shadow-sm',
+  READY: 'border-violet-300 bg-violet-100 text-violet-800 shadow-sm',
+  ON_DELIVERY: 'border-sky-300 bg-sky-100 text-sky-800 shadow-sm',
+  DELIVERED: 'border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm',
+  CANCELLED: 'border-red-300 bg-red-100 text-red-800 shadow-sm',
 };
 
 const ORDER_ACTION_BUTTON_CLASSES: Record<string, string> = {
-  ACCEPTED: 'border-blue-400/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20',
-  PREPARING: 'border-orange-400/30 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20',
-  READY: 'border-purple-400/30 bg-purple-500/10 text-purple-200 hover:bg-purple-500/20',
-  ON_DELIVERY: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/20',
-  DELIVERED: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20',
-  CANCELLED: 'border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20',
+  ACCEPTED: 'border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 shadow-sm',
+  PREPARING: 'border-orange-300 bg-orange-100 text-orange-800 hover:bg-orange-200 shadow-sm',
+  READY: 'border-violet-300 bg-violet-100 text-violet-800 hover:bg-violet-200 shadow-sm',
+  ON_DELIVERY: 'border-sky-300 bg-sky-100 text-sky-800 hover:bg-sky-200 shadow-sm',
+  DELIVERED: 'border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 shadow-sm',
+  CANCELLED: 'border-red-300 bg-red-100 text-red-800 hover:bg-red-200 shadow-sm',
 };
 
 const USER_ROLE_LABELS: Record<string, string> = {
@@ -1127,7 +1127,7 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8 bg-slate-100 text-slate-950">
         <p className="text-lg font-semibold">Dashboard yükleniyor...</p>
       </main>
     );
@@ -1139,18 +1139,86 @@ export default function DashboardPage() {
     return ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ON_DELIVERY'].includes(order.status);
   }
 
+
+  function getOrderActionIcon(label: string) {
+    if (label.includes('Kabul')) return '✓';
+    if (label.includes('Yola')) return '↗';
+    if (label.includes('Teslim')) return '✓';
+    if (label.includes('İptal')) return '×';
+    return '•';
+  }
+
+  function getOperationalSectionMeta(title: string) {
+    if (title.includes('Yeni')) {
+      return {
+        code: '01',
+        icon: '!',
+        eyebrow: 'Yeni Akış',
+        badgeClass: 'border-amber-200 bg-amber-100 text-amber-800',
+        glowClass: 'from-amber-50 to-white',
+      };
+    }
+
+    if (title.includes('Yola')) {
+      return {
+        code: '02',
+        icon: '↗',
+        eyebrow: 'Sevkiyat',
+        badgeClass: 'border-sky-200 bg-sky-100 text-sky-800',
+        glowClass: 'from-sky-50 to-white',
+      };
+    }
+
+    if (title.includes('Teslim')) {
+      return {
+        code: '03',
+        icon: '✓',
+        eyebrow: 'Teslimat',
+        badgeClass: 'border-emerald-200 bg-emerald-100 text-emerald-800',
+        glowClass: 'from-emerald-50 to-white',
+      };
+    }
+
+    return {
+      code: '00',
+      icon: '•',
+      eyebrow: 'Operasyon',
+      badgeClass: 'border-slate-200 bg-slate-100 text-slate-800',
+      glowClass: 'from-slate-50 to-white',
+    };
+  }
+
+  function renderEmptyOrderState(message: string) {
+    return (
+      <div className="rounded-[24px] border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-500 shadow-sm">
+            Ø
+          </div>
+
+          <div>
+            <p className="text-sm font-black text-slate-900">{message}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              Bu bölümde aksiyon bekleyen kayıt olduğunda otomatik olarak listelenir.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function renderOrderActionArea(order: Order) {
     const primaryAction = getPrimaryOrderAction(order);
     const isDispatchAction = primaryAction?.value === 'ON_DELIVERY' && order.type === 'DELIVERY';
 
     const primaryActionClass =
       primaryAction?.value === 'ACCEPTED'
-        ? 'border-emerald-300/60 bg-emerald-500 text-slate-950 shadow-emerald-950/30 hover:bg-emerald-400'
+        ? 'border-emerald-700 bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.24)] hover:bg-emerald-700'
         : primaryAction?.value === 'ON_DELIVERY'
-          ? 'border-cyan-300/60 bg-cyan-500 text-slate-950 shadow-cyan-950/30 hover:bg-cyan-400'
+          ? 'border-sky-700 bg-sky-600 text-white shadow-[0_10px_24px_rgba(2,132,199,0.24)] hover:bg-sky-700'
           : primaryAction?.value === 'DELIVERED'
-            ? 'border-green-300/60 bg-green-500 text-slate-950 shadow-green-950/30 hover:bg-green-400'
-            : 'border-white/10 bg-slate-800 text-slate-100 hover:bg-slate-700';
+            ? 'border-green-700 bg-green-600 text-white shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:bg-green-700'
+            : 'border-slate-800 bg-slate-900 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] hover:bg-slate-800';
 
     const primaryButton = primaryAction ? (
       <button
@@ -1159,9 +1227,14 @@ export default function DashboardPage() {
           isDispatchAction ? openDispatchCourierModal(order) : updateOrderStatus(order.id, primaryAction.value)
         }
         disabled={updatingOrderId === order.id || (isDispatchAction && activeCouriers.length === 0)}
-        className={`min-w-[130px] rounded-2xl border px-5 py-3 text-sm font-black shadow-lg transition disabled:cursor-not-allowed disabled:opacity-50 ${primaryActionClass}`}
+        className={`min-w-[130px] rounded-2xl border px-5 py-3 text-sm font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${primaryActionClass}`}
       >
-        {primaryAction.label}
+        <span className="inline-flex items-center justify-center gap-2">
+          <span className="grid h-5 w-5 place-items-center rounded-full bg-white/20 text-sm leading-none" aria-hidden="true">
+            {getOrderActionIcon(primaryAction.label)}
+          </span>
+          <span>{primaryAction.label}</span>
+        </span>
       </button>
     ) : null;
 
@@ -1174,14 +1247,14 @@ export default function DashboardPage() {
             type="button"
             onClick={() => updateOrderStatus(order.id, 'CANCELLED')}
             disabled={updatingOrderId === order.id}
-            className="rounded-2xl border border-red-300/50 bg-red-500/15 px-5 py-3 text-sm font-black text-red-100 shadow-lg shadow-red-950/20 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-[46px] min-w-[92px] items-center justify-center rounded-2xl border border-red-700 bg-red-600 px-4 text-xs font-black text-white shadow-[0_10px_24px_rgba(220,38,38,0.20)] transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             İptal Et
           </button>
         ) : null}
 
         {isDispatchAction && activeCouriers.length === 0 ? (
-          <div className="basis-full rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">
+          <div className="basis-full rounded-xl border border-amber-400/30 bg-white px-3 py-2 text-xs font-bold text-amber-700">
             Aktif kurye yok.
           </div>
         ) : null}
@@ -1212,7 +1285,7 @@ export default function DashboardPage() {
         <button
           type="button"
           onClick={() => setCourierChangeOrder(order)}
-          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100 transition hover:bg-cyan-500/20"
+          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-white px-3 py-1 text-xs font-black text-sky-700 transition hover:bg-slate-100"
           title="Kuryeyi değiştir"
         >
           Kurye: {courierName}
@@ -1221,7 +1294,7 @@ export default function DashboardPage() {
     }
 
     return (
-      <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100">
+      <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-white px-3 py-1 text-xs font-black text-sky-700">
         Kurye: {courierName}
       </div>
     );
@@ -1229,110 +1302,131 @@ export default function DashboardPage() {
 
 
   function renderOperationalOrderSection(title: string, description: string, rows: Order[], emptyMessage: string) {
+    const sectionMeta = getOperationalSectionMeta(title);
+
     return (
-      <div className="mt-6 rounded-3xl border border-white/10 bg-slate-800/55 p-5 shadow-xl shadow-black/10">
-        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h3 className="text-lg font-black text-slate-100">{title}</h3>
-            <p className="mt-1 text-sm text-slate-300">{description}</p>
+      <div className={`mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br ${sectionMeta.glowClass} p-5 shadow-[0_16px_42px_rgba(15,23,42,0.08)]`}>
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border text-lg font-black shadow-sm ${sectionMeta.badgeClass}`}>
+              {sectionMeta.icon}
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                  {sectionMeta.eyebrow}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                  {sectionMeta.code}
+                </span>
+              </div>
+
+              <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{title}</h3>
+              <p className="mt-1 max-w-3xl text-sm font-medium text-slate-500">{description}</p>
+            </div>
           </div>
 
-          <span className="w-fit rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-100">
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-800 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
             {rows.length} sipariş
           </span>
         </div>
 
         {rows.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-slate-800/70 p-5 text-sm text-slate-100">
-            {emptyMessage}
-          </div>
+          renderEmptyOrderState(emptyMessage)
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1350px] overflow-hidden rounded-2xl text-left text-sm shadow-xl shadow-black/10">
-              <thead className="bg-slate-700/80 text-slate-100">
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white shadow-sm">
+            <table className="w-full min-w-[1180px] overflow-hidden rounded-[24px] text-left text-sm">
+              <thead className="bg-slate-900">
                 <tr>
-                  <th className="px-4 py-3">Kod</th>
-                  <th className="px-4 py-3">Tip</th>
-                  <th className="px-4 py-3">Müşteri</th>
-                  <th className="px-4 py-3">Telefon</th>
-                  <th className="px-4 py-3">Şube</th>
-                  <th className="px-4 py-3">Durum</th>
-                  <th className="px-4 py-3">Toplam</th>
-                  <th className="px-4 py-3">Ödeme</th>
-                  <th className="px-4 py-3">Tarih</th>
-                  <th className="px-4 py-3">Detay</th>
-                  <th className="px-4 py-3">İşlem</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white first:rounded-tl-[24px]">Kod</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Tip</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Müşteri</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Telefon</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Şube</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Durum</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Toplam</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Ödeme</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Tarih</th>
+                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Detay</th>
+                  <th className="sticky right-0 z-20 min-w-[280px] rounded-tr-[24px] bg-slate-900 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-[-14px_0_24px_rgba(15,23,42,0.18)]">İşlem</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {rows.map((order) => {
                   const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
                   const typeLabel = getOrderTypeDisplay(order);
                   const paymentLabel = PAYMENT_METHOD_LABELS[order.paymentMethod || ''] || '-';
                   const statusBadgeClass =
                     ORDER_STATUS_BADGE_CLASSES[order.status] ||
-                    'border-slate-400/30 bg-slate-500/10 text-slate-200';
+                    'border-slate-300 bg-slate-100 text-slate-800';
 
                   return (
-                    <tr key={order.id} className="bg-slate-800/45 transition hover:bg-slate-700/55">
-                      <td className="px-4 py-4 font-bold">{order.code}</td>
+                    <tr key={order.id} className="bg-white transition hover:bg-slate-50">
+                      <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">{order.code}</td>
 
-                      <td className="px-4 py-4">
-                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-slate-100">
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
+                        <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-black text-slate-800 shadow-sm">
                           {typeLabel}
                         </span>
                       </td>
 
-                      <td className="px-4 py-4">
-                        <div className="font-semibold">{order.customerName || '-'}</div>
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
+                        <div className="font-black text-slate-950">{order.customerName || '-'}</div>
                         {order.customerAddress ? (
-                          <div className="mt-1 max-w-[220px] truncate text-xs text-slate-300">
+                          <div className="mt-1 max-w-[220px] truncate text-xs font-semibold text-slate-500">
                             {order.customerAddress}
                           </div>
                         ) : null}
                         {order.note ? (
-                          <div className="mt-1 max-w-[220px] truncate text-xs text-amber-200">
+                          <div className="mt-1 max-w-[220px] truncate text-xs font-bold text-orange-700">
                             Not: {order.note}
                           </div>
                         ) : null}
                       </td>
 
-                      <td className="px-4 py-4">{order.customerPhone || '-'}</td>
-                      <td className="px-4 py-4">{order.branch?.name || '-'}</td>
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">{order.customerPhone || '-'}</td>
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">{order.branch?.name || '-'}</td>
 
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         <span
-                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeClass}`}
+                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${statusBadgeClass}`}
                         >
                           {statusLabel}
                         </span>
                         {renderCourierAssignment(order)}
                       </td>
 
-                      <td className="px-4 py-4 font-semibold">{formatMoney(order.total)}</td>
+                      <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">{formatMoney(order.total)}</td>
 
-                      <td className="px-4 py-4">
-                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-100">
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
+                        <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-black text-slate-800 shadow-sm">
                           {paymentLabel}
                         </span>
                       </td>
 
-                      <td className="px-4 py-4 text-xs text-slate-300">
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         {formatOrderDate(order.createdAt)}
                       </td>
 
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         <button
                           type="button"
                           onClick={() => setSelectedOrder(order)}
-                          className="rounded-2xl border border-white/10 bg-slate-700/80 px-4 py-3 text-sm font-black text-slate-100 shadow-lg transition hover:bg-slate-600/80"
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
                         >
-                          Detay
+                          <span aria-hidden="true">↗</span>
+                          <span>Detay</span>
                         </button>
                       </td>
 
-                      <td className="px-4 py-4">{renderOrderActionArea(order)}</td>
+                      <td className="sticky right-0 z-10 min-w-[280px] bg-white px-4 py-4 align-middle text-xs font-bold text-slate-900 shadow-[-14px_0_24px_rgba(15,23,42,0.08)]">
+                        <div className="flex min-w-[250px] items-center justify-end gap-2 whitespace-nowrap">
+                          {renderOrderActionArea(order)}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1345,16 +1439,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-8 text-white">
+    <main className="min-h-screen px-6 py-8 bg-slate-100 px-4 py-6 sm:px-6 lg:px-8 text-slate-950">
       <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl shadow-black/20">
+        <header className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/20">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
                 Restoran SaaS
               </p>
-              <h1 className="mt-2 text-3xl font-black">Ana Sayfa</h1>
-              <p className="mt-2 text-sm text-slate-300">
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Ana Sayfa</h1>
+              <p className="mt-2 text-sm text-slate-500">
                 {user ? `${user.name} • ${user.email} • ${roleLabel}` : 'Kullanıcı bilgisi yok'}
               </p>
             </div>
@@ -1362,51 +1456,51 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={logout}
-              className="w-fit rounded-2xl bg-red-500 px-5 py-3 text-sm font-black text-white transition hover:bg-red-400"
+              className="w-fit rounded-2xl bg-red-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-red-400"
             >
               Çıkış Yap
             </button>
           </div>
 
-          <nav className="mt-6 flex flex-wrap gap-3 border-t border-white/10 pt-5">
+          <nav className="mt-6 flex flex-wrap gap-3 border-t border-slate-200 pt-5">
             <a
               href="/dashboard"
-              className="rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-5 py-4 text-sm font-black text-cyan-100 transition hover:bg-cyan-500/20"
+              className="rounded-2xl border border-cyan-400/30 bg-white px-5 py-4 text-sm font-black text-sky-700 transition hover:bg-slate-100"
             >
               Operasyon
             </a>
 
             <a
               href="/dashboard/caller-id"
-              className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
+              className="rounded-2xl bg-white px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
             >
               CALLER ID
             </a>
 
                         <a
               href="/dashboard/table-service"
-              className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-800"
+              className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
             >
               Masa Servis
             </a>
 
 <a
               href="/dashboard/menu"
-              className="rounded-2xl border border-white/10 bg-slate-800/80 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-700"
+              className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
             >
               Menü
             </a>
 
             <a
               href="/dashboard/orders/history"
-              className="rounded-2xl border border-white/10 bg-slate-800/80 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-700"
+              className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
             >
               Geçmiş Siparişler
             </a>
 
             <a
               href="/dashboard/couriers"
-              className="rounded-2xl border border-white/10 bg-slate-800/80 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-700"
+              className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
             >
               Kuryeler / Gün Sonu
             </a>
@@ -1414,13 +1508,13 @@ export default function DashboardPage() {
         </header>
 
         {error ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-700">
             {error}
           </div>
         ) : null}
 
         {success ? (
-          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-200">
+          <div className="rounded-2xl border border-emerald-400/30 bg-white p-4 text-sm font-semibold text-emerald-700">
             {success}
           </div>
         ) : null}
@@ -1429,11 +1523,11 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => setOrderFilter('PENDING')}
-            className="rounded-3xl border border-yellow-400/20 bg-yellow-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-yellow-500/20"
+            className="rounded-3xl border border-yellow-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
           >
-            <p className="text-sm font-semibold text-yellow-200">Bekleyen</p>
-            <p className="mt-2 text-3xl font-black text-yellow-100">{operationalSummary.pending}</p>
-            <p className="mt-1 text-xs text-yellow-100/70">Aksiyon bekleyen sipariş</p>
+            <p className="text-sm font-semibold text-amber-700">Bekleyen</p>
+            <p className="mt-2 text-3xl font-black tracking-tight text-amber-700">{operationalSummary.pending}</p>
+            <p className="mt-1 text-xs text-amber-700/70">Aksiyon bekleyen sipariş</p>
           </button>
 
 
@@ -1441,39 +1535,39 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => setOrderFilter('PREPARING')}
-            className="rounded-3xl border border-orange-400/20 bg-orange-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-orange-500/20"
+            className="rounded-3xl border border-orange-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
           >
-            <p className="text-sm font-semibold text-orange-200">Hazırlanıyor</p>
-            <p className="mt-2 text-3xl font-black text-orange-100">{operationalSummary.preparing}</p>
-            <p className="mt-1 text-xs text-orange-100/70">Mutfakta olan sipariş</p>
+            <p className="text-sm font-semibold text-orange-700">Hazırlanıyor</p>
+            <p className="mt-2 text-3xl font-black tracking-tight text-orange-700">{operationalSummary.preparing}</p>
+            <p className="mt-1 text-xs text-orange-700/70">Mutfakta olan sipariş</p>
           </button>
 
           <button
             type="button"
             onClick={() => setOrderFilter('ON_DELIVERY')}
-            className="rounded-3xl border border-cyan-400/20 bg-cyan-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-cyan-500/20"
+            className="rounded-3xl border border-cyan-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
           >
-            <p className="text-sm font-semibold text-cyan-200">Yolda</p>
-            <p className="mt-2 text-3xl font-black text-cyan-100">{operationalSummary.onDelivery}</p>
-            <p className="mt-1 text-xs text-cyan-100/70">Kurye teslimatında</p>
+            <p className="text-sm font-semibold text-sky-700">Yolda</p>
+            <p className="mt-2 text-3xl font-black tracking-tight text-sky-700">{operationalSummary.onDelivery}</p>
+            <p className="mt-1 text-xs text-sky-700/70">Kurye teslimatında</p>
           </button>
 
           <button
             type="button"
             onClick={() => setOrderFilter('ALL')}
-            className="rounded-3xl border border-emerald-400/20 bg-emerald-500/10 p-5 text-left shadow-xl shadow-black/10 transition hover:bg-emerald-500/20"
+            className="rounded-3xl border border-emerald-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
           >
-            <p className="text-sm font-semibold text-emerald-200">Bugünkü Sipariş</p>
-            <p className="mt-2 text-3xl font-black text-emerald-100">
+            <p className="text-sm font-semibold text-emerald-700">Bugünkü Sipariş</p>
+            <p className="mt-2 text-3xl font-black tracking-tight text-emerald-700">
               {operationalSummary.todayOrderCount}
             </p>
-            <p className="mt-1 text-xs text-emerald-100/70">Bugün oluşturulan sipariş</p>
+            <p className="mt-1 text-xs text-emerald-700/70">Bugün oluşturulan sipariş</p>
           </button>
 
-          <div className="rounded-3xl border border-purple-400/20 bg-purple-500/10 p-5 shadow-xl shadow-black/10">
-            <p className="text-sm font-semibold text-purple-200">Bugünkü Ciro</p>
-            <p className="mt-2 text-3xl font-black text-purple-100">{formattedTodayRevenue}</p>
-            <p className="mt-1 text-xs text-purple-100/70">Bugünkü sipariş toplamı</p>
+          <div className="rounded-3xl border border-purple-400/20 bg-white p-5 shadow-sm shadow-black/10">
+            <p className="text-sm font-semibold text-violet-700">Bugünkü Ciro</p>
+            <p className="mt-2 text-3xl font-black tracking-tight text-violet-700">{formattedTodayRevenue}</p>
+            <p className="mt-1 text-xs text-violet-700/70">Bugünkü sipariş toplamı</p>
           </div>
         </section>
 
@@ -1481,14 +1575,14 @@ export default function DashboardPage() {
 
         
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/10">
+        <section className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">
                 Operasyon
               </p>
               <h2 className="mt-2 text-2xl font-black">Sipariş Operasyon Ekranı V2</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-slate-500">
                 Siparişler aşama aşama ilerler: Kabul Et → Yola Çıkar → Teslim Et. Teslim edilen ve iptal edilen siparişler Geçmiş Siparişler bölümüne aktarılır.
               </p>
             </div>
@@ -1496,20 +1590,20 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => router.push('/dashboard/couriers')}
-              className="w-fit rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-5 py-3 text-sm font-black text-cyan-200 transition hover:bg-cyan-500/20"
+              className="w-fit rounded-2xl border border-cyan-400/30 bg-white px-5 py-3 text-sm font-black text-sky-700 transition hover:bg-slate-100"
             >
               Kurye Takip / Gün Sonu
             </button>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] md:flex-row md:items-center md:justify-between">
             <div className="w-full">
-              <label className="text-sm font-semibold text-slate-200">
+              <label className="text-sm font-semibold text-slate-700">
                 Sipariş Ara
                 <input
                   value={orderSearch}
                   onChange={(event) => setOrderSearch(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3.5 shadow-inner text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
                   placeholder="Kod, masa no, müşteri, telefon, adres, not, şube..."
                 />
               </label>
@@ -1519,7 +1613,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setOrderSearch('')}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/10 md:mt-6"
+                className="rounded-2xl border border-slate-300 bg-white px-4 py-3.5 shadow-inner text-sm font-bold text-slate-700 transition hover:bg-slate-50/80 md:mt-6"
               >
                 Temizle
               </button>
@@ -1527,11 +1621,11 @@ export default function DashboardPage() {
           </div>
 
           {activeOrders.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">
               Aktif sipariş yok.
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">
               Bu arama sonucunda sipariş bulunamadı.
             </div>
           ) : (
@@ -1562,12 +1656,12 @@ export default function DashboardPage() {
       </div>
 
       {dispatchCourierOrder ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/70 p-4">
+          <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/40">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-black text-slate-100">Kurye Seçimi</h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <h3 className="text-xl font-black text-slate-800">Kurye Seçimi</h3>
+                <p className="mt-1 text-sm text-slate-500">
                   {dispatchCourierOrder.code} kodlu siparişi yola çıkarmak için kurye seç.
                 </p>
               </div>
@@ -1575,7 +1669,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={closeDispatchCourierModal}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-white/10"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50/80"
               >
                 Kapat
               </button>
@@ -1583,7 +1677,7 @@ export default function DashboardPage() {
 
             <div className="mt-5 space-y-3">
               {activeCouriers.length === 0 ? (
-                <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm font-bold text-amber-100">
+                <div className="rounded-2xl border border-amber-400/30 bg-white p-4 text-sm font-bold text-amber-700">
                   Aktif kurye bulunamadı. Önce Kurye Tanımları bölümünden en az bir kuryeyi aktif yapmalısın.
                 </div>
               ) : (
@@ -1592,8 +1686,8 @@ export default function DashboardPage() {
                     key={courier.id}
                     className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-4 transition ${
                       dispatchCourierId === courier.id
-                        ? 'border-emerald-400 bg-emerald-500/10'
-                        : 'border-white/10 bg-white/5 hover:bg-white/10'
+                        ? 'border-emerald-400 bg-white'
+                        : 'border-slate-200 bg-white hover:bg-slate-50/80'
                     }`}
                   >
                     <span className="flex items-center gap-3">
@@ -1605,7 +1699,7 @@ export default function DashboardPage() {
                         onChange={(event) => setDispatchCourierId(event.target.value)}
                         className="h-4 w-4 accent-emerald-400"
                       />
-                      <span className="font-black text-slate-100">{courier.name}</span>
+                      <span className="font-black text-slate-800">{courier.name}</span>
                     </span>
                   </label>
                 ))
@@ -1617,7 +1711,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={closeDispatchCourierModal}
                 disabled={updatingOrderId === dispatchCourierOrder.id}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Vazgeç
               </button>
@@ -1630,7 +1724,7 @@ export default function DashboardPage() {
                   activeCouriers.length === 0 ||
                   !dispatchCourierId
                 }
-                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {updatingOrderId === dispatchCourierOrder.id ? 'Yola çıkarılıyor...' : 'Yola Çıkar'}
               </button>
@@ -1640,12 +1734,12 @@ export default function DashboardPage() {
       ) : null}
 
       {courierChangeOrder ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-50/70 p-4">
+          <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/40">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-black text-slate-100">Kurye Seçimi</h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <h3 className="text-xl font-black text-slate-800">Kurye Seçimi</h3>
+                <p className="mt-1 text-sm text-slate-500">
                   {courierChangeOrder.code} kodlu sipariş yolda kalır, sadece atanmış kuryesi değişir.
                 </p>
               </div>
@@ -1653,7 +1747,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={closeCourierChangeModal}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-white/10"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50/80"
               >
                 Kapat
               </button>
@@ -1661,7 +1755,7 @@ export default function DashboardPage() {
 
             <div className="mt-5 space-y-3">
               {activeCouriers.length === 0 ? (
-                <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm font-bold text-amber-100">
+                <div className="rounded-2xl border border-amber-400/30 bg-white p-4 text-sm font-bold text-amber-700">
                   Aktif kurye bulunamadı. Önce Kurye Tanımları bölümünden en az bir kuryeyi aktif yapmalısın.
                 </div>
               ) : (
@@ -1670,8 +1764,8 @@ export default function DashboardPage() {
                     key={courier.id}
                     className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-4 transition ${
                       courierChangeCourierId === courier.id
-                        ? 'border-emerald-400 bg-emerald-500/10'
-                        : 'border-white/10 bg-white/5 hover:bg-white/10'
+                        ? 'border-emerald-400 bg-white'
+                        : 'border-slate-200 bg-white hover:bg-slate-50/80'
                     }`}
                   >
                     <span className="flex items-center gap-3">
@@ -1683,11 +1777,11 @@ export default function DashboardPage() {
                         onChange={(event) => setCourierChangeCourierId(event.target.value)}
                         className="h-4 w-4 accent-emerald-400"
                       />
-                      <span className="font-black text-slate-100">{courier.name}</span>
+                      <span className="font-black text-slate-800">{courier.name}</span>
                     </span>
 
                     {courier.id === courierChangeOrder.courierId ? (
-                      <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-200">
+                      <span className="rounded-full border border-cyan-400/30 bg-white px-3 py-1 text-xs font-black text-sky-700">
                         Mevcut
                       </span>
                     ) : null}
@@ -1701,7 +1795,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={closeCourierChangeModal}
                 disabled={updatingOrderId === courierChangeOrder.id}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Vazgeç
               </button>
@@ -1715,7 +1809,7 @@ export default function DashboardPage() {
                   !courierChangeCourierId ||
                   courierChangeCourierId === courierChangeOrder.courierId
                 }
-                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {updatingOrderId === courierChangeOrder.id ? 'Kaydediliyor...' : 'Onayla'}
               </button>
@@ -1725,15 +1819,15 @@ export default function DashboardPage() {
       ) : null}
 
       {selectedOrder ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black">
-            <div className="flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-start md:justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black">
+            <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">
                   Sipariş Detayı
                 </p>
                 <h3 className="mt-2 text-2xl font-black">{selectedOrder.code}</h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-500">
                   {formatOrderDate(selectedOrder.createdAt)}
                 </p>
               </div>
@@ -1741,14 +1835,14 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50/80"
               >
                 Kapat
               </button>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Sipariş Tipi
                 </p>
@@ -1757,49 +1851,49 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Masa No
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.tableNumber || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Durum
                 </p>
                 <span
                   className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold ${
                     ORDER_STATUS_BADGE_CLASSES[selectedOrder.status] ||
-                    'border-slate-400/30 bg-slate-500/10 text-slate-200'
+                    'border-slate-400/30 bg-slate-50/10 text-slate-700'
                   }`}
                 >
                   {ORDER_STATUS_LABELS[selectedOrder.status] || selectedOrder.status}
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Müşteri
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.customerName || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Telefon
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.customerPhone || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Şube
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.branch?.name || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Toplam
                 </p>
@@ -1807,7 +1901,7 @@ export default function DashboardPage() {
               </div>
 
               {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 md:col-span-2">
+                <div className="rounded-2xl border border-emerald-400/20 bg-white p-4 md:col-span-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
                     Sipariş Ürünleri
                   </p>
@@ -1816,17 +1910,17 @@ export default function DashboardPage() {
                     {selectedOrder.items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4"
+                        className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]"
                       >
                         <div>
-                          <p className="font-bold text-white">{item.name}</p>
+                          <p className="font-bold text-slate-950">{item.name}</p>
                           {item.note ? (
-                            <p className="mt-1 text-xs text-amber-200">Not: {item.note}</p>
+                            <p className="mt-1 text-xs text-amber-700">Not: {item.note}</p>
                           ) : null}
                         </div>
 
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-300">
+                          <p className="text-sm font-semibold text-slate-500">
                             {item.quantity} x {formatMoney(item.unitPrice)}
                           </p>
                           <p className="mt-1 text-base font-black text-emerald-300">
@@ -1839,27 +1933,27 @@ export default function DashboardPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Adres
                 </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
                   {selectedOrder.customerAddress || '-'}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 md:col-span-2">
+              <div className="rounded-2xl border border-amber-400/20 bg-white p-4 md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
                   Not
                 </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-100">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-700">
                   {selectedOrder.note || '-'}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 border-t border-white/10 pt-5">
-              <p className="mb-3 text-sm font-bold text-slate-300">Durum Güncelle</p>
+            <div className="mt-6 border-t border-slate-200 pt-5">
+              <p className="mb-3 text-sm font-bold text-slate-500">Durum Güncelle</p>
 
               {renderOrderActionArea(selectedOrder)}
             </div>
