@@ -144,6 +144,15 @@ export default function CouriersPage() {
   const [perPackageFee, setPerPackageFee] = useState('0');
   const [hourlyFee, setHourlyFee] = useState('0');
 
+  const [editingCourierId, setEditingCourierId] = useState<string | null>(null);
+  const [editBranchId, setEditBranchId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPerPackageFee, setEditPerPackageFee] = useState('0');
+  const [editHourlyFee, setEditHourlyFee] = useState('0');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [isUpdatingCourier, setIsUpdatingCourier] = useState(false);
+
   const [selectedCourierId, setSelectedCourierId] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [startDate, setStartDate] = useState(dateInputValue(new Date()));
@@ -347,34 +356,64 @@ export default function CouriersPage() {
     }
   }
 
-  async function updateCourierFees(courier: Courier) {
-    const packageFee = window.prompt(
-      `${courier.name} paket başı ücret:`,
-      String(toNumber(courier.perPackageFee)),
-    );
+  function startEditCourier(courier: Courier) {
+    setEditingCourierId(courier.id);
+    setEditBranchId(courier.branchId || '');
+    setEditName(courier.name);
+    setEditPhone(courier.phone || '');
+    setEditPerPackageFee(String(toNumber(courier.perPackageFee)));
+    setEditHourlyFee(String(toNumber(courier.hourlyFee)));
+    setEditIsActive(courier.isActive);
+    setError('');
+    setMessage('');
+  }
 
-    if (packageFee === null) return;
+  function cancelEditCourier() {
+    setEditingCourierId(null);
+    setEditBranchId('');
+    setEditName('');
+    setEditPhone('');
+    setEditPerPackageFee('0');
+    setEditHourlyFee('0');
+    setEditIsActive(true);
+  }
 
-    const hourly = window.prompt(`${courier.name} saatlik ücret:`, String(toNumber(courier.hourlyFee)));
+  async function updateCourier(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    if (hourly === null) return;
+    if (!editingCourierId) {
+      return;
+    }
 
+    if (!editName.trim()) {
+      setError('Kurye adı zorunludur.');
+      return;
+    }
+
+    setIsUpdatingCourier(true);
     setError('');
     setMessage('');
 
     try {
-      await apiRequest(`/api/couriers/${courier.id}`, {
+      await apiRequest(`/api/couriers/${editingCourierId}`, {
         method: 'PATCH',
         body: JSON.stringify({
-          perPackageFee: toNumber(packageFee),
-          hourlyFee: toNumber(hourly),
+          branchId: editBranchId || null,
+          name: editName.trim(),
+          phone: editPhone.trim() || null,
+          perPackageFee: toNumber(editPerPackageFee),
+          hourlyFee: toNumber(editHourlyFee),
+          isActive: editIsActive,
         }),
       });
 
-      setMessage('Kurye ücretleri güncellendi.');
+      setMessage('Kurye bilgileri güncellendi.');
+      cancelEditCourier();
       await loadData();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Kurye ücretleri güncellenemedi.');
+      setError(requestError instanceof Error ? requestError.message : 'Kurye güncellenemedi.');
+    } finally {
+      setIsUpdatingCourier(false);
     }
   }
 
@@ -455,6 +494,7 @@ export default function CouriersPage() {
                     onChange={(event) => setBranchId(event.target.value)}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
                   >
+                    <option value="">Genel / Tüm şubeler</option>
                     {branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.name}
@@ -555,7 +595,7 @@ export default function CouriersPage() {
 
                           <button
                             type="button"
-                            onClick={() => updateCourierFees(courier)}
+                            onClick={() => startEditCourier(courier)}
                             className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-200 hover:bg-sky-500/20"
                           >
                             Ücret Düzenle
@@ -570,6 +610,103 @@ export default function CouriersPage() {
                           </button>
                         </div>
                       </div>
+
+                      {editingCourierId === courier.id ? (
+                        <form
+                          onSubmit={updateCourier}
+                          className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-5"
+                        >
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <label className="block text-sm font-bold">
+                              Kurye Adı
+                              <input
+                                value={editName}
+                                onChange={(event) => setEditName(event.target.value)}
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                              />
+                            </label>
+
+                            <label className="block text-sm font-bold">
+                              Telefon
+                              <input
+                                value={editPhone}
+                                onChange={(event) => setEditPhone(event.target.value)}
+                                placeholder="05xx xxx xx xx"
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                              />
+                            </label>
+
+                            <label className="block text-sm font-bold">
+                              Şube
+                              <select
+                                value={editBranchId}
+                                onChange={(event) => setEditBranchId(event.target.value)}
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                              >
+                                <option value="">Genel / Tüm şubeler</option>
+                                {branches.map((branch) => (
+                                  <option key={branch.id} value={branch.id}>
+                                    {branch.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="block text-sm font-bold">
+                              Durum
+                              <select
+                                value={editIsActive ? 'ACTIVE' : 'PASSIVE'}
+                                onChange={(event) => setEditIsActive(event.target.value === 'ACTIVE')}
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                              >
+                                <option value="ACTIVE">Aktif</option>
+                                <option value="PASSIVE">Pasif</option>
+                              </select>
+                            </label>
+
+                            <label className="block text-sm font-bold">
+                              Paket Başı Ücret
+                              <input
+                                value={editPerPackageFee}
+                                onChange={(event) => setEditPerPackageFee(event.target.value)}
+                                inputMode="decimal"
+                                placeholder="20"
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                              />
+                            </label>
+
+                            <label className="block text-sm font-bold">
+                              Saatlik Ücret
+                              <input
+                                value={editHourlyFee}
+                                onChange={(event) => setEditHourlyFee(event.target.value)}
+                                inputMode="decimal"
+                                placeholder="100"
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                              />
+                            </label>
+                          </div>
+
+                          <div className="mt-5 flex flex-wrap gap-2">
+                            <button
+                              type="submit"
+                              disabled={isUpdatingCourier}
+                              className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                            >
+                              {isUpdatingCourier ? 'Kaydediliyor...' : 'Kaydet'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={cancelEditCourier}
+                              disabled={isUpdatingCourier}
+                              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/10 disabled:opacity-60"
+                            >
+                              Vazgeç
+                            </button>
+                          </div>
+                        </form>
+                      ) : null}
                     </div>
                   ))
                 )}
@@ -712,6 +849,10 @@ export default function CouriersPage() {
                         <p className="mt-1 text-sm text-slate-400">
                           {row.courier.branch?.name || 'Genel'} • {row.courier.phone || 'Telefon yok'}
                         </p>
+                        <p className="mt-2 text-sm text-slate-300">
+                          Paket başı <b>{formatMoney(row.courier.perPackageFee)}</b> • Saatlik{' '}
+                          <b>{formatMoney(row.courier.hourlyFee)}</b>
+                        </p>
                       </div>
 
                       <label className="block text-sm font-bold">
@@ -727,6 +868,9 @@ export default function CouriersPage() {
                           placeholder="0"
                           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400 lg:w-44"
                         />
+                        <p className="mt-2 text-xs text-slate-400">
+                          Saatlik ücret: {formatMoney(row.courier.hourlyFee)}
+                        </p>
                       </label>
                     </div>
 
