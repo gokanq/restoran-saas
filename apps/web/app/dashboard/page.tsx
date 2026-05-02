@@ -795,6 +795,13 @@ export default function DashboardPage() {
             >
               Geçmiş Siparişler
             </a>
+
+            <a
+              href="/dashboard/couriers"
+              className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-800"
+            >
+              Kuryeler / Gün Sonu
+            </a>
           </div>
         </section>
 

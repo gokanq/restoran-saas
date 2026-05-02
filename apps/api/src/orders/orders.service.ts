@@ -156,6 +156,7 @@ export class OrdersService {
     orderId: string;
     restaurantId: string;
     status: OrderStatus;
+    courierId?: string | null;
     courierName?: string | null;
   }) {
     if (!data.status) {
@@ -166,8 +167,28 @@ export class OrdersService {
       throw new BadRequestException('Geçersiz sipariş durumu');
     }
 
-    if (data.status === OrderStatus.ON_DELIVERY && !optionalText(data.courierName)) {
-      throw new BadRequestException('Yola çıkarılan sipariş için kurye adı zorunludur');
+    let courierSnapshotName: string | null | undefined;
+
+    if (data.status === OrderStatus.ON_DELIVERY) {
+      if (optionalText(data.courierId)) {
+        const courier = await this.prisma.courier.findFirst({
+          where: {
+            id: optionalText(data.courierId) || undefined,
+            restaurantId: data.restaurantId,
+            isActive: true,
+          },
+        });
+
+        if (!courier) {
+          throw new BadRequestException('Aktif kurye bulunamadı');
+        }
+
+        courierSnapshotName = courier.name;
+      } else if (optionalText(data.courierName)) {
+        courierSnapshotName = optionalText(data.courierName);
+      } else {
+        throw new BadRequestException('Yola çıkarılan sipariş için kurye seçimi zorunludur');
+      }
     }
 
     const order = await this.prisma.order.findUnique({
@@ -194,8 +215,11 @@ export class OrdersService {
       },
       data: {
         status: data.status,
-        courierName:
-          data.status === OrderStatus.ON_DELIVERY ? optionalText(data.courierName) : undefined,
+        courierId:
+          data.status === OrderStatus.ON_DELIVERY && optionalText(data.courierId)
+            ? optionalText(data.courierId) || undefined
+            : undefined,
+        courierName: data.status === OrderStatus.ON_DELIVERY ? courierSnapshotName : undefined,
       },
       include: {
         branch: true,

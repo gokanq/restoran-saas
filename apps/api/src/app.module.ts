@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { BranchesModule } from './branches/branches.module';
+import { CouriersModule } from './couriers/couriers.module';
 import { MenuModule } from './menu/menu.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -14,6 +15,7 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     RestaurantsModule,
     BranchesModule,
+    CouriersModule,
     UsersModule,
     OrdersModule,
     MenuModule,

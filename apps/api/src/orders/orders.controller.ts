@@ -90,7 +90,7 @@ export class OrdersController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF, UserRole.COURIER)
   updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: OrderStatus },
+    @Body() body: { status: OrderStatus; courierId?: string; courierName?: string },
     @Req() req: AuthenticatedRequest,
   ) {
     if (!req.user.restaurantId) {
@@ -101,6 +101,8 @@ export class OrdersController {
       orderId: id,
       restaurantId: req.user.restaurantId,
       status: body.status,
+      courierId: body.courierId,
+      courierName: body.courierName,
     });
   }
 }
