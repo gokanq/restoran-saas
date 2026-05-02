@@ -7,6 +7,8 @@ import {
   Param,
   Patch,
   Post,
+  Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -39,6 +41,48 @@ export class CouriersController {
     }
 
     return this.couriersService.findByRestaurant(req.user.restaurantId);
+  }
+
+  @Get('work-logs')
+  findWorkLogs(
+    @Query('startDate') startDate: string | undefined,
+    @Query('endDate') endDate: string | undefined,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.couriersService.findWorkLogs({
+      restaurantId: req.user.restaurantId,
+      startDate,
+      endDate,
+    });
+  }
+
+  @Put('work-logs/:courierId/:workDate')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  upsertWorkLog(
+    @Param('courierId') courierId: string,
+    @Param('workDate') workDate: string,
+    @Body()
+    body: {
+      hours?: string | number | null;
+      note?: string | null;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.couriersService.upsertWorkLog({
+      restaurantId: req.user.restaurantId,
+      courierId,
+      workDate,
+      hours: body.hours,
+      note: body.note,
+    });
   }
 
   @Post()

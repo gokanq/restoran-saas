@@ -41,6 +41,7 @@ model Restaurant {
   branches             Branch[]
   orders               Order[]
   couriers             Courier[]
+  courierWorkLogs      CourierWorkLog[]
   menuCategories       MenuCategory[]
   menuItems            MenuItem[]
   createdAt            DateTime              @default(now())
@@ -133,12 +134,30 @@ model Courier {
   restaurant    Restaurant @relation(fields: [restaurantId], references: [id])
   branch        Branch?    @relation(fields: [branchId], references: [id])
   orders        Order[]
+  workLogs      CourierWorkLog[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
   @@index([restaurantId])
   @@index([branchId])
   @@index([isActive])
+}
+
+model CourierWorkLog {
+  id           String     @id @default(cuid())
+  restaurantId String
+  courierId    String
+  workDate     DateTime   @db.Date
+  hours        Decimal    @default(0) @db.Decimal(10, 2)
+  note         String?
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  courier      Courier    @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([restaurantId, courierId, workDate])
+  @@index([restaurantId, workDate])
+  @@index([courierId])
 }
 
 model Order {

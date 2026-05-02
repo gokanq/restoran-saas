@@ -21,6 +21,14 @@ function decimalNumber(value: unknown) {
   return parsedValue;
 }
 
+function parseWorkDate(value: unknown) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new BadRequestException('Geçerli bir tarih girilmelidir');
+  }
+
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
 @Injectable()
 export class CouriersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -46,6 +54,90 @@ export class CouriersService {
           name: 'asc',
         },
       ],
+    });
+  }
+
+  async findWorkLogs(data: { restaurantId: string; startDate?: string; endDate?: string }) {
+    const startDate = data.startDate ? parseWorkDate(data.startDate) : undefined;
+    const endDate = data.endDate ? parseWorkDate(data.endDate) : startDate;
+
+    return this.prisma.courierWorkLog.findMany({
+      where: {
+        restaurantId: data.restaurantId,
+        workDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        courier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          workDate: 'asc',
+        },
+        {
+          courier: {
+            name: 'asc',
+          },
+        },
+      ],
+    });
+  }
+
+  async upsertWorkLog(data: {
+    restaurantId: string;
+    courierId: string;
+    workDate: string;
+    hours?: string | number | null;
+    note?: string | null;
+  }) {
+    const workDate = parseWorkDate(data.workDate);
+    const hours = decimalNumber(data.hours);
+
+    const courier = await this.prisma.courier.findFirst({
+      where: {
+        id: data.courierId,
+        restaurantId: data.restaurantId,
+      },
+    });
+
+    if (!courier) {
+      throw new NotFoundException('Kurye bulunamadı');
+    }
+
+    return this.prisma.courierWorkLog.upsert({
+      where: {
+        restaurantId_courierId_workDate: {
+          restaurantId: data.restaurantId,
+          courierId: data.courierId,
+          workDate,
+        },
+      },
+      create: {
+        restaurantId: data.restaurantId,
+        courierId: data.courierId,
+        workDate,
+        hours,
+        note: optionalText(data.note) || null,
+      },
+      update: {
+        hours,
+        note: optionalText(data.note) || null,
+      },
+      include: {
+        courier: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
   }
 

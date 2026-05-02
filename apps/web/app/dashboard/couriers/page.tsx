@@ -19,6 +19,14 @@ type Courier = {
   branch?: Branch | null;
 };
 
+type CourierWorkLog = {
+  id: string;
+  courierId: string;
+  workDate: string;
+  hours: string | number;
+  note?: string | null;
+};
+
 type OrderStatus =
   | 'PENDING'
   | 'ACCEPTED'
@@ -130,6 +138,50 @@ async function readJson(response: Response) {
   }
 }
 
+function buildWorkLogsPath(startDate: string, endDate: string) {
+  const params = new URLSearchParams();
+
+  if (startDate) {
+    params.set('startDate', startDate);
+  }
+
+  if (endDate) {
+    params.set('endDate', endDate);
+  }
+
+  const query = params.toString();
+
+  return `/api/couriers/work-logs${query ? `?${query}` : ''}`;
+}
+
+function syncWorkLogFormState(
+  workLogs: CourierWorkLog[],
+  setWorkHours: (value: Record<string, string>) => void,
+  setWorkNotes: (value: Record<string, string>) => void,
+) {
+  const hoursByCourier: Record<string, number> = {};
+  const notesByCourier: Record<string, string> = {};
+
+  workLogs.forEach((workLog) => {
+    hoursByCourier[workLog.courierId] =
+      (hoursByCourier[workLog.courierId] || 0) + toNumber(workLog.hours);
+
+    if (workLog.note) {
+      notesByCourier[workLog.courierId] = workLog.note;
+    }
+  });
+
+  setWorkHours(
+    Object.fromEntries(
+      Object.entries(hoursByCourier).map(([courierId, hours]) => [
+        courierId,
+        String(hours),
+      ]),
+    ),
+  );
+  setWorkNotes(notesByCourier);
+}
+
 export default function CouriersPage() {
   const router = useRouter();
 
@@ -157,7 +209,10 @@ export default function CouriersPage() {
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [startDate, setStartDate] = useState(dateInputValue(new Date()));
   const [endDate, setEndDate] = useState(dateInputValue(new Date()));
+  const [courierWorkLogs, setCourierWorkLogs] = useState<CourierWorkLog[]>([]);
   const [workHoursByCourier, setWorkHoursByCourier] = useState<Record<string, string>>({});
+  const [workNotesByCourier, setWorkNotesByCourier] = useState<Record<string, string>>({});
+  const [savingWorkLogCourierId, setSavingWorkLogCourierId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -200,19 +255,23 @@ export default function CouriersPage() {
     setError('');
 
     try {
-      const [branchesData, couriersData, ordersData] = await Promise.all([
+      const [branchesData, couriersData, ordersData, workLogsData] = await Promise.all([
         apiRequest('/api/branches'),
         apiRequest('/api/couriers'),
         apiRequest('/api/orders'),
+        apiRequest(buildWorkLogsPath(startDate, endDate)),
       ]);
 
       const safeBranches = Array.isArray(branchesData) ? branchesData : [];
       const safeCouriers = Array.isArray(couriersData) ? couriersData : [];
       const safeOrders = Array.isArray(ordersData) ? ordersData : [];
+      const safeWorkLogs = Array.isArray(workLogsData) ? workLogsData : [];
 
       setBranches(safeBranches);
       setCouriers(safeCouriers);
       setOrders(safeOrders);
+      setCourierWorkLogs(safeWorkLogs);
+      syncWorkLogFormState(safeWorkLogs, setWorkHoursByCourier, setWorkNotesByCourier);
       setBranchId((current) => current || safeBranches[0]?.id || '');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Bilgiler yüklenemedi.');
@@ -224,6 +283,52 @@ export default function CouriersPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  async function loadCourierWorkLogs() {
+    try {
+      const workLogsData = await apiRequest(buildWorkLogsPath(startDate, endDate));
+      const safeWorkLogs = Array.isArray(workLogsData) ? workLogsData : [];
+
+      setCourierWorkLogs(safeWorkLogs);
+      syncWorkLogFormState(safeWorkLogs, setWorkHoursByCourier, setWorkNotesByCourier);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Kurye mesai kayıtları yüklenemedi.');
+    }
+  }
+
+  async function saveCourierWorkLog(courier: Courier) {
+    if (!startDate) {
+      setError('Mesai kaydı için başlangıç tarihi seçilmelidir.');
+      return;
+    }
+
+    setSavingWorkLogCourierId(courier.id);
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/couriers/work-logs/${courier.id}/${startDate}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          hours: toNumber(workHoursByCourier[courier.id]),
+          note: workNotesByCourier[courier.id] || null,
+        }),
+      });
+
+      setMessage(`${courier.name} mesai kaydı güncellendi.`);
+      await loadCourierWorkLogs();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Mesai kaydı güncellenemedi.');
+    } finally {
+      setSavingWorkLogCourierId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!isLoading) {
+      loadCourierWorkLogs();
+    }
+  }, [startDate, endDate]);
 
   const courierOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -297,7 +402,7 @@ export default function CouriersPage() {
 
         return row.courier.id === selectedCourierId;
       });
-  }, [couriers, orders, selectedCourierId, startDate, endDate, workHoursByCourier]);
+  }, [couriers, orders, selectedCourierId, startDate, endDate, workHoursByCourier, courierWorkLogs]);
 
   async function createCourier(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -855,23 +960,51 @@ export default function CouriersPage() {
                         </p>
                       </div>
 
-                      <label className="block text-sm font-bold">
-                        Çalışma Saati
-                        <input
-                          value={workHoursByCourier[row.courier.id] || ''}
-                          onChange={(event) =>
-                            setWorkHoursByCourier((current) => ({
-                              ...current,
-                              [row.courier.id]: event.target.value,
-                            }))
-                          }
-                          placeholder="0"
-                          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400 lg:w-44"
-                        />
+                      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <label className="block text-sm font-bold">
+                          Çalışma Saati
+                          <input
+                            value={workHoursByCourier[row.courier.id] || ''}
+                            onChange={(event) =>
+                              setWorkHoursByCourier((current) => ({
+                                ...current,
+                                [row.courier.id]: event.target.value,
+                              }))
+                            }
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                          />
+                        </label>
+
+                        <label className="mt-3 block text-sm font-bold">
+                          Mesai Notu
+                          <input
+                            value={workNotesByCourier[row.courier.id] || ''}
+                            onChange={(event) =>
+                              setWorkNotesByCourier((current) => ({
+                                ...current,
+                                [row.courier.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Örn: Akşam yoğunluğu"
+                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                          />
+                        </label>
+
                         <p className="mt-2 text-xs text-slate-400">
-                          Saatlik ücret: {formatMoney(row.courier.hourlyFee)}
+                          Saatlik ücret: {formatMoney(row.courier.hourlyFee)} • Kayıt tarihi: {startDate}
                         </p>
-                      </label>
+
+                        <button
+                          type="button"
+                          onClick={() => saveCourierWorkLog(row.courier)}
+                          disabled={savingWorkLogCourierId === row.courier.id}
+                          className="mt-3 rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                        >
+                          {savingWorkLogCourierId === row.courier.id ? 'Kaydediliyor...' : 'Mesaiyi Kaydet'}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
