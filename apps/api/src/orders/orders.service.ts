@@ -70,6 +70,44 @@ export class OrdersService {
     return order;
   }
 
+  private async generateOrderCode(restaurantId: string) {
+    const existingOrders = await this.prisma.order.findMany({
+      where: {
+        restaurantId,
+        code: {
+          startsWith: 'ORD-',
+        },
+      },
+      select: {
+        code: true,
+      },
+    });
+
+    const maxSequentialNumber = existingOrders.reduce((maxNumber, order) => {
+      const match = /^ORD-(\d{1,6})$/.exec(order.code);
+
+      if (!match) {
+        return maxNumber;
+      }
+
+      return Math.max(maxNumber, Number(match[1]));
+    }, 0);
+
+    let nextNumber = maxSequentialNumber + 1;
+
+    while (
+      await this.prisma.order.findFirst({
+        where: {
+          code: `ORD-${nextNumber}`,
+        },
+      })
+    ) {
+      nextNumber += 1;
+    }
+
+    return `ORD-${nextNumber}`;
+  }
+
   async create(data: {
     restaurantId: string;
     branchId: string;

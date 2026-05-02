@@ -365,6 +365,9 @@ export default function DashboardPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [selectedCourierByOrderId, setSelectedCourierByOrderId] = useState<Record<string, string>>({});
+  const [dispatchCourierOrder, setDispatchCourierOrder] = useState<Order | null>(null);
+  const [dispatchCourierId, setDispatchCourierId] = useState('');
+
   const [courierChangeOrder, setCourierChangeOrder] = useState<Order | null>(null);
   const [courierChangeCourierId, setCourierChangeCourierId] = useState('');
 
@@ -525,6 +528,89 @@ export default function DashboardPage() {
       setSuccess('Sipariş kuryesi güncellendi');
     } catch {
       setError('Sipariş kuryesi güncellenirken hata oluştu');
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  }
+
+  function openDispatchCourierModal(order: Order) {
+    if (order.type !== 'DELIVERY' || !DISPATCH_READY_STATUSES.has(order.status)) {
+      return;
+    }
+
+    setDispatchCourierOrder(order);
+    setDispatchCourierId(selectedCourierByOrderId[order.id] || '');
+    setError('');
+    setSuccess('');
+  }
+
+  function closeDispatchCourierModal() {
+    setDispatchCourierOrder(null);
+    setDispatchCourierId('');
+  }
+
+  async function submitDispatchCourier() {
+    if (!dispatchCourierOrder) {
+      return;
+    }
+
+    if (!dispatchCourierId) {
+      setError('Yola çıkarmak için kayıtlı kurye seçilmelidir.');
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setUpdatingOrderId(dispatchCourierOrder.id);
+
+    try {
+      const response = await fetch(`/api/orders/${dispatchCourierOrder.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'ON_DELIVERY',
+          courierId: dispatchCourierId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Sipariş yola çıkarılamadı');
+        return;
+      }
+
+      const latestOrders = await loadOrders(token);
+      const latestSelectedOrder = latestOrders.find((order) => order.id === dispatchCourierOrder.id);
+
+      setSelectedOrder((currentOrder) => {
+        if (!currentOrder || currentOrder.id !== dispatchCourierOrder.id) {
+          return currentOrder;
+        }
+
+        return latestSelectedOrder || data;
+      });
+
+      setSelectedCourierByOrderId((current) => {
+        const next = { ...current };
+        delete next[dispatchCourierOrder.id];
+        return next;
+      });
+
+      closeDispatchCourierModal();
+      setSuccess('Sipariş yola çıkarıldı');
+    } catch {
+      setError('Sipariş yola çıkarılırken hata oluştu');
     } finally {
       setUpdatingOrderId(null);
     }
@@ -1051,10 +1137,7 @@ export default function DashboardPage() {
 
   function renderOrderActionArea(order: Order) {
     const primaryAction = getPrimaryOrderAction(order);
-    const showCourierSelect = shouldShowCourierSelect(order);
-    const selectedCourierId = selectedCourierByOrderId[order.id] || '';
-    const selectedCourierName =
-      activeCouriers.find((courier) => courier.id === selectedCourierId)?.name || '';
+    const isDispatchAction = primaryAction?.value === 'ON_DELIVERY' && order.type === 'DELIVERY';
 
     const primaryActionClass =
       primaryAction?.value === 'ACCEPTED'
@@ -1065,16 +1148,13 @@ export default function DashboardPage() {
             ? 'border-green-300/60 bg-green-500 text-slate-950 shadow-green-950/30 hover:bg-green-400'
             : 'border-white/10 bg-slate-800 text-slate-100 hover:bg-slate-700';
 
-    const primaryDisabled =
-      updatingOrderId === order.id ||
-      (primaryAction?.value === 'ON_DELIVERY' &&
-        (order.type !== 'DELIVERY' || activeCouriers.length === 0 || !selectedCourierId));
-
     const primaryButton = primaryAction ? (
       <button
         type="button"
-        onClick={() => updateOrderStatus(order.id, primaryAction.value)}
-        disabled={primaryDisabled}
+        onClick={() =>
+          isDispatchAction ? openDispatchCourierModal(order) : updateOrderStatus(order.id, primaryAction.value)
+        }
+        disabled={updatingOrderId === order.id || (isDispatchAction && activeCouriers.length === 0)}
         className={`min-w-[130px] rounded-2xl border px-5 py-3 text-sm font-black shadow-lg transition disabled:cursor-not-allowed disabled:opacity-50 ${primaryActionClass}`}
       >
         {primaryAction.label}
@@ -1082,47 +1162,14 @@ export default function DashboardPage() {
     ) : null;
 
     return (
-      <div className="flex min-w-[300px] flex-col gap-3">
-        {showCourierSelect ? (
-          <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={selectedCourierId}
-                onChange={(event) =>
-                  setSelectedCourierByOrderId((current) => ({
-                    ...current,
-                    [order.id]: event.target.value,
-                  }))
-                }
-                disabled={activeCouriers.length === 0}
-                className="min-w-[210px] rounded-2xl border-2 border-cyan-400/50 bg-slate-800 px-4 py-3 text-sm font-black text-slate-100 outline-none shadow-lg shadow-cyan-950/20 transition focus:border-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <option value="">
-                  {activeCouriers.length > 0 ? 'Kurye seç' : 'Aktif kurye yok'}
-                </option>
-                {activeCouriers.map((courier) => (
-                  <option key={courier.id} value={courier.id}>
-                    {courier.name}
-                  </option>
-                ))}
-              </select>
+      <div className="flex min-w-[220px] flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">{primaryButton}</div>
 
-              {primaryButton}
-            </div>
-
-            {selectedCourierName ? (
-              <div className="mt-3 inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-1 text-xs font-black text-emerald-100">
-                Seçilen Kurye: {selectedCourierName}
-              </div>
-            ) : (
-              <div className="mt-3 text-xs font-semibold text-cyan-100/80">
-                Yola çıkarmak için önce kurye seç.
-              </div>
-            )}
+        {isDispatchAction && activeCouriers.length === 0 ? (
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">
+            Aktif kurye yok.
           </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">{primaryButton}</div>
-        )}
+        ) : null}
 
         {shouldShowCancelAction(order) ? (
           <button
@@ -1139,19 +1186,6 @@ export default function DashboardPage() {
   }
 
   function renderCourierAssignment(order: Order) {
-    if (order.type === 'DELIVERY' && order.status === 'ON_DELIVERY') {
-      return (
-        <button
-          type="button"
-          onClick={() => openCourierChangeModal(order)}
-          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/50 bg-cyan-500/15 px-3 py-2 text-xs font-black text-cyan-100 shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-500/25"
-          title="Kuryeyi değiştirmek için tıkla"
-        >
-          Kurye: {order.courierName || 'Kurye seç'}
-        </button>
-      );
-    }
-
     if (order.courierName) {
       return (
         <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-100">
@@ -1169,10 +1203,10 @@ export default function DashboardPage() {
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <h3 className="text-lg font-black text-slate-100">{title}</h3>
-            <p className="mt-1 text-sm text-slate-400">{description}</p>
+            <p className="mt-1 text-sm text-slate-300">{description}</p>
           </div>
 
-          <span className="w-fit rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black text-slate-200">
+          <span className="w-fit rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-100">
             {rows.length} sipariş
           </span>
         </div>
@@ -1183,7 +1217,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px] overflow-hidden rounded-2xl text-left text-sm shadow-xl shadow-black/10">
+            <table className="w-full min-w-[1350px] overflow-hidden rounded-2xl text-left text-sm shadow-xl shadow-black/10">
               <thead className="bg-slate-700/80 text-slate-100">
                 <tr>
                   <th className="px-4 py-3">Kod</th>
@@ -1193,6 +1227,7 @@ export default function DashboardPage() {
                   <th className="px-4 py-3">Şube</th>
                   <th className="px-4 py-3">Durum</th>
                   <th className="px-4 py-3">Toplam</th>
+                  <th className="px-4 py-3">Ödeme</th>
                   <th className="px-4 py-3">Tarih</th>
                   <th className="px-4 py-3">Detay</th>
                   <th className="px-4 py-3">İşlem</th>
@@ -1203,6 +1238,7 @@ export default function DashboardPage() {
                 {rows.map((order) => {
                   const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
                   const typeLabel = getOrderTypeDisplay(order);
+                  const paymentLabel = PAYMENT_METHOD_LABELS[order.paymentMethod || ''] || '-';
                   const statusBadgeClass =
                     ORDER_STATUS_BADGE_CLASSES[order.status] ||
                     'border-slate-400/30 bg-slate-500/10 text-slate-200';
@@ -1210,15 +1246,17 @@ export default function DashboardPage() {
                   return (
                     <tr key={order.id} className="bg-slate-800/45 transition hover:bg-slate-700/55">
                       <td className="px-4 py-4 font-bold">{order.code}</td>
+
                       <td className="px-4 py-4">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-200">
+                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-slate-100">
                           {typeLabel}
                         </span>
                       </td>
+
                       <td className="px-4 py-4">
                         <div className="font-semibold">{order.customerName || '-'}</div>
                         {order.customerAddress ? (
-                          <div className="mt-1 max-w-[220px] truncate text-xs text-slate-400">
+                          <div className="mt-1 max-w-[220px] truncate text-xs text-slate-300">
                             {order.customerAddress}
                           </div>
                         ) : null}
@@ -1228,8 +1266,10 @@ export default function DashboardPage() {
                           </div>
                         ) : null}
                       </td>
+
                       <td className="px-4 py-4">{order.customerPhone || '-'}</td>
                       <td className="px-4 py-4">{order.branch?.name || '-'}</td>
+
                       <td className="px-4 py-4">
                         <span
                           className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${statusBadgeClass}`}
@@ -1238,10 +1278,19 @@ export default function DashboardPage() {
                         </span>
                         {renderCourierAssignment(order)}
                       </td>
+
                       <td className="px-4 py-4 font-semibold">{formatMoney(order.total)}</td>
+
+                      <td className="px-4 py-4">
+                        <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-slate-100">
+                          {paymentLabel}
+                        </span>
+                      </td>
+
                       <td className="px-4 py-4 text-xs text-slate-300">
                         {formatOrderDate(order.createdAt)}
                       </td>
+
                       <td className="px-4 py-4">
                         <button
                           type="button"
@@ -1251,6 +1300,7 @@ export default function DashboardPage() {
                           Detay
                         </button>
                       </td>
+
                       <td className="px-4 py-4">{renderOrderActionArea(order)}</td>
                     </tr>
                   );
@@ -1637,6 +1687,84 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
+
+      {dispatchCourierOrder ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black/40">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-100">Kurye Seçimi</h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  {dispatchCourierOrder.code} kodlu siparişi yola çıkarmak için kurye seç.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeDispatchCourierModal}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-white/10"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {activeCouriers.length === 0 ? (
+                <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm font-bold text-amber-100">
+                  Aktif kurye bulunamadı. Önce Kurye Tanımları bölümünden en az bir kuryeyi aktif yapmalısın.
+                </div>
+              ) : (
+                activeCouriers.map((courier) => (
+                  <label
+                    key={courier.id}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-4 transition ${
+                      dispatchCourierId === courier.id
+                        ? 'border-emerald-400 bg-emerald-500/10'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="dispatchCourier"
+                        value={courier.id}
+                        checked={dispatchCourierId === courier.id}
+                        onChange={(event) => setDispatchCourierId(event.target.value)}
+                        className="h-4 w-4 accent-emerald-400"
+                      />
+                      <span className="font-black text-slate-100">{courier.name}</span>
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDispatchCourierModal}
+                disabled={updatingOrderId === dispatchCourierOrder.id}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="button"
+                onClick={submitDispatchCourier}
+                disabled={
+                  updatingOrderId === dispatchCourierOrder.id ||
+                  activeCouriers.length === 0 ||
+                  !dispatchCourierId
+                }
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {updatingOrderId === dispatchCourierOrder.id ? 'Yola çıkarılıyor...' : 'Yola Çıkar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {courierChangeOrder ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
