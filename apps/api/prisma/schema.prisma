@@ -103,6 +103,7 @@ model DiningArea {
   name         String
   sortOrder    Int      @default(0)
   isActive     Boolean  @default(true)
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -113,6 +114,7 @@ model DiningArea {
   @@index([restaurantId])
   @@index([branchId])
   @@index([isActive])
+  @@index([deletedAt])
 }
 
 model RestaurantTable {
@@ -130,6 +132,7 @@ model RestaurantTable {
   reservedPhone String?
   reservedNote String?
   reservedAt   DateTime?
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -143,7 +146,7 @@ model RestaurantTable {
   @@index([diningAreaId])
   @@index([isActive])
   @@index([isReserved])
-  @@unique([branchId, code])
+  @@index([deletedAt])
 }
 
 model TableSession {
