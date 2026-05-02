@@ -1316,39 +1316,45 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
       <div className="mx-auto max-w-7xl space-y-8">
-        <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
-              Restoran SaaS
-            </p>
-            <h1 className="mt-2 text-3xl font-bold">Dashboard</h1>
-            <p className="mt-2 text-sm text-slate-300">
-              {user ? `${user.name} • ${user.email} • ${roleLabel}` : 'Kullanıcı bilgisi yok'}
-            </p>
+        <header className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/20">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
+                Restoran SaaS
+              </p>
+              <h1 className="mt-2 text-3xl font-black">Ana Sayfa</h1>
+              <p className="mt-2 text-sm text-slate-300">
+                {user ? `${user.name} • ${user.email} • ${roleLabel}` : 'Kullanıcı bilgisi yok'}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={logout}
+              className="w-fit rounded-2xl bg-red-500 px-5 py-3 text-sm font-black text-white transition hover:bg-red-400"
+            >
+              Çıkış Yap
+            </button>
           </div>
 
-                        <button
-                type="button"
-                onClick={() => router.push('/dashboard/caller-id')}
-                className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-200 transition hover:bg-emerald-500/20"
-              >
-                CALLER ID
-              </button>
+          <nav className="mt-6 flex flex-wrap gap-3 border-t border-white/10 pt-5">
+            <a
+              href="/dashboard"
+              className="rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-5 py-4 text-sm font-black text-cyan-100 transition hover:bg-cyan-500/20"
+            >
+              Operasyon
+            </a>
 
-<button
-            type="button"
-            onClick={logout}
-            className="rounded-2xl bg-red-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-400"
-          >
-            Çıkış Yap
-          </button>
-        </header>
+            <a
+              href="/dashboard/caller-id"
+              className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
+            >
+              CALLER ID
+            </a>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
-          <div className="flex flex-wrap gap-3">
             <a
               href="/dashboard/menu"
-              className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400"
+              className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-800"
             >
               Menü
             </a>
@@ -1366,12 +1372,8 @@ export default function DashboardPage() {
             >
               Kuryeler / Gün Sonu
             </a>
-          </div>
-        </section>
-
-
-        
-
+          </nav>
+        </header>
 
         {error ? (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
@@ -1395,6 +1397,8 @@ export default function DashboardPage() {
             <p className="mt-2 text-3xl font-black text-yellow-100">{operationalSummary.pending}</p>
             <p className="mt-1 text-xs text-yellow-100/70">Aksiyon bekleyen sipariş</p>
           </button>
+
+
 
           <button
             type="button"
