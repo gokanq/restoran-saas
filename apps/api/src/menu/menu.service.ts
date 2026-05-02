@@ -467,4 +467,255 @@ export class MenuService {
       },
     });
   }
+
+  async updateOptionGroup(
+    restaurantId: string,
+    id: string,
+    data: {
+      name?: string;
+      isRequired?: boolean;
+      minSelect?: number;
+      maxSelect?: number;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const optionGroup = await this.prisma.menuItemOptionGroup.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!optionGroup) {
+      throw new NotFoundException('Opsiyon grubu bulunamadı');
+    }
+
+    if (optionGroup.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu opsiyon grubu için işlem yapma yetkiniz yok');
+    }
+
+    const updateData: {
+      name?: string;
+      isRequired?: boolean;
+      minSelect?: number;
+      maxSelect?: number;
+      sortOrder?: number;
+      isActive?: boolean;
+    } = {};
+
+    if (data.name !== undefined) {
+      const name = optionalText(data.name);
+
+      if (!name) {
+        throw new BadRequestException('Opsiyon grubu adı zorunludur');
+      }
+
+      updateData.name = name;
+    }
+
+    if (data.isRequired !== undefined) {
+      updateData.isRequired = data.isRequired;
+    }
+
+    if (data.minSelect !== undefined) {
+      updateData.minSelect = positiveIntegerOrDefault(data.minSelect, 0);
+    }
+
+    if (data.maxSelect !== undefined) {
+      const maxSelect = positiveIntegerOrDefault(data.maxSelect, 1);
+
+      if (maxSelect < 1) {
+        throw new BadRequestException('Maksimum seçim en az 1 olmalıdır');
+      }
+
+      updateData.maxSelect = maxSelect;
+    }
+
+    const finalMinSelect = updateData.minSelect ?? 0;
+    const finalMaxSelect = updateData.maxSelect ?? 1;
+
+    if (finalMinSelect > finalMaxSelect) {
+      throw new BadRequestException('Minimum seçim maksimum seçimden büyük olamaz');
+    }
+
+    if (data.sortOrder !== undefined) {
+      updateData.sortOrder = positiveIntegerOrDefault(data.sortOrder, 0);
+    }
+
+    if (data.isActive !== undefined) {
+      updateData.isActive = data.isActive;
+    }
+
+    return this.prisma.menuItemOptionGroup.update({
+      where: {
+        id,
+      },
+      data: updateData,
+      include: {
+        branch: true,
+        menuItem: {
+          include: {
+            category: true,
+          },
+        },
+        options: {
+          orderBy: [
+            {
+              sortOrder: 'asc',
+            },
+            {
+              name: 'asc',
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  async deleteOptionGroup(restaurantId: string, id: string) {
+    const optionGroup = await this.prisma.menuItemOptionGroup.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!optionGroup) {
+      throw new NotFoundException('Opsiyon grubu bulunamadı');
+    }
+
+    if (optionGroup.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu opsiyon grubu için işlem yapma yetkiniz yok');
+    }
+
+    await this.prisma.menuItemOptionGroup.delete({
+      where: {
+        id,
+      },
+    });
+
+    return {
+      success: true,
+    };
+  }
+
+  async updateOption(
+    restaurantId: string,
+    id: string,
+    data: {
+      name?: string;
+      price?: string | number;
+      priceDelta?: string | number;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const option = await this.prisma.menuItemOption.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!option) {
+      throw new NotFoundException('Opsiyon bulunamadı');
+    }
+
+    if (option.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu opsiyon için işlem yapma yetkiniz yok');
+    }
+
+    const updateData: {
+      name?: string;
+      priceDelta?: number;
+      sortOrder?: number;
+      isActive?: boolean;
+    } = {};
+
+    if (data.name !== undefined) {
+      const name = optionalText(data.name);
+
+      if (!name) {
+        throw new BadRequestException('Opsiyon adı zorunludur');
+      }
+
+      updateData.name = name;
+    }
+
+    const priceValue = data.priceDelta ?? data.price;
+
+    if (priceValue !== undefined) {
+      const numericPrice = numberOrDefault(priceValue, 0);
+
+      if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+        throw new BadRequestException('Opsiyon fiyatı geçerli olmalıdır');
+      }
+
+      updateData.priceDelta = numericPrice;
+    }
+
+    if (data.sortOrder !== undefined) {
+      updateData.sortOrder = positiveIntegerOrDefault(data.sortOrder, 0);
+    }
+
+    if (data.isActive !== undefined) {
+      updateData.isActive = data.isActive;
+    }
+
+    return this.prisma.menuItemOption.update({
+      where: {
+        id,
+      },
+      data: updateData,
+      include: {
+        branch: true,
+        group: {
+          include: {
+            menuItem: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deleteOption(restaurantId: string, id: string) {
+    const option = await this.prisma.menuItemOption.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!option) {
+      throw new NotFoundException('Opsiyon bulunamadı');
+    }
+
+    if (option.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu opsiyon için işlem yapma yetkiniz yok');
+    }
+
+    await this.prisma.menuItemOption.delete({
+      where: {
+        id,
+      },
+    });
+
+    return {
+      success: true,
+    };
+  }
+
 }

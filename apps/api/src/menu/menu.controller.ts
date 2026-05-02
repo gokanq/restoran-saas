@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
+  Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -143,6 +146,38 @@ export class MenuController {
     });
   }
 
+  @Patch('option-groups/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateOptionGroup(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      name?: string;
+      isRequired?: boolean;
+      minSelect?: number;
+      maxSelect?: number;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.updateOptionGroup(req.user.restaurantId, id, body);
+  }
+
+  @Delete('option-groups/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  deleteOptionGroup(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.deleteOptionGroup(req.user.restaurantId, id);
+  }
+
   @Post('options')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   createOption(
@@ -170,5 +205,36 @@ export class MenuController {
       sortOrder: body.sortOrder,
       isActive: body.isActive,
     });
+  }
+
+  @Patch('options/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateOption(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      name?: string;
+      price?: string | number;
+      priceDelta?: string | number;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.updateOption(req.user.restaurantId, id, body);
+  }
+
+  @Delete('options/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  deleteOption(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.deleteOption(req.user.restaurantId, id);
   }
 }

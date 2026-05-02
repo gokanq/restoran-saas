@@ -296,6 +296,138 @@ export default function DashboardOptionsPage() {
     }
   }
 
+  async function editOptionGroup(group: MenuItemOptionGroup) {
+    const nextName = window.prompt('Opsiyon grubu adı:', group.name);
+
+    if (nextName === null) {
+      return;
+    }
+
+    if (!nextName.trim()) {
+      setError('Opsiyon grubu adı boş olamaz.');
+      return;
+    }
+
+    const nextMinSelect = window.prompt('Minimum seçim:', String(group.minSelect ?? 0));
+
+    if (nextMinSelect === null) {
+      return;
+    }
+
+    const nextMaxSelect = window.prompt('Maksimum seçim:', String(group.maxSelect ?? 1));
+
+    if (nextMaxSelect === null) {
+      return;
+    }
+
+    const nextIsRequired = window.confirm('Bu grup zorunlu seçim olsun mu?');
+
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/option-groups/${group.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: nextName.trim(),
+          isRequired: nextIsRequired,
+          minSelect: Number(nextMinSelect) || 0,
+          maxSelect: Number(nextMaxSelect) || 1,
+        }),
+      });
+
+      setMessage('Opsiyon grubu güncellendi.');
+      await loadOptionGroups(selectedItemId);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : 'Opsiyon grubu güncellenemedi.',
+      );
+    }
+  }
+
+  async function deleteOptionGroup(group: MenuItemOptionGroup) {
+    const confirmed = window.confirm(
+      `${group.name} opsiyon grubunu ve içindeki tüm seçenekleri silmek istiyor musunuz?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/option-groups/${group.id}`, {
+        method: 'DELETE',
+      });
+
+      setMessage('Opsiyon grubu silindi.');
+      await loadOptionGroups(selectedItemId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Opsiyon grubu silinemedi.');
+    }
+  }
+
+  async function editOption(option: MenuItemOption) {
+    const nextName = window.prompt('Opsiyon adı:', option.name);
+
+    if (nextName === null) {
+      return;
+    }
+
+    if (!nextName.trim()) {
+      setError('Opsiyon adı boş olamaz.');
+      return;
+    }
+
+    const nextPriceDelta = window.prompt('Fiyat farkı:', String(toNumber(option.priceDelta)));
+
+    if (nextPriceDelta === null) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/options/${option.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: nextName.trim(),
+          price: toNumber(nextPriceDelta),
+        }),
+      });
+
+      setMessage('Opsiyon güncellendi.');
+      await loadOptionGroups(selectedItemId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Opsiyon güncellenemedi.');
+    }
+  }
+
+  async function deleteOption(option: MenuItemOption) {
+    const confirmed = window.confirm(`${option.name} opsiyonunu silmek istiyor musunuz?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/options/${option.id}`, {
+        method: 'DELETE',
+      });
+
+      setMessage('Opsiyon silindi.');
+      await loadOptionGroups(selectedItemId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Opsiyon silinemedi.');
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -507,9 +639,27 @@ export default function DashboardOptionsPage() {
                       </p>
                     </div>
 
-                    <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-200">
-                      {group.options?.length || 0} seçenek
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                        {group.options?.length || 0} seçenek
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => editOptionGroup(group)}
+                        className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-200 hover:bg-sky-500/20"
+                      >
+                        Düzenle
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => deleteOptionGroup(group)}
+                        className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-black text-red-200 hover:bg-red-500/20"
+                      >
+                        Sil
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -527,6 +677,24 @@ export default function DashboardOptionsPage() {
                           <p className="mt-1 text-sm font-black text-emerald-300">
                             +{formatMoney(option.priceDelta)}
                           </p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => editOption(option)}
+                              className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-200 hover:bg-sky-500/20"
+                            >
+                              Düzenle
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => deleteOption(option)}
+                              className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-black text-red-200 hover:bg-red-500/20"
+                            >
+                              Sil
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
