@@ -763,8 +763,18 @@ export default function DashboardPage() {
             >
               Menü
             </a>
+
+            <a
+              href="/dashboard/orders/history"
+              className="rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 text-sm font-black text-slate-200 transition hover:bg-slate-800"
+            >
+              Geçmiş Siparişler
+            </a>
           </div>
         </section>
+
+
+        
 
 
         {error ? (
