@@ -74,6 +74,7 @@ type Order = {
   customerName?: string | null;
   customerPhone?: string | null;
   customerAddress?: string | null;
+  courierName?: string | null;
   note?: string | null;
   items?: OrderItem[];
   createdAt: string;
@@ -117,6 +118,15 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   DELIVERED: 'Teslim Edildi',
   CANCELLED: 'İptal Edildi',
 };
+
+const ACTIVE_ORDER_STATUSES = new Set<string>([
+  'PENDING',
+  'ACCEPTED',
+  'PREPARING',
+  'READY',
+  'ON_DELIVERY',
+]);
+
 
 const ORDER_STATUS_BADGE_CLASSES: Record<string, string> = {
   PENDING: 'border-yellow-400/30 bg-yellow-500/10 text-yellow-200',
@@ -301,19 +311,23 @@ export default function DashboardPage() {
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
+  const activeOrders = useMemo(() => {
+    return orders.filter((order) => ACTIVE_ORDER_STATUSES.has(order.status));
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     const normalizedSearch = normalizeSearchValue(orderSearch);
 
-    return orders.filter((order) => {
+    return activeOrders.filter((order) => {
       const statusMatches = orderFilter === 'ALL' || order.status === orderFilter;
       const searchMatches = orderMatchesSearch(order, normalizedSearch);
 
       return statusMatches && searchMatches;
     });
-  }, [orders, orderFilter, orderSearch]);
+  }, [activeOrders, orderFilter, orderSearch]);
 
   const orderCountsByStatus = useMemo(() => {
-    return orders.reduce<Record<string, number>>((counts, order) => {
+    return activeOrders.reduce<Record<string, number>>((counts, order) => {
       counts[order.status] = (counts[order.status] || 0) + 1;
       return counts;
     }, {});
@@ -663,6 +677,23 @@ export default function DashboardPage() {
   }
 
   async function updateOrderStatus(orderId: string, status: OrderStatus) {
+    let courierName: string | undefined;
+
+    if (status === 'ON_DELIVERY') {
+      const courierInput = window.prompt('Kurye adı girin:');
+
+      if (courierInput === null) {
+        return;
+      }
+
+      courierName = courierInput.trim();
+
+      if (!courierName) {
+        setError('Yola çıkarılan sipariş için kurye adı zorunludur.');
+        return;
+      }
+    }
+
     const token = localStorage.getItem('accessToken');
 
     if (!token) {
@@ -681,7 +712,7 @@ export default function DashboardPage() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, courierName }),
       });
 
       const data = await response.json();

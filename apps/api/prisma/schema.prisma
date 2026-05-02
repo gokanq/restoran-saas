@@ -131,6 +131,7 @@ model Order {
   customerName    String?
   customerPhone   String?
   customerAddress String?
+  courierName     String?
   note            String?
   restaurant      Restaurant  @relation(fields: [restaurantId], references: [id])
   branch          Branch      @relation(fields: [branchId], references: [id])

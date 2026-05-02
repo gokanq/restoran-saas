@@ -156,6 +156,7 @@ export class OrdersService {
     orderId: string;
     restaurantId: string;
     status: OrderStatus;
+    courierName?: string | null;
   }) {
     if (!data.status) {
       throw new BadRequestException('status zorunludur');
@@ -163,6 +164,10 @@ export class OrdersService {
 
     if (!ORDER_STATUSES.includes(data.status)) {
       throw new BadRequestException('Geçersiz sipariş durumu');
+    }
+
+    if (data.status === OrderStatus.ON_DELIVERY && !optionalText(data.courierName)) {
+      throw new BadRequestException('Yola çıkarılan sipariş için kurye adı zorunludur');
     }
 
     const order = await this.prisma.order.findUnique({
@@ -189,6 +194,8 @@ export class OrdersService {
       },
       data: {
         status: data.status,
+        courierName:
+          data.status === OrderStatus.ON_DELIVERY ? optionalText(data.courierName) : undefined,
       },
       include: {
         branch: true,

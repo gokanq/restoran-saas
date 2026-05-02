@@ -33,6 +33,7 @@ type Order = {
   customerName?: string | null;
   customerPhone?: string | null;
   customerAddress?: string | null;
+  courierName?: string | null;
   note?: string | null;
   items?: OrderItem[];
   createdAt: string;
@@ -41,23 +42,12 @@ type Order = {
   } | null;
 };
 
-type HistoryFilter = 'ALL' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'ON_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+type HistoryFilter = 'ALL' | 'DELIVERED' | 'CANCELLED';
 
-const HISTORY_ORDER_STATUSES = new Set<string>([
-  'ACCEPTED',
-  'PREPARING',
-  'READY',
-  'ON_DELIVERY',
-  'DELIVERED',
-  'CANCELLED',
-]);
+const HISTORY_ORDER_STATUSES = new Set<string>(['DELIVERED', 'CANCELLED']);
 
 const HISTORY_FILTER_OPTIONS: { value: HistoryFilter; label: string }[] = [
   { value: 'ALL', label: 'Tümü' },
-  { value: 'ACCEPTED', label: 'Kabul Edildi' },
-  { value: 'PREPARING', label: 'Hazırlanıyor' },
-  { value: 'READY', label: 'Hazır' },
-  { value: 'ON_DELIVERY', label: 'Yolda' },
   { value: 'DELIVERED', label: 'Teslim Edildi' },
   { value: 'CANCELLED', label: 'İptal Edildi' },
 ];
