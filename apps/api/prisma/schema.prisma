@@ -32,6 +32,14 @@ enum OrderType {
   TAKEAWAY
 }
 
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  ONLINE
+  MEAL_CARD
+  OPEN_ACCOUNT
+}
+
 model Restaurant {
   id                   String                @id @default(cuid())
   name                 String
@@ -168,7 +176,8 @@ model Order {
   type            OrderType   @default(DELIVERY)
   tableNumber     String?
   status          OrderStatus @default(PENDING)
-  total           Decimal     @default(0) @db.Decimal(10, 2)
+  total           Decimal       @default(0) @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod @default(CASH)
   customerName    String?
   customerPhone   String?
   customerAddress String?

@@ -4,11 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, OrderType } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ORDER_STATUSES = Object.values(OrderStatus);
 const ORDER_TYPES = Object.values(OrderType);
+const PAYMENT_METHODS = Object.values(PaymentMethod);
 
 function optionalText(value?: string | null) {
   if (typeof value !== 'string') {
@@ -77,6 +78,7 @@ export class OrdersService {
     tableNumber?: string;
     status?: OrderStatus;
     total?: string | number;
+    paymentMethod?: PaymentMethod;
     customerName?: string;
     customerPhone?: string;
     customerAddress?: string;
@@ -103,6 +105,12 @@ export class OrdersService {
     }
 
     const orderType = data.type ?? OrderType.DELIVERY;
+    const paymentMethod = data.paymentMethod ?? PaymentMethod.CASH;
+
+    if (data.paymentMethod && !PAYMENT_METHODS.includes(data.paymentMethod)) {
+      throw new BadRequestException('Geçersiz ödeme tipi');
+    }
+
     const tableNumber = optionalText(data.tableNumber);
 
     if (orderType === OrderType.TABLE && !tableNumber) {
@@ -135,6 +143,7 @@ export class OrdersService {
         type: orderType,
         tableNumber: orderType === OrderType.TABLE ? tableNumber : null,
         status: data.status,
+        paymentMethod,
         total: data.total ?? 0,
         customerName: optionalText(data.customerName),
         customerPhone: optionalText(data.customerPhone),

@@ -64,6 +64,8 @@ type OrderStatus =
 
 type OrderType = 'TABLE' | 'DELIVERY' | 'TAKEAWAY';
 
+type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'ONLINE' | 'MEAL_CARD' | 'OPEN_ACCOUNT';
+
 type OrderItem = {
   id: string;
   name: string;
@@ -82,6 +84,7 @@ type Order = {
   tableNumber?: string | null;
   status: OrderStatus | string;
   total: string | number;
+  paymentMethod?: PaymentMethod | string | null;
   customerName?: string | null;
   customerPhone?: string | null;
   customerAddress?: string | null;
@@ -105,6 +108,22 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
   DELIVERY: 'Paket',
   TABLE: 'Masa',
   TAKEAWAY: 'Gel-al',
+};
+
+const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: 'CASH', label: 'Nakit' },
+  { value: 'CREDIT_CARD', label: 'Kredi / Banka Kartı' },
+  { value: 'ONLINE', label: 'Online Ödeme' },
+  { value: 'MEAL_CARD', label: 'Yemek Kartı' },
+  { value: 'OPEN_ACCOUNT', label: 'Açık Hesap' },
+];
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: 'Nakit',
+  CREDIT_CARD: 'Kredi / Banka Kartı',
+  ONLINE: 'Online Ödeme',
+  MEAL_CARD: 'Yemek Kartı',
+  OPEN_ACCOUNT: 'Açık Hesap',
 };
 
 const ORDER_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
@@ -354,6 +373,7 @@ export default function DashboardPage() {
   const [orderType, setOrderType] = useState<OrderType>('DELIVERY');
   const [tableNumber, setTableNumber] = useState('');
   const [orderTotal, setOrderTotal] = useState('');
+  const [orderPaymentMethod, setOrderPaymentMethod] = useState<PaymentMethod>('CASH');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -739,6 +759,7 @@ export default function DashboardPage() {
           type: orderType,
           tableNumber: orderType === 'TABLE' ? tableNumber.trim() : '',
           total: numericOrderTotal,
+        paymentMethod: orderPaymentMethod,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
           customerAddress: orderType === 'DELIVERY' ? customerAddress.trim() : '',
@@ -756,6 +777,7 @@ export default function DashboardPage() {
       setOrderType('DELIVERY');
       setTableNumber('');
       setOrderTotal('');
+      setOrderPaymentMethod('CASH');
       setCustomerName('');
       setCustomerPhone('');
       setCustomerAddress('');
@@ -1498,6 +1520,21 @@ export default function DashboardPage() {
                 </p>
               </div>
             )}
+
+            <label className="block text-sm font-semibold text-slate-200">
+              Ödeme Tipi
+              <select
+                value={orderPaymentMethod}
+                onChange={(event) => setOrderPaymentMethod(event.target.value as PaymentMethod)}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+              >
+                {PAYMENT_METHOD_OPTIONS.map((method) => (
+                  <option key={method.value} value={method.value}>
+                    {method.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <label className="block text-sm font-semibold text-slate-200 md:col-span-2 xl:col-span-3">
               Not
