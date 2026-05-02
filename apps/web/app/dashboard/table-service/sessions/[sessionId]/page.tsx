@@ -1,21 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
-
-type TableSessionStatus = 'OPEN' | 'PAYMENT_PENDING' | 'CLOSED' | 'CANCELLED';
-type TableSessionItemStatus = 'NEW' | 'SENT' | 'PREPARING' | 'SERVED' | 'VOID';
+type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'ONLINE' | 'MEAL_CARD' | 'OPEN_ACCOUNT';
 
 type RestaurantTable = {
   id: string;
+  code?: string | null;
   name: string;
-  code?: string;
 };
 
 type TableSessionItemOption = {
-  id?: string;
+  id: string;
   groupName: string;
   optionName: string;
   priceDelta: string | number;
@@ -28,7 +26,7 @@ type TableSessionItem = {
   unitPrice: string | number;
   totalPrice: string | number;
   note?: string | null;
-  status?: TableSessionItemStatus;
+  status?: string;
   options?: TableSessionItemOption[];
 };
 
@@ -36,896 +34,746 @@ type TableSession = {
   id: string;
   branchId: string;
   tableId: string;
-  status: TableSessionStatus;
-  openedAt?: string;
+  status: 'OPEN' | 'PAYMENT_PENDING' | 'CLOSED' | 'CANCELLED';
+  openedAt: string;
   closedAt?: string | null;
   table?: RestaurantTable;
   items?: TableSessionItem[];
 };
 
-type MenuCategory = {
-  id: string;
-  name: string;
-  sortOrder?: number;
-};
-
-type MenuItemOption = {
+type MenuOption = {
   id: string;
   name: string;
   priceDelta?: string | number;
-  sortOrder?: number;
   isActive?: boolean;
 };
 
-type MenuItemOptionGroup = {
+type MenuOptionGroup = {
   id: string;
   name: string;
   isRequired?: boolean;
   minSelect?: number;
   maxSelect?: number;
-  sortOrder?: number;
-  isActive?: boolean;
-  options?: MenuItemOption[];
+  options?: MenuOption[];
 };
 
 type MenuItem = {
   id: string;
+  branchId?: string | null;
   categoryId?: string | null;
   name: string;
   description?: string | null;
   price: string | number;
   isActive?: boolean;
-  optionGroups?: MenuItemOptionGroup[];
+  optionGroups?: MenuOptionGroup[];
 };
 
-type SelectedOptionMap = Record<string, string[]>;
+type MenuCategory = {
+  id: string;
+  name: string;
+  sortOrder?: number | null;
+  isActive?: boolean;
+};
 
-function getStoredToken() {
-  if (typeof window === 'undefined') return '';
-  return (
-    localStorage.getItem('accessToken') ||
-    localStorage.getItem('token') ||
-    localStorage.getItem('restaurant_saas_token') ||
-    ''
-  );
+const paymentLabels: Record<PaymentMethod, string> = {
+  CASH: 'Nakit',
+  CREDIT_CARD: 'Kredi Kartı',
+  ONLINE: 'Online',
+  MEAL_CARD: 'Yemek Kartı',
+  OPEN_ACCOUNT: 'Açık Hesap',
+};
+
+const itemStatusLabels: Record<string, string> = {
+  NEW: 'Yeni',
+  SENT: 'Mutfağa Gönderildi',
+  PREPARING: 'Hazırlanıyor',
+  SERVED: 'Servis Edildi',
+  VOID: 'İptal',
+};
+
+const moneyFormatter = new Intl.NumberFormat('tr-TR', {
+  style: 'currency',
+  currency: 'TRY',
+});
+
+function getToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('accessToken') || localStorage.getItem('token');
 }
 
-function normalizeError(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return 'Beklenmeyen bir hata oluştu';
+function formatMoney(value: number | string | null | undefined) {
+  const numericValue = Number(value ?? 0);
+  return moneyFormatter.format(Number.isFinite(numericValue) ? numericValue : 0);
 }
 
-function asNumber(value: string | number | null | undefined) {
-  if (value === null || value === undefined) return 0;
-  const result = Number(value);
-  return Number.isFinite(result) ? result : 0;
+function formatDate(value?: string | null) {
+  if (!value) return '-';
+  return new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
 }
 
-function money(value: string | number | null | undefined) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-  }).format(asNumber(value));
+function tableLabel(table?: RestaurantTable) {
+  if (!table) return 'Masa';
+  return table.code?.trim() || table.name;
 }
 
-async function apiRequest<T>(path: string, token: string, options: RequestInit = {}) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
-    cache: 'no-store',
-  });
-
+async function readJson<T>(response: Response): Promise<T> {
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    const message = Array.isArray(data?.message)
-      ? data.message.join(', ')
-      : data?.message || data?.error || `İşlem başarısız: ${response.status}`;
+    let message = text || 'İşlem başarısız oldu';
+
+    try {
+      const parsed = JSON.parse(text);
+      message = parsed.message || parsed.error || message;
+    } catch {
+      // düz text kalabilir
+    }
+
     throw new Error(message);
   }
 
-  return data as T;
-}
-
-function statusLabel(status: TableSessionStatus) {
-  switch (status) {
-    case 'OPEN':
-      return 'Açık';
-    case 'PAYMENT_PENDING':
-      return 'Ödeme Bekliyor';
-    case 'CLOSED':
-      return 'Kapalı';
-    case 'CANCELLED':
-      return 'İptal';
-    default:
-      return status;
-  }
+  return text ? JSON.parse(text) : ({} as T);
 }
 
 export default function TableSessionPage() {
+  const params = useParams<{ sessionId: string }>();
   const router = useRouter();
-  const params = useParams();
-  const rawSessionId = params?.sessionId;
-  const sessionId = Array.isArray(rawSessionId) ? rawSessionId[0] : rawSessionId || '';
+  const sessionId = params.sessionId;
 
-  const [token, setToken] = useState('');
   const [session, setSession] = useState<TableSession | null>(null);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [activeCategoryId, setActiveCategoryId] = useState('ALL');
-  const [search, setSearch] = useState('');
 
+  const [selectedCategoryId, setSelectedCategoryId] = useState('ALL');
   const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(null);
-  const [selectedOptions, setSelectedOptions] = useState<SelectedOptionMap>({});
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
-
-  const [customName, setCustomName] = useState('');
-  const [customPrice, setCustomPrice] = useState('');
-  const [customQuantity, setCustomQuantity] = useState('1');
-  const [customNote, setCustomNote] = useState('');
+  const [selectedOptionIds, setSelectedOptionIds] = useState<Record<string, string[]>>({});
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  const sessionItems = session?.items || [];
+  async function api<T>(path: string, init?: RequestInit): Promise<T> {
+    const currentToken = getToken();
 
-  const total = useMemo(() => {
-    return sessionItems.reduce((sum, item) => sum + asNumber(item.totalPrice), 0);
-  }, [sessionItems]);
+    if (!currentToken) {
+      router.push('/login');
+      throw new Error('Oturum bulunamadı');
+    }
 
-  const filteredItems = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase('tr-TR');
-
-    return items
-      .filter((item) => item.isActive !== false)
-      .filter((item) => activeCategoryId === 'ALL' || item.categoryId === activeCategoryId)
-      .filter((item) => {
-        if (!term) return true;
-        return item.name.toLocaleLowerCase('tr-TR').includes(term);
-      });
-  }, [activeCategoryId, items, search]);
-
-  const selectedOptionObjects = useMemo(() => {
-    if (!selectedMenuItem?.optionGroups) return [];
-
-    return selectedMenuItem.optionGroups.flatMap((group) => {
-      const ids = selectedOptions[group.id] || [];
-      return (group.options || [])
-        .filter((option) => ids.includes(option.id))
-        .map((option) => ({
-          groupName: group.name,
-          optionName: option.name,
-          priceDelta: asNumber(option.priceDelta),
-        }));
+    const response = await fetch(`/api${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${currentToken}`,
+        ...(init?.headers || {}),
+      },
     });
-  }, [selectedMenuItem, selectedOptions]);
 
-  const selectedUnitPrice = useMemo(() => {
-    if (!selectedMenuItem) return 0;
-    const optionTotal = selectedOptionObjects.reduce(
-      (sum, option) => sum + asNumber(option.priceDelta),
-      0,
-    );
-    return asNumber(selectedMenuItem.price) + optionTotal;
-  }, [selectedMenuItem, selectedOptionObjects]);
-
-  async function loadAll(currentToken: string) {
-    if (!sessionId) return;
-
-    const currentSession = await apiRequest<TableSession>(
-      `/table-service/sessions/${sessionId}`,
-      currentToken,
-    );
-
-    const [categoryData, itemData] = await Promise.all([
-      apiRequest<MenuCategory[]>('/menu/categories', currentToken),
-      apiRequest<MenuItem[]>('/menu/items', currentToken),
-    ]);
-
-    setSession(currentSession);
-    setCategories(Array.isArray(categoryData) ? categoryData : []);
-    setItems(Array.isArray(itemData) ? itemData : []);
+    return readJson<T>(response);
   }
 
-  async function refreshSession() {
-    if (!token || !sessionId) return;
-    const currentSession = await apiRequest<TableSession>(
-      `/table-service/sessions/${sessionId}`,
-      token,
-    );
-    setSession(currentSession);
+  async function loadSession() {
+    const sessionData = await api<TableSession>(`/table-service/sessions/${sessionId}`);
+    setSession(sessionData);
+    return sessionData;
+  }
+
+  async function loadMenu(branchId: string) {
+    const [categoryData, itemData] = await Promise.all([
+      api<MenuCategory[]>(`/menu/categories?branchId=${encodeURIComponent(branchId)}`),
+      api<MenuItem[]>(`/menu/items?branchId=${encodeURIComponent(branchId)}`),
+    ]);
+
+    setCategories(categoryData.filter((category) => category.isActive !== false));
+    setMenuItems(itemData.filter((item) => item.isActive !== false));
+  }
+
+  async function loadAll() {
+    setLoading(true);
+    setError('');
+
+    try {
+      const sessionData = await loadSession();
+      await loadMenu(sessionData.branchId);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Adisyon yüklenemedi');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    const storedToken = getStoredToken();
-    setToken(storedToken);
-
-    if (!storedToken) {
-      setLoading(false);
-      setError('Oturum bulunamadı. Lütfen tekrar giriş yapın.');
+    if (!getToken()) {
+      router.push('/login');
       return;
     }
 
-    loadAll(storedToken)
-      .catch((err) => setError(normalizeError(err)))
-      .finally(() => setLoading(false));
+    void loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  function openOptionModal(item: MenuItem) {
+  const sessionTotal = useMemo(() => {
+    return (session?.items || []).reduce((sum, item) => sum + Number(item.totalPrice ?? 0), 0);
+  }, [session]);
+
+  const filteredItems = useMemo(() => {
+    return menuItems
+      .filter((item) => selectedCategoryId === 'ALL' || item.categoryId === selectedCategoryId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
+  }, [menuItems, selectedCategoryId]);
+
+  const selectedOptions = useMemo(() => {
+    if (!selectedMenuItem?.optionGroups?.length) return [];
+
+    return selectedMenuItem.optionGroups.flatMap((group) => {
+      const selectedIds = selectedOptionIds[group.id] || [];
+
+      return (group.options || [])
+        .filter((option) => selectedIds.includes(option.id))
+        .map((option) => ({
+          optionId: option.id,
+          groupName: group.name,
+          optionName: option.name,
+          priceDelta: Number(option.priceDelta ?? 0),
+        }));
+    });
+  }, [selectedMenuItem, selectedOptionIds]);
+
+  const selectedItemTotal = useMemo(() => {
+    if (!selectedMenuItem) return 0;
+
+    const optionTotal = selectedOptions.reduce((sum, option) => sum + Number(option.priceDelta ?? 0), 0);
+    return (Number(selectedMenuItem.price ?? 0) + optionTotal) * quantity;
+  }, [selectedMenuItem, selectedOptions, quantity]);
+
+  function openItemModal(item: MenuItem) {
     setSelectedMenuItem(item);
     setQuantity(1);
     setNote('');
-
-    const initial: SelectedOptionMap = {};
-    (item.optionGroups || []).forEach((group) => {
-      initial[group.id] = [];
-    });
-    setSelectedOptions(initial);
+    setSelectedOptionIds({});
   }
 
-  function closeOptionModal() {
+  function closeItemModal() {
     setSelectedMenuItem(null);
-    setSelectedOptions({});
     setQuantity(1);
     setNote('');
+    setSelectedOptionIds({});
   }
 
-  function toggleOption(group: MenuItemOptionGroup, option: MenuItemOption) {
-    setSelectedOptions((current) => {
-      const currentIds = current[group.id] || [];
-      const exists = currentIds.includes(option.id);
+  function toggleOption(group: MenuOptionGroup, option: MenuOption) {
+    setSelectedOptionIds((current) => {
+      const currentGroupSelection = current[group.id] || [];
+      const isSelected = currentGroupSelection.includes(option.id);
       const maxSelect = Number(group.maxSelect ?? 1);
 
-      if (exists) {
-        return {
-          ...current,
-          [group.id]: currentIds.filter((id) => id !== option.id),
-        };
-      }
+      let nextSelection: string[];
 
-      if (maxSelect <= 1) {
-        return {
-          ...current,
-          [group.id]: [option.id],
-        };
+      if (isSelected) {
+        nextSelection = currentGroupSelection.filter((optionId) => optionId !== option.id);
+      } else if (maxSelect <= 1) {
+        nextSelection = [option.id];
+      } else {
+        nextSelection = [...currentGroupSelection, option.id].slice(0, maxSelect);
       }
 
       return {
         ...current,
-        [group.id]: [...currentIds, option.id].slice(0, maxSelect),
+        [group.id]: nextSelection,
       };
     });
   }
 
-  function validateSelectedOptions(item: MenuItem) {
-    const groups = item.optionGroups || [];
+  function validateRequiredOptions() {
+    if (!selectedMenuItem?.optionGroups?.length) return true;
 
-    for (const group of groups) {
-      const selectedCount = selectedOptions[group.id]?.length || 0;
+    for (const group of selectedMenuItem.optionGroups) {
       const minSelect = Number(group.minSelect ?? (group.isRequired ? 1 : 0));
+      const selectedCount = (selectedOptionIds[group.id] || []).length;
 
       if (minSelect > 0 && selectedCount < minSelect) {
-        throw new Error(`${group.name} için en az ${minSelect} seçim yapmalısınız.`);
+        setError(`${group.name} için seçim zorunludur`);
+        return false;
       }
     }
+
+    return true;
   }
 
-  async function addMenuItem(item: MenuItem, selectedQuantity = 1, selectedNote = '') {
-    if (!token || !session) return;
-
-    const hasOptions = (item.optionGroups || []).some(
-      (group) => group.isActive !== false && (group.options || []).some((option) => option.isActive !== false),
-    );
-
-    if (hasOptions && selectedMenuItem?.id !== item.id) {
-      openOptionModal(item);
-      return;
-    }
+  async function addItem() {
+    if (!selectedMenuItem) return;
+    if (!validateRequiredOptions()) return;
 
     setSaving(true);
     setError('');
-    setSuccess('');
+    setMessage('');
 
     try {
-      validateSelectedOptions(item);
-
-      const optionSuffix = selectedOptionObjects.length
-        ? ` (${selectedOptionObjects.map((option) => option.optionName).join(', ')})`
-        : '';
-
-      await apiRequest(`/table-service/sessions/${session.id}/items`, token, {
+      await api(`/table-service/sessions/${sessionId}/items`, {
         method: 'POST',
         body: JSON.stringify({
-          menuItemId: item.id,
-          name: `${item.name}${optionSuffix}`,
-          quantity: selectedQuantity,
-          unitPrice: selectedUnitPrice || asNumber(item.price),
-          note: selectedNote.trim() || undefined,
+          menuItemId: selectedMenuItem.id,
+          name: selectedMenuItem.name,
+          quantity,
+          unitPrice: selectedMenuItem.price,
+          note,
+          options: selectedOptions,
         }),
       });
 
-      setSuccess('Ürün adisyona eklendi.');
-      closeOptionModal();
-      await refreshSession();
-    } catch (err) {
-      setError(normalizeError(err));
+      setMessage('Ürün adisyona eklendi');
+      closeItemModal();
+      await loadSession();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Ürün eklenemedi');
     } finally {
       setSaving(false);
     }
   }
 
-  async function addCustomItem() {
-    if (!token || !session) return;
-
-    const name = customName.trim();
-    const price = asNumber(customPrice);
-    const selectedQuantity = Number(customQuantity || 1);
-
-    if (!name) {
-      setError('Ürün adı zorunludur.');
-      return;
-    }
-
-    if (!Number.isInteger(selectedQuantity) || selectedQuantity <= 0) {
-      setError('Adet pozitif tam sayı olmalıdır.');
-      return;
-    }
-
-    if (price < 0) {
-      setError('Birim fiyat negatif olamaz.');
-      return;
-    }
-
+  async function updateItemStatus(item: TableSessionItem, status: string) {
     setSaving(true);
     setError('');
-    setSuccess('');
+    setMessage('');
 
     try {
-      await apiRequest(`/table-service/sessions/${session.id}/items`, token, {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          quantity: selectedQuantity,
-          unitPrice: price,
-          note: customNote.trim() || undefined,
-        }),
-      });
-
-      setCustomName('');
-      setCustomPrice('');
-      setCustomQuantity('1');
-      setCustomNote('');
-      setSuccess('Menü dışı ürün adisyona eklendi.');
-      await refreshSession();
-    } catch (err) {
-      setError(normalizeError(err));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function updateItemStatus(item: TableSessionItem, status: TableSessionItemStatus) {
-    if (!token || !session) return;
-
-    setSaving(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await apiRequest(`/table-service/sessions/${session.id}/items/${item.id}`, token, {
+      await api(`/table-service/sessions/${sessionId}/items/${item.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
 
-      setSuccess(status === 'VOID' ? 'Ürün iptal edildi.' : 'Ürün durumu güncellendi.');
-      await refreshSession();
-    } catch (err) {
-      setError(normalizeError(err));
+      setMessage('Ürün durumu güncellendi');
+      await loadSession();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Ürün güncellenemedi');
     } finally {
       setSaving(false);
     }
   }
 
   async function setPaymentPending() {
-    if (!token || !session) return;
-
     setSaving(true);
     setError('');
-    setSuccess('');
+    setMessage('');
 
     try {
-      await apiRequest(`/table-service/sessions/${session.id}/payment-pending`, token, {
+      await api(`/table-service/sessions/${sessionId}/payment-pending`, {
         method: 'POST',
       });
 
-      setSuccess('Adisyon ödeme bekliyor durumuna alındı.');
-      await refreshSession();
-    } catch (err) {
-      setError(normalizeError(err));
+      setMessage('Adisyon hesap bekliyor durumuna alındı');
+      await loadSession();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'İşlem başarısız oldu');
     } finally {
       setSaving(false);
     }
   }
 
   async function closeSession() {
-    if (!token || !session) return;
-    const confirmed = window.confirm('Adisyon kapatılsın mı?');
-    if (!confirmed) return;
+    if (!session?.items?.length) {
+      setError('Boş adisyon kapatılamaz');
+      return;
+    }
 
     setSaving(true);
     setError('');
-    setSuccess('');
+    setMessage('');
 
     try {
-      await apiRequest(`/table-service/sessions/${session.id}/close`, token, {
+      await api(`/table-service/sessions/${sessionId}/close`, {
         method: 'POST',
+        body: JSON.stringify({ paymentMethod }),
       });
 
-      router.push('/dashboard/table-service');
-    } catch (err) {
-      setError(normalizeError(err));
+      setMessage('Adisyon kapatıldı ve geçmiş siparişlere aktarıldı');
+      setTimeout(() => router.push('/dashboard/table-service'), 700);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Adisyon kapatılamadı');
     } finally {
       setSaving(false);
     }
   }
 
   async function cancelSession() {
-    if (!token || !session) return;
-    const reason = window.prompt('İptal nedeni yazabilirsiniz:', '');
-    const confirmed = window.confirm('Adisyon iptal edilsin mi?');
-    if (!confirmed) return;
-
     setSaving(true);
     setError('');
-    setSuccess('');
+    setMessage('');
 
     try {
-      await apiRequest(`/table-service/sessions/${session.id}/cancel`, token, {
+      await api(`/table-service/sessions/${sessionId}/cancel`, {
         method: 'POST',
-        body: JSON.stringify({
-          reason: reason || undefined,
-        }),
+        body: JSON.stringify({ reason: 'Panel üzerinden iptal edildi' }),
       });
 
-      router.push('/dashboard/table-service');
-    } catch (err) {
-      setError(normalizeError(err));
+      setMessage('Adisyon iptal edildi');
+      setTimeout(() => router.push('/dashboard/table-service'), 700);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Adisyon iptal edilemedi');
     } finally {
       setSaving(false);
     }
   }
 
+  const isClosed = session?.status === 'CLOSED' || session?.status === 'CANCELLED';
+
   return (
     <main className="min-h-screen bg-slate-100 px-5 py-6 text-slate-950">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-600">
-                Masa Adisyonu
-              </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
-                {session?.table?.name || 'Adisyon'}
+              <p className="text-sm font-black uppercase tracking-[0.3em] text-emerald-600">Masa Servis</p>
+              <h1 className="mt-2 text-3xl font-black text-slate-950">
+                {tableLabel(session?.table)} Adisyon
               </h1>
-              <p className="mt-2 text-sm font-bold text-slate-500">
-                Durum: {session ? statusLabel(session.status) : '-'} • Toplam:{' '}
-                <span className="font-black text-slate-950">{money(total)}</span>
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                Açılış: {formatDate(session?.openedAt)} • Durum: {session?.status || '-'}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/table-service')}
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              <Link
+                href="/dashboard/table-service"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
               >
                 Masa Servise Dön
-              </button>
-              <button
-                type="button"
-                onClick={() => void refreshSession()}
-                disabled={saving || loading}
-                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              </Link>
+              <Link
+                href="/dashboard/orders/history"
+                className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
               >
-                Yenile
-              </button>
+                Geçmiş Siparişler
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl bg-slate-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Ürün Sayısı</p>
+              <p className="mt-2 text-3xl font-black">{session?.items?.length || 0}</p>
+            </div>
+            <div className="rounded-3xl bg-slate-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Toplam</p>
+              <p className="mt-2 text-3xl font-black">{formatMoney(sessionTotal)}</p>
+            </div>
+            <div className="rounded-3xl bg-slate-50 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Ödeme</p>
+              <p className="mt-2 text-3xl font-black">{paymentLabels[paymentMethod]}</p>
             </div>
           </div>
         </header>
 
         {error ? (
-          <div className="rounded-3xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-black text-red-700">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-black text-red-700">
             {error}
           </div>
         ) : null}
 
-        {success ? (
-          <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-black text-emerald-700">
-            {success}
+        {message ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-700">
+            {message}
           </div>
         ) : null}
 
         {loading ? (
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-8 text-center text-sm font-black text-slate-500 shadow-sm">
+          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center text-lg font-black text-slate-600">
             Adisyon yükleniyor...
-          </section>
+          </div>
         ) : null}
 
-        {!loading && session ? (
-          <section className="grid gap-5 xl:grid-cols-[430px_1fr]">
-            <aside className="space-y-5">
-              <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
+        {!loading ? (
+          <section className="grid gap-6 xl:grid-cols-[1fr_420px]">
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                      Adisyon
-                    </p>
-                    <h2 className="mt-2 text-2xl font-black">{session.table?.name || '-'}</h2>
-                    <p className="mt-1 text-sm font-bold text-slate-500">
-                      {statusLabel(session.status)}
+                    <h2 className="text-2xl font-black">Menü</h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      Opsiyonlu ve opsiyonsuz ürünleri adisyona ekleyebilirsin.
                     </p>
                   </div>
-                  <div className="rounded-3xl bg-slate-100 px-5 py-4 text-right">
-                    <p className="text-xs font-black uppercase text-slate-400">Toplam</p>
-                    <p className="mt-1 text-xl font-black">{money(total)}</p>
-                  </div>
+
+                  <select
+                    value={selectedCategoryId}
+                    onChange={(event) => setSelectedCategoryId(event.target.value)}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-black outline-none focus:border-emerald-400"
+                  >
+                    <option value="ALL">Tüm Kategoriler</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                  {filteredItems.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-3xl border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-black">{item.name}</h3>
+                          {item.description ? (
+                            <p className="mt-1 line-clamp-2 text-sm font-semibold text-slate-500">{item.description}</p>
+                          ) : null}
+                        </div>
+                        <p className="whitespace-nowrap text-lg font-black text-emerald-700">
+                          {formatMoney(item.price)}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => openItemModal(item)}
+                        disabled={saving || isClosed}
+                        className="mt-5 w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Ürün Ekle
+                      </button>
+                    </article>
+                  ))}
+
+                  {filteredItems.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm font-bold text-slate-500 md:col-span-2 2xl:col-span-3">
+                      Bu kategoride ürün yok.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <aside className="space-y-6">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-2xl font-black">Adisyon</h2>
 
                 <div className="mt-5 space-y-3">
-                  {sessionItems.length === 0 ? (
-                    <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-bold text-slate-500">
-                      Bu adisyonda ürün yok.
-                    </div>
-                  ) : (
-                    sessionItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`rounded-3xl border p-4 ${
-                          item.status === 'VOID'
-                            ? 'border-red-100 bg-red-50 opacity-70'
-                            : 'border-slate-200 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-black">{item.name}</p>
-                            <p className="mt-1 text-xs font-bold text-slate-500">
-                              {item.quantity} x {money(item.unitPrice)}
-                            </p>
-                            {item.note ? (
-                              <p className="mt-2 text-xs font-bold text-slate-400">
-                                Not: {item.note}
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-black">{money(item.totalPrice)}</p>
-                            <p className="mt-1 text-xs font-black text-slate-400">
-                              {item.status || 'NEW'}
-                            </p>
-                          </div>
+                  {(session?.items || []).map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-black">{item.quantity} x {item.name}</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">
+                            {itemStatusLabels[item.status || 'NEW'] || item.status}
+                          </p>
                         </div>
-
-                        {item.status !== 'VOID' ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void updateItemStatus(item, 'SERVED')}
-                              disabled={saving}
-                              className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 ring-1 ring-emerald-200 disabled:opacity-50"
-                            >
-                              Servis Edildi
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void updateItemStatus(item, 'VOID')}
-                              disabled={saving}
-                              className="rounded-full bg-red-50 px-3 py-2 text-xs font-black text-red-700 ring-1 ring-red-200 disabled:opacity-50"
-                            >
-                              İptal
-                            </button>
-                          </div>
-                        ) : null}
+                        <p className="font-black">{formatMoney(item.totalPrice)}</p>
                       </div>
-                    ))
-                  )}
+
+                      {item.options?.length ? (
+                        <div className="mt-3 space-y-1 rounded-xl bg-white p-3">
+                          {item.options.map((option) => (
+                            <p key={option.id} className="text-xs font-bold text-slate-500">
+                              {option.groupName}: {option.optionName}
+                              {Number(option.priceDelta || 0) > 0 ? ` +${formatMoney(option.priceDelta)}` : ''}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {!isClosed ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void updateItemStatus(item, 'SERVED')}
+                            className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100"
+                          >
+                            Servis Edildi
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void updateItemStatus(item, 'VOID')}
+                            className="rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-100"
+                          >
+                            İptal
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+
+                  {!session?.items?.length ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">
+                      Adisyonda ürün yok.
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-black">Hızlı Menü Dışı Ürün</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                  Menüde olmayan özel kalemler için.
-                </p>
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-2xl font-black">Hesap Al</h2>
 
-                <div className="mt-4 space-y-3">
-                  <input
-                    value={customName}
-                    onChange={(event) => setCustomName(event.target.value)}
-                    placeholder="Ürün adı"
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white"
-                  />
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      value={customQuantity}
-                      onChange={(event) => setCustomQuantity(event.target.value)}
-                      type="number"
-                      min="1"
-                      placeholder="Adet"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white"
-                    />
-                    <input
-                      value={customPrice}
-                      onChange={(event) => setCustomPrice(event.target.value)}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="Birim fiyat"
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white"
-                    />
-                  </div>
-
-                  <input
-                    value={customNote}
-                    onChange={(event) => setCustomNote(event.target.value)}
-                    placeholder="Not"
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => void addCustomItem()}
-                    disabled={saving || session.status === 'CLOSED' || session.status === 'CANCELLED'}
-                    className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Adisyona Ekle
-                  </button>
+                <div className="mt-5 space-y-3">
+                  {(Object.keys(paymentLabels) as PaymentMethod[]).map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setPaymentMethod(method)}
+                      className={`w-full rounded-2xl border px-5 py-4 text-left text-sm font-black transition ${
+                        paymentMethod === method
+                          ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {paymentLabels[method]}
+                    </button>
+                  ))}
                 </div>
-              </div>
 
-              <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="grid gap-3">
+                <div className="mt-5 rounded-2xl bg-slate-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Ödenecek Tutar</p>
+                  <p className="mt-2 text-3xl font-black">{formatMoney(sessionTotal)}</p>
+                </div>
+
+                <div className="mt-5 grid gap-3">
                   <button
                     type="button"
                     onClick={() => void setPaymentPending()}
-                    disabled={saving || session.status === 'CLOSED' || session.status === 'CANCELLED'}
-                    className="rounded-2xl bg-amber-400 px-4 py-4 text-sm font-black text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={saving || isClosed}
+                    className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-black text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
                   >
-                    Ödeme Bekliyor
+                    Hesap Bekliyor
                   </button>
+
                   <button
                     type="button"
                     onClick={() => void closeSession()}
-                    disabled={saving || session.status === 'CLOSED' || session.status === 'CANCELLED'}
-                    className="rounded-2xl bg-emerald-500 px-4 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={saving || isClosed}
+                    className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
                   >
-                    Adisyonu Kapat
+                    Hesabı Kapat / Geçmişe Aktar
                   </button>
+
                   <button
                     type="button"
                     onClick={() => void cancelSession()}
-                    disabled={saving || session.status === 'CLOSED' || session.status === 'CANCELLED'}
-                    className="rounded-2xl bg-red-500 px-4 py-4 text-sm font-black text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={saving || isClosed}
+                    className="rounded-2xl bg-red-50 px-5 py-4 text-sm font-black text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                   >
-                    İptal Et
+                    Adisyonu İptal Et
                   </button>
                 </div>
               </div>
             </aside>
-
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h2 className="text-2xl font-black">Menüden Ürün Ekle</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500">
-                    Opsiyonsuz ürünler direkt eklenir. Opsiyonlu ürünlerde seçim kartı açılır.
-                  </p>
-                </div>
-
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Ürün ara"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white lg:w-72"
-                />
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActiveCategoryId('ALL')}
-                  className={`rounded-full px-4 py-2 text-xs font-black transition ${
-                    activeCategoryId === 'ALL'
-                      ? 'bg-slate-950 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  Tümü
-                </button>
-                {categories.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => setActiveCategoryId(category.id)}
-                    className={`rounded-full px-4 py-2 text-xs font-black transition ${
-                      activeCategoryId === category.id
-                        ? 'bg-slate-950 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {filteredItems.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm font-bold text-slate-500">
-                    Ürün bulunamadı.
-                  </div>
-                ) : (
-                  filteredItems.map((item) => {
-                    const hasOptions = (item.optionGroups || []).some(
-                      (group) =>
-                        group.isActive !== false &&
-                        (group.options || []).some((option) => option.isActive !== false),
-                    );
-
-                    return (
-                      <article
-                        key={item.id}
-                        className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h3 className="text-lg font-black">{item.name}</h3>
-                            {item.description ? (
-                              <p className="mt-1 line-clamp-2 text-sm font-medium text-slate-500">
-                                {item.description}
-                              </p>
-                            ) : null}
-                          </div>
-                          {hasOptions ? (
-                            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-700 ring-1 ring-violet-200">
-                              Opsiyonlu
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 ring-1 ring-emerald-200">
-                              Hızlı
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="mt-5 flex items-center justify-between gap-3">
-                          <p className="text-xl font-black">{money(item.price)}</p>
-                          <button
-                            type="button"
-                            onClick={() => void addMenuItem(item)}
-                            disabled={
-                              saving ||
-                              session.status === 'CLOSED' ||
-                              session.status === 'CANCELLED'
-                            }
-                            className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Ekle
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })
-                )}
-              </div>
-            </section>
           </section>
         ) : null}
       </div>
 
       {selectedMenuItem ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-6 shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-violet-600">
-                  Opsiyon Seçimi
-                </p>
-                <h2 className="mt-2 text-2xl font-black">{selectedMenuItem.name}</h2>
-                <p className="mt-1 text-sm font-bold text-slate-500">
-                  Birim fiyat: {money(selectedUnitPrice)}
-                </p>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600">Ürün Ekle</p>
+                <h2 className="mt-1 text-2xl font-black">{selectedMenuItem.name}</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">{formatMoney(selectedMenuItem.price)}</p>
               </div>
+
               <button
                 type="button"
-                onClick={closeOptionModal}
-                className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-600"
+                onClick={closeItemModal}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700"
               >
                 Kapat
               </button>
             </div>
 
-            <div className="mt-5 space-y-5">
-              {(selectedMenuItem.optionGroups || [])
-                .filter((group) => group.isActive !== false)
-                .map((group) => (
-                  <div key={group.id} className="rounded-3xl border border-slate-200 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="font-black">{group.name}</h3>
-                        <p className="mt-1 text-xs font-bold text-slate-400">
-                          Min: {group.minSelect ?? (group.isRequired ? 1 : 0)} • Max:{' '}
-                          {group.maxSelect ?? 1}
-                        </p>
-                      </div>
-                      {group.isRequired ? (
-                        <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700 ring-1 ring-red-200">
-                          Zorunlu
-                        </span>
-                      ) : null}
-                    </div>
+            <div className="mt-6 space-y-5">
+              <div>
+                <label className="text-sm font-black text-slate-700">Adet</label>
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                    className="h-12 w-12 rounded-2xl border border-slate-200 text-xl font-black"
+                  >
+                    -
+                  </button>
+                  <input
+                    value={quantity}
+                    onChange={(event) => setQuantity(Math.max(1, Number(event.target.value || 1)))}
+                    type="number"
+                    min={1}
+                    className="h-12 w-24 rounded-2xl border border-slate-200 text-center text-lg font-black outline-none focus:border-emerald-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((current) => current + 1)}
+                    className="h-12 w-12 rounded-2xl border border-slate-200 text-xl font-black"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
 
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      {(group.options || [])
-                        .filter((option) => option.isActive !== false)
-                        .map((option) => {
-                          const selected = (selectedOptions[group.id] || []).includes(option.id);
-
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => toggleOption(group, option)}
-                              className={`rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
-                                selected
-                                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
-                              }`}
-                            >
-                              <span>{option.name}</span>
-                              <span className="float-right text-xs text-slate-500">
-                                {asNumber(option.priceDelta) > 0
-                                  ? `+ ${money(option.priceDelta)}`
-                                  : ''}
-                              </span>
-                            </button>
-                          );
-                        })}
+              {selectedMenuItem.optionGroups?.map((group) => (
+                <div key={group.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-black">{group.name}</h3>
+                      <p className="text-xs font-bold text-slate-500">
+                        {group.isRequired ? 'Zorunlu seçim' : 'Opsiyonel'} • En fazla {group.maxSelect ?? 1}
+                      </p>
                     </div>
                   </div>
-                ))}
 
-              <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
-                <input
-                  value={quantity}
-                  onChange={(event) => setQuantity(Math.max(1, Number(event.target.value || 1)))}
-                  type="number"
-                  min="1"
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white"
-                />
-                <input
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="Ürün notu"
-                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-emerald-400 focus:bg-white"
-                />
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {(group.options || [])
+                      .filter((option) => option.isActive !== false)
+                      .map((option) => {
+                        const selected = (selectedOptionIds[group.id] || []).includes(option.id);
+
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => toggleOption(group, option)}
+                            className={`rounded-2xl border px-4 py-3 text-left text-sm font-black transition ${
+                              selected
+                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            {option.name}
+                            {Number(option.priceDelta || 0) > 0 ? (
+                              <span className="ml-2 text-emerald-700">+{formatMoney(option.priceDelta)}</span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              ))}
+
+              <textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Ürün notu"
+                rows={3}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold outline-none focus:border-emerald-400"
+              />
+
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Ürün Toplamı</p>
+                <p className="mt-2 text-3xl font-black">{formatMoney(selectedItemTotal)}</p>
               </div>
 
               <button
                 type="button"
-                onClick={() => void addMenuItem(selectedMenuItem, quantity, note)}
+                onClick={() => void addItem()}
                 disabled={saving}
-                className="w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
               >
-                Adisyona Ekle • {money(selectedUnitPrice * quantity)}
+                Adisyona Ekle
               </button>
             </div>
           </div>
