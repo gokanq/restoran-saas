@@ -346,6 +346,8 @@ export default function DashboardPage() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [selectedCourierByOrderId, setSelectedCourierByOrderId] = useState<Record<string, string>>({});
+  const [courierChangeOrder, setCourierChangeOrder] = useState<Order | null>(null);
+  const [courierChangeCourierId, setCourierChangeCourierId] = useState('');
 
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [orderCode, setOrderCode] = useState('');
@@ -419,6 +421,94 @@ export default function DashboardPage() {
   const activeOrders = useMemo(() => {
     return orders.filter((order) => ACTIVE_ORDER_STATUSES.has(order.status));
   }, [orders]);
+
+  function openCourierChangeModal(order: Order) {
+    if (order.type !== 'DELIVERY' || order.status !== 'ON_DELIVERY') {
+      return;
+    }
+
+    setCourierChangeOrder(order);
+    setCourierChangeCourierId(order.courierId || '');
+    setError('');
+    setSuccess('');
+  }
+
+  function closeCourierChangeModal() {
+    setCourierChangeOrder(null);
+    setCourierChangeCourierId('');
+  }
+
+  async function submitCourierChange() {
+    if (!courierChangeOrder) {
+      return;
+    }
+
+    if (!courierChangeCourierId) {
+      setError('Kuryeyi değiştirmek için kayıtlı kurye seçilmelidir.');
+      return;
+    }
+
+    if (courierChangeCourierId === courierChangeOrder.courierId) {
+      setError('Seçilen kurye zaten bu siparişe atanmış.');
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setUpdatingOrderId(courierChangeOrder.id);
+
+    try {
+      const response = await fetch(`/api/orders/${courierChangeOrder.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'ON_DELIVERY',
+          courierId: courierChangeCourierId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Sipariş kuryesi güncellenemedi');
+        return;
+      }
+
+      const latestOrders = await loadOrders(token);
+      const latestOrder = latestOrders.find((order) => order.id === courierChangeOrder.id);
+
+      setSelectedOrder((currentOrder) => {
+        if (!currentOrder || currentOrder.id !== courierChangeOrder.id) {
+          return currentOrder;
+        }
+
+        return latestOrder || data;
+      });
+
+      setSelectedCourierByOrderId((current) => {
+        const next = { ...current };
+        delete next[courierChangeOrder.id];
+        return next;
+      });
+
+      closeCourierChangeModal();
+      setSuccess('Sipariş kuryesi güncellendi');
+    } catch {
+      setError('Sipariş kuryesi güncellenirken hata oluştu');
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  }
 
   const filteredOrders = useMemo(() => {
     const normalizedSearch = normalizeSearchValue(orderSearch);
@@ -939,10 +1029,7 @@ export default function DashboardPage() {
 
   function renderOrderActionArea(order: Order) {
     const primaryAction = getPrimaryOrderAction(order);
-    const canChangeCourier = order.type === 'DELIVERY' && order.status === 'ON_DELIVERY';
-    const showCourierSelect = shouldShowCourierSelect(order) || canChangeCourier;
-    const selectedCourierId = selectedCourierByOrderId[order.id] || '';
-    const currentCourierId = order.courierId || '';
+    const showCourierSelect = shouldShowCourierSelect(order);
     const primaryActionClass = primaryAction
       ? ORDER_ACTION_BUTTON_CLASSES[primaryAction.value] ||
         'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
@@ -952,7 +1039,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center gap-2">
         {showCourierSelect ? (
           <select
-            value={selectedCourierId || currentCourierId}
+            value={selectedCourierByOrderId[order.id] || ''}
             onChange={(event) =>
               setSelectedCourierByOrderId((current) => ({
                 ...current,
@@ -990,22 +1077,6 @@ export default function DashboardPage() {
           </button>
         ) : null}
 
-        {canChangeCourier ? (
-          <button
-            type="button"
-            onClick={() => updateOrderCourier(order)}
-            disabled={
-              updatingOrderId === order.id ||
-              activeCouriers.length === 0 ||
-              !selectedCourierId ||
-              selectedCourierId === currentCourierId
-            }
-            className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-black text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Kuryeyi Güncelle
-          </button>
-        ) : null}
-
         {shouldShowCancelAction(order) ? (
           <button
             type="button"
@@ -1018,6 +1089,27 @@ export default function DashboardPage() {
         ) : null}
       </div>
     );
+  }
+
+  function renderCourierAssignment(order: Order) {
+    if (order.type === 'DELIVERY' && order.status === 'ON_DELIVERY') {
+      return (
+        <button
+          type="button"
+          onClick={() => openCourierChangeModal(order)}
+          className="mt-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-black text-cyan-200 transition hover:bg-cyan-500/20"
+          title="Kuryeyi değiştirmek için tıkla"
+        >
+          Kurye: {order.courierName || 'Kurye seç'}
+        </button>
+      );
+    }
+
+    if (order.courierName) {
+      return <div className="mt-2 text-xs font-bold text-cyan-200">Kurye: {order.courierName}</div>;
+    }
+
+    return null;
   }
 
   function renderOperationalOrderSection(title: string, description: string, rows: Order[], emptyMessage: string) {
@@ -1093,11 +1185,7 @@ export default function DashboardPage() {
                         >
                           {statusLabel}
                         </span>
-                        {order.courierName ? (
-                          <div className="mt-2 text-xs font-bold text-cyan-200">
-                            Kurye: {order.courierName}
-                          </div>
-                        ) : null}
+                        {renderCourierAssignment(order)}
                       </td>
                       <td className="px-4 py-4 font-semibold">{formatMoney(order.total)}</td>
                       <td className="px-4 py-4 text-xs text-slate-300">
@@ -1483,6 +1571,91 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
+
+      {courierChangeOrder ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black/40">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-100">Kurye Seçimi</h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  {courierChangeOrder.code} kodlu sipariş yolda kalır, sadece atanmış kuryesi değişir.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCourierChangeModal}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-slate-200 transition hover:bg-white/10"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {activeCouriers.length === 0 ? (
+                <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm font-bold text-amber-100">
+                  Aktif kurye bulunamadı. Önce Kurye Tanımları bölümünden en az bir kuryeyi aktif yapmalısın.
+                </div>
+              ) : (
+                activeCouriers.map((courier) => (
+                  <label
+                    key={courier.id}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-4 transition ${
+                      courierChangeCourierId === courier.id
+                        ? 'border-emerald-400 bg-emerald-500/10'
+                        : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="courierChange"
+                        value={courier.id}
+                        checked={courierChangeCourierId === courier.id}
+                        onChange={(event) => setCourierChangeCourierId(event.target.value)}
+                        className="h-4 w-4 accent-emerald-400"
+                      />
+                      <span className="font-black text-slate-100">{courier.name}</span>
+                    </span>
+
+                    {courier.id === courierChangeOrder.courierId ? (
+                      <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-black text-cyan-200">
+                        Mevcut
+                      </span>
+                    ) : null}
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeCourierChangeModal}
+                disabled={updatingOrderId === courierChangeOrder.id}
+                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="button"
+                onClick={submitCourierChange}
+                disabled={
+                  updatingOrderId === courierChangeOrder.id ||
+                  activeCouriers.length === 0 ||
+                  !courierChangeCourierId ||
+                  courierChangeCourierId === courierChangeOrder.courierId
+                }
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {updatingOrderId === courierChangeOrder.id ? 'Kaydediliyor...' : 'Onayla'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {selectedOrder ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
