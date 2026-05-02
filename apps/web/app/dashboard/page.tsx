@@ -852,6 +852,75 @@ export default function DashboardPage() {
     }
   }
 
+  async function updateOrderCourier(order: Order) {
+    const courierId = (selectedCourierByOrderId[order.id] || '').trim();
+
+    if (!courierId) {
+      setError('Kuryeyi değiştirmek için kayıtlı kurye seçilmelidir.');
+      return;
+    }
+
+    if (courierId === order.courierId) {
+      setError('Seçilen kurye zaten bu siparişe atanmış.');
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setUpdatingOrderId(order.id);
+
+    try {
+      const response = await fetch(`/api/orders/${order.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'ON_DELIVERY',
+          courierId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Kurye güncellenemedi');
+        return;
+      }
+
+      const latestOrders = await loadOrders(token);
+      const latestSelectedOrder = latestOrders.find((latestOrder) => latestOrder.id === order.id);
+
+      setSelectedOrder((currentOrder) => {
+        if (!currentOrder || currentOrder.id !== order.id) {
+          return currentOrder;
+        }
+
+        return latestSelectedOrder || data;
+      });
+
+      setSelectedCourierByOrderId((current) => {
+        const next = { ...current };
+        delete next[order.id];
+        return next;
+      });
+
+      setSuccess('Sipariş kuryesi güncellendi');
+    } catch {
+      setError('Kurye güncellenirken hata oluştu');
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  }
+
   function logout() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
@@ -870,7 +939,10 @@ export default function DashboardPage() {
 
   function renderOrderActionArea(order: Order) {
     const primaryAction = getPrimaryOrderAction(order);
-    const showCourierSelect = shouldShowCourierSelect(order);
+    const canChangeCourier = order.type === 'DELIVERY' && order.status === 'ON_DELIVERY';
+    const showCourierSelect = shouldShowCourierSelect(order) || canChangeCourier;
+    const selectedCourierId = selectedCourierByOrderId[order.id] || '';
+    const currentCourierId = order.courierId || '';
     const primaryActionClass = primaryAction
       ? ORDER_ACTION_BUTTON_CLASSES[primaryAction.value] ||
         'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
@@ -880,7 +952,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center gap-2">
         {showCourierSelect ? (
           <select
-            value={selectedCourierByOrderId[order.id] || ''}
+            value={selectedCourierId || currentCourierId}
             onChange={(event) =>
               setSelectedCourierByOrderId((current) => ({
                 ...current,
@@ -915,6 +987,22 @@ export default function DashboardPage() {
             className={`rounded-xl border px-4 py-2 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${primaryActionClass}`}
           >
             {primaryAction.label}
+          </button>
+        ) : null}
+
+        {canChangeCourier ? (
+          <button
+            type="button"
+            onClick={() => updateOrderCourier(order)}
+            disabled={
+              updatingOrderId === order.id ||
+              activeCouriers.length === 0 ||
+              !selectedCourierId ||
+              selectedCourierId === currentCourierId
+            }
+            className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-black text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Kuryeyi Güncelle
           </button>
         ) : null}
 
