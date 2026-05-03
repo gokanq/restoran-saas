@@ -65,8 +65,8 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 
 const ORDER_STATUS_CLASSES: Record<string, string> = {
   ON_DELIVERY: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200',
-  DELIVERED: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
-  CANCELLED: 'border-red-400/30 bg-red-500/10 text-red-200',
+  DELIVERED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  CANCELLED: 'border-red-200 bg-red-50 text-red-700',
 };
 
 function toNumber(value: string | number | undefined | null) {
@@ -523,35 +523,35 @@ export default function CouriersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-white/10 bg-white/5 p-6">
-          <p className="text-sm font-bold uppercase tracking-[0.25em] text-emerald-400">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-emerald-600">
             Kurye Operasyonu
           </p>
-          <h1 className="mt-2 text-3xl font-black">Kuryeler / Gün Sonu</h1>
-          <p className="mt-2 max-w-3xl text-sm text-slate-300">
+          <h1 className="mt-2 text-3xl font-black text-slate-950">Kuryeler / Gün Sonu</h1>
+          <p className="mt-2 max-w-3xl text-sm text-slate-500">
             Kurye tanımları, kurye geçmişi ve gün sonu maliyet özetini tek ekrandan yönetin.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
             <a
               href="/dashboard"
-              className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold hover:bg-slate-800"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
               Ana Sayfa
             </a>
 
             <a
               href="/dashboard/orders/history"
-              className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20"
+              className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
             >
               Geçmiş Siparişler
             </a>
           </div>
         </header>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-3">
+        <section className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
           <div className="grid gap-3 md:grid-cols-3">
             {[
               { value: 'couriers', label: 'Kurye Tanımları' },
@@ -564,8 +564,8 @@ export default function CouriersPage() {
                 onClick={() => setActiveTab(tab.value as Tab)}
                 className={`rounded-2xl px-5 py-4 text-sm font-black transition ${
                   activeTab === tab.value
-                    ? 'bg-emerald-500 text-slate-950'
-                    : 'bg-slate-900 text-slate-200 hover:bg-slate-800'
+                    ? 'border border-emerald-500 bg-emerald-500 text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)]'
+                    : 'border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50'
                 }`}
               >
                 {tab.label}
@@ -575,21 +575,21 @@ export default function CouriersPage() {
         </section>
 
         {error ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm">
             {error}
           </div>
         ) : null}
 
         {message ? (
-          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-200">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700 shadow-sm">
             {message}
           </div>
         ) : null}
 
         {activeTab === 'couriers' ? (
           <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-            <form onSubmit={createCourier} className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <h2 className="text-xl font-black">Kurye Ekle</h2>
+            <form onSubmit={createCourier} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+              <h2 className="text-xl font-black text-slate-950">Kurye Ekle</h2>
 
               <div className="mt-5 space-y-4">
                 <label className="block text-sm font-bold">
@@ -597,7 +597,7 @@ export default function CouriersPage() {
                   <select
                     value={branchId}
                     onChange={(event) => setBranchId(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   >
                     <option value="">Genel / Tüm şubeler</option>
                     {branches.map((branch) => (
@@ -614,7 +614,7 @@ export default function CouriersPage() {
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                     placeholder="Ahmet Yılmaz"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </label>
 
@@ -624,7 +624,7 @@ export default function CouriersPage() {
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
                     placeholder="05xx xxx xx xx"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </label>
 
@@ -635,7 +635,7 @@ export default function CouriersPage() {
                       value={perPackageFee}
                       onChange={(event) => setPerPackageFee(event.target.value)}
                       placeholder="20"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>
 
@@ -645,7 +645,7 @@ export default function CouriersPage() {
                       value={hourlyFee}
                       onChange={(event) => setHourlyFee(event.target.value)}
                       placeholder="100"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>
                 </div>
@@ -653,35 +653,35 @@ export default function CouriersPage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-60"
+                  className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                 >
                   {isSaving ? 'Ekleniyor...' : 'Kurye Ekle'}
                 </button>
               </div>
             </form>
 
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <h2 className="text-xl font-black">Kurye Listesi</h2>
+            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+              <h2 className="text-xl font-black text-slate-950">Kurye Listesi</h2>
 
               <div className="mt-5 space-y-3">
                 {isLoading ? (
-                  <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 text-slate-300">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-500 shadow-sm">
                     Kuryeler yükleniyor...
                   </div>
                 ) : couriers.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 text-slate-300">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-500 shadow-sm">
                     Henüz kurye tanımı yok.
                   </div>
                 ) : (
                   couriers.map((courier) => (
-                    <div key={courier.id} className="rounded-2xl border border-white/10 bg-slate-950 p-5">
+                    <div key={courier.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div>
-                          <p className="text-lg font-black">{courier.name}</p>
-                          <p className="mt-1 text-sm text-slate-400">
+                          <p className="text-lg font-black text-slate-950">{courier.name}</p>
+                          <p className="mt-1 text-sm text-slate-500">
                             {courier.phone || 'Telefon yok'} • {courier.branch?.name || 'Genel'}
                           </p>
-                          <p className="mt-2 text-sm text-slate-300">
+                          <p className="mt-2 text-sm text-slate-500">
                             Paket başı: <b>{formatMoney(courier.perPackageFee)}</b> • Saatlik:{' '}
                             <b>{formatMoney(courier.hourlyFee)}</b>
                           </p>
@@ -691,8 +691,8 @@ export default function CouriersPage() {
                           <span
                             className={`rounded-full border px-3 py-1 text-xs font-black ${
                               courier.isActive
-                                ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
-                                : 'border-red-400/30 bg-red-500/10 text-red-200'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-red-200 bg-red-50 text-red-700'
                             }`}
                           >
                             {courier.isActive ? 'Aktif' : 'Pasif'}
@@ -701,7 +701,7 @@ export default function CouriersPage() {
                           <button
                             type="button"
                             onClick={() => startEditCourier(courier)}
-                            className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-black text-sky-200 hover:bg-sky-500/20"
+                            className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-black text-sky-700 shadow-sm transition hover:bg-sky-100"
                           >
                             Ücret Düzenle
                           </button>
@@ -709,7 +709,7 @@ export default function CouriersPage() {
                           <button
                             type="button"
                             onClick={() => toggleCourier(courier)}
-                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black text-slate-200 hover:bg-white/10"
+                            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                           >
                             {courier.isActive ? 'Pasife Al' : 'Aktife Al'}
                           </button>
@@ -719,7 +719,7 @@ export default function CouriersPage() {
                       {editingCourierId === courier.id ? (
                         <form
                           onSubmit={updateCourier}
-                          className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-5"
+                          className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm"
                         >
                           <div className="grid gap-4 md:grid-cols-2">
                             <label className="block text-sm font-bold">
@@ -727,7 +727,7 @@ export default function CouriersPage() {
                               <input
                                 value={editName}
                                 onChange={(event) => setEditName(event.target.value)}
-                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                               />
                             </label>
 
@@ -737,7 +737,7 @@ export default function CouriersPage() {
                                 value={editPhone}
                                 onChange={(event) => setEditPhone(event.target.value)}
                                 placeholder="05xx xxx xx xx"
-                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                               />
                             </label>
 
@@ -746,7 +746,7 @@ export default function CouriersPage() {
                               <select
                                 value={editBranchId}
                                 onChange={(event) => setEditBranchId(event.target.value)}
-                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                               >
                                 <option value="">Genel / Tüm şubeler</option>
                                 {branches.map((branch) => (
@@ -762,7 +762,7 @@ export default function CouriersPage() {
                               <select
                                 value={editIsActive ? 'ACTIVE' : 'PASSIVE'}
                                 onChange={(event) => setEditIsActive(event.target.value === 'ACTIVE')}
-                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                               >
                                 <option value="ACTIVE">Aktif</option>
                                 <option value="PASSIVE">Pasif</option>
@@ -776,7 +776,7 @@ export default function CouriersPage() {
                                 onChange={(event) => setEditPerPackageFee(event.target.value)}
                                 inputMode="decimal"
                                 placeholder="20"
-                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                               />
                             </label>
 
@@ -787,7 +787,7 @@ export default function CouriersPage() {
                                 onChange={(event) => setEditHourlyFee(event.target.value)}
                                 inputMode="decimal"
                                 placeholder="100"
-                                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                               />
                             </label>
                           </div>
@@ -796,7 +796,7 @@ export default function CouriersPage() {
                             <button
                               type="submit"
                               disabled={isUpdatingCourier}
-                              className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                              className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                             >
                               {isUpdatingCourier ? 'Kaydediliyor...' : 'Kaydet'}
                             </button>
@@ -805,7 +805,7 @@ export default function CouriersPage() {
                               type="button"
                               onClick={cancelEditCourier}
                               disabled={isUpdatingCourier}
-                              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-slate-200 transition hover:bg-white/10 disabled:opacity-60"
+                              className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
                             >
                               Vazgeç
                             </button>
@@ -821,8 +821,8 @@ export default function CouriersPage() {
         ) : null}
 
         {activeTab === 'history' || activeTab === 'summary' ? (
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-black">Filtreler</h2>
+          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+            <h2 className="text-xl font-black text-slate-950">Filtreler</h2>
 
             <div className="mt-5 grid gap-4 md:grid-cols-4">
               <label className="block text-sm font-bold">
@@ -830,7 +830,7 @@ export default function CouriersPage() {
                 <select
                   value={selectedCourierId}
                   onChange={(event) => setSelectedCourierId(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 >
                   <option value="ALL">Tüm Kuryeler</option>
                   {couriers.map((courier) => (
@@ -846,7 +846,7 @@ export default function CouriersPage() {
                 <select
                   value={selectedStatus}
                   onChange={(event) => setSelectedStatus(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 >
                   <option value="ALL">Tümü</option>
                   <option value="ON_DELIVERY">Yolda</option>
@@ -861,7 +861,7 @@ export default function CouriersPage() {
                   type="date"
                   value={startDate}
                   onChange={(event) => setStartDate(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 />
               </label>
 
@@ -871,7 +871,7 @@ export default function CouriersPage() {
                   type="date"
                   value={endDate}
                   onChange={(event) => setEndDate(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 />
               </label>
             </div>
@@ -879,35 +879,35 @@ export default function CouriersPage() {
         ) : null}
 
         {activeTab === 'history' ? (
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-black">Kurye Geçmişi</h2>
-            <p className="mt-1 text-sm text-slate-400">
+          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+            <h2 className="text-xl font-black text-slate-950">Kurye Geçmişi</h2>
+            <p className="mt-1 text-sm text-slate-500">
               Gösterilen paket: {courierOrders.length}
             </p>
 
             <div className="mt-5 overflow-x-auto">
               {courierOrders.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 text-slate-300">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-500 shadow-sm">
                   Bu filtrelerde kurye paketi bulunamadı.
                 </div>
               ) : (
                 <table className="w-full min-w-[1100px] overflow-hidden rounded-2xl text-left text-sm">
-                  <thead className="bg-slate-900 text-slate-300">
+                  <thead className="bg-slate-900 text-white">
                     <tr>
-                      <th className="px-4 py-3">Kod</th>
-                      <th className="px-4 py-3">Kurye</th>
-                      <th className="px-4 py-3">Müşteri</th>
-                      <th className="px-4 py-3">Telefon</th>
-                      <th className="px-4 py-3">Adres</th>
-                      <th className="px-4 py-3">Durum</th>
-                      <th className="px-4 py-3">Tutar</th>
-                      <th className="px-4 py-3">Tarih</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Kod</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Kurye</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Müşteri</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Telefon</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Adres</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Durum</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Tutar</th>
+                      <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Tarih</th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-white/10">
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {courierOrders.map((order) => (
-                      <tr key={order.id} className="bg-slate-950/50">
+                      <tr key={order.id} className="bg-white transition hover:bg-slate-50">
                         <td className="px-4 py-4 font-bold">{order.code}</td>
                         <td className="px-4 py-4">{order.courierName || '-'}</td>
                         <td className="px-4 py-4">{order.customerName || '-'}</td>
@@ -919,7 +919,7 @@ export default function CouriersPage() {
                           <span
                             className={`rounded-full border px-3 py-1 text-xs font-black ${
                               ORDER_STATUS_CLASSES[order.status] ||
-                              'border-white/10 bg-white/5 text-slate-200'
+                              'border-slate-200 bg-white text-slate-700'
                             }`}
                           >
                             {ORDER_STATUS_LABELS[order.status] || order.status}
@@ -937,30 +937,30 @@ export default function CouriersPage() {
         ) : null}
 
         {activeTab === 'summary' ? (
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-            <h2 className="text-xl font-black">Gün Sonu Özeti</h2>
+          <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+            <h2 className="text-xl font-black text-slate-950">Gün Sonu Özeti</h2>
 
             <div className="mt-5 grid gap-4">
               {summaryRows.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 text-slate-300">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-500 shadow-sm">
                   Kurye bulunamadı.
                 </div>
               ) : (
                 summaryRows.map((row) => (
-                  <div key={row.courier.id} className="rounded-3xl border border-white/10 bg-slate-950 p-5">
+                  <div key={row.courier.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div>
-                        <p className="text-xl font-black">{row.courier.name}</p>
-                        <p className="mt-1 text-sm text-slate-400">
+                        <p className="text-xl font-black text-slate-950">{row.courier.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">
                           {row.courier.branch?.name || 'Genel'} • {row.courier.phone || 'Telefon yok'}
                         </p>
-                        <p className="mt-2 text-sm text-slate-300">
+                        <p className="mt-2 text-sm text-slate-500">
                           Paket başı <b>{formatMoney(row.courier.perPackageFee)}</b> • Saatlik{' '}
                           <b>{formatMoney(row.courier.hourlyFee)}</b>
                         </p>
                       </div>
 
-                      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                         <label className="block text-sm font-bold">
                           Çalışma Saati
                           <input
@@ -973,7 +973,7 @@ export default function CouriersPage() {
                             }
                             inputMode="decimal"
                             placeholder="0"
-                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                           />
                         </label>
 
@@ -988,11 +988,11 @@ export default function CouriersPage() {
                               }))
                             }
                             placeholder="Örn: Akşam yoğunluğu"
-                            className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-emerald-400"
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                           />
                         </label>
 
-                        <p className="mt-2 text-xs text-slate-400">
+                        <p className="mt-2 text-xs text-slate-500">
                           Saatlik ücret: {formatMoney(row.courier.hourlyFee)} • Kayıt tarihi: {startDate}
                         </p>
 
@@ -1000,7 +1000,7 @@ export default function CouriersPage() {
                           type="button"
                           onClick={() => saveCourierWorkLog(row.courier)}
                           disabled={savingWorkLogCourierId === row.courier.id}
-                          className="mt-3 rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+                          className="mt-3 rounded-2xl bg-emerald-500 px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                         >
                           {savingWorkLogCourierId === row.courier.id ? 'Kaydediliyor...' : 'Mesaiyi Kaydet'}
                         </button>
@@ -1008,23 +1008,23 @@ export default function CouriersPage() {
                     </div>
 
                     <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs font-bold text-slate-400">Teslim Paket</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                        <p className="text-xs font-bold text-slate-500">Teslim Paket</p>
                         <p className="mt-2 text-2xl font-black">{row.deliveredOrders.length}</p>
                       </div>
 
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs font-bold text-slate-400">Yolda</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                        <p className="text-xs font-bold text-slate-500">Yolda</p>
                         <p className="mt-2 text-2xl font-black">{row.onDeliveryOrders.length}</p>
                       </div>
 
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs font-bold text-slate-400">İptal</p>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                        <p className="text-xs font-bold text-slate-500">İptal</p>
                         <p className="mt-2 text-2xl font-black">{row.cancelledOrders.length}</p>
                       </div>
 
                       <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-                        <p className="text-xs font-bold text-emerald-200">Paket Tutarı</p>
+                        <p className="text-xs font-bold text-emerald-700">Paket Tutarı</p>
                         <p className="mt-2 text-lg font-black">{formatMoney(row.deliveredRevenue)}</p>
                       </div>
 
