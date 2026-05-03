@@ -9,6 +9,7 @@ import { PublicModule } from './public/public.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { UsersModule } from './users/users.module';
 import { TableServiceModule } from './table-service/table-service.module';
+import { CustomersModule } from './customers/customers.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { TableServiceModule } from './table-service/table-service.module';
     UsersModule,
     OrdersModule,
     TableServiceModule,
+    CustomersModule,
     MenuModule,
     PublicModule,
   ],
