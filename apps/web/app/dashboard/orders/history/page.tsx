@@ -69,13 +69,13 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 };
 
 const ORDER_STATUS_BADGE_CLASSES: Record<string, string> = {
-  PENDING: 'border-yellow-400/30 bg-yellow-500/10 text-yellow-200',
-  ACCEPTED: 'border-blue-400/30 bg-blue-500/10 text-blue-200',
+  PENDING: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+  ACCEPTED: 'border-blue-200 bg-blue-50 text-blue-700',
   PREPARING: 'border-orange-400/30 bg-orange-500/10 text-orange-200',
   READY: 'border-purple-400/30 bg-purple-500/10 text-purple-200',
-  ON_DELIVERY: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200',
-  DELIVERED: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
-  CANCELLED: 'border-red-400/30 bg-red-500/10 text-red-200',
+  ON_DELIVERY: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+  DELIVERED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  CANCELLED: 'border-red-200 bg-red-50 text-red-700',
 };
 
 function getOrderNumericTotal(total: string | number) {
@@ -234,28 +234,28 @@ export default function OrderHistoryPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-white/10 bg-white/5 p-6">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-emerald-400">
             Sipariş Arşivi
           </p>
-          <h1 className="mt-2 text-3xl font-black">Geçmiş Siparişler</h1>
-          <p className="mt-2 max-w-3xl text-sm text-slate-300">
+          <h1 className="mt-2 text-3xl font-black text-slate-950">Geçmiş Siparişler</h1>
+          <p className="mt-2 max-w-3xl text-sm text-slate-500">
             Kabul edilen, hazırlanan, yola çıkan, teslim edilen ve iptal edilen siparişleri ana ekrandan ayrı takip edin.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-3">
             <a
               href="/dashboard"
-              className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold hover:bg-slate-800"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
               Ana Sayfa
             </a>
 
             <a
               href="/dashboard/menu"
-              className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 hover:bg-emerald-500/20"
+              className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
             >
               Menü
             </a>
@@ -263,36 +263,36 @@ export default function OrderHistoryPage() {
         </header>
 
         {error ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm">
             {error}
           </div>
         ) : null}
 
         <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm font-bold text-slate-400">İşlem Görmüş Sipariş</p>
+          <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+            <p className="text-sm font-bold text-slate-500">İşlem Görmüş Sipariş</p>
             <p className="mt-2 text-3xl font-black">{historyOrders.length}</p>
           </div>
 
-          <div className="rounded-3xl border border-emerald-400/20 bg-emerald-500/10 p-5">
-            <p className="text-sm font-bold text-emerald-200">Teslim Edildi</p>
+          <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 shadow-[0_10px_24px_rgba(16,185,129,0.10)]">
+            <p className="text-sm font-bold text-emerald-700">Teslim Edildi</p>
             <p className="mt-2 text-3xl font-black">{deliveredOrders.length}</p>
-            <p className="mt-1 text-sm font-bold text-emerald-300">
+            <p className="mt-1 text-sm font-bold text-emerald-600">
               {formatMoney(deliveredRevenue)}
             </p>
           </div>
 
-          <div className="rounded-3xl border border-red-400/20 bg-red-500/10 p-5">
-            <p className="text-sm font-bold text-red-200">İptal Edildi</p>
+          <div className="rounded-[24px] border border-red-200 bg-red-50 p-5 shadow-[0_10px_24px_rgba(239,68,68,0.08)]">
+            <p className="text-sm font-bold text-red-700">İptal Edildi</p>
             <p className="mt-2 text-3xl font-black">{cancelledOrders.length}</p>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2 className="text-xl font-black">Sipariş Listesi</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-xl font-black text-slate-950">Sipariş Listesi</h2>
+              <p className="mt-1 text-sm text-slate-500">
                 Gösterilen: {filteredOrders.length} • Toplam geçmiş: {historyOrders.length}
               </p>
             </div>
@@ -313,11 +313,11 @@ export default function OrderHistoryPage() {
                     className={`rounded-2xl border px-4 py-2 text-sm font-bold transition ${
                       isActive
                         ? 'border-emerald-400 bg-emerald-500 text-slate-950'
-                        : 'border-white/10 bg-slate-900 text-slate-200 hover:bg-white/10'
+                        : 'border-slate-200 bg-slate-900 text-slate-700 hover:bg-slate-50'
                     }`}
                   >
                     {filter.label}
-                    <span className="ml-2 rounded-full bg-black/20 px-2 py-0.5 text-xs">
+                    <span className="ml-2 rounded-full bg-white/25 px-2 py-0.5 text-xs">
                       {count}
                     </span>
                   </button>
@@ -326,14 +326,14 @@ export default function OrderHistoryPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-inner md:flex-row md:items-center md:justify-between">
             <div className="w-full">
-              <label className="text-sm font-semibold text-slate-200">
+              <label className="text-sm font-bold text-slate-800">
                 Geçmiş Sipariş Ara
                 <input
                   value={orderSearch}
                   onChange={(event) => setOrderSearch(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   placeholder="Kod, masa no, müşteri, telefon, adres, not, şube..."
                 />
               </label>
@@ -343,7 +343,7 @@ export default function OrderHistoryPage() {
               <button
                 type="button"
                 onClick={() => setOrderSearch('')}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition hover:bg-white/10 md:mt-6"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 md:mt-6"
               >
                 Temizle
               </button>
@@ -352,53 +352,53 @@ export default function OrderHistoryPage() {
 
           <div className="mt-6 overflow-x-auto">
             {isLoading ? (
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-500 shadow-sm">
                 Geçmiş siparişler yükleniyor...
               </div>
             ) : historyOrders.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-500 shadow-sm">
                 Henüz işlem görmüş sipariş yok.
               </div>
             ) : filteredOrders.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-6 text-slate-300">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-500 shadow-sm">
                 Bu filtre veya arama sonucunda sipariş bulunamadı.
               </div>
             ) : (
-              <table className="w-full min-w-[1100px] overflow-hidden rounded-2xl text-left text-sm">
-                <thead className="bg-slate-900 text-slate-300">
+              <table className="w-full min-w-[1100px] overflow-hidden rounded-[24px] text-left text-sm shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
+                <thead className="bg-slate-900 text-white">
                   <tr>
-                    <th className="px-4 py-3">Kod</th>
-                    <th className="px-4 py-3">Tip</th>
-                    <th className="px-4 py-3">Müşteri</th>
-                    <th className="px-4 py-3">Telefon</th>
-                    <th className="px-4 py-3">Şube</th>
-                    <th className="px-4 py-3">Durum</th>
-                    <th className="px-4 py-3">Toplam</th>
-                    <th className="px-4 py-3">Tarih</th>
-                    <th className="px-4 py-3">Detay</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Kod</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Tip</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Müşteri</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Telefon</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Şube</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Durum</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Toplam</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Tarih</th>
+                    <th className="px-4 py-4 text-[11px] font-black uppercase tracking-[0.18em] text-white">Detay</th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {filteredOrders.map((order) => {
                     const statusLabel = ORDER_STATUS_LABELS[order.status] || order.status;
                     const typeLabel = getOrderTypeDisplay(order);
                     const statusBadgeClass =
                       ORDER_STATUS_BADGE_CLASSES[order.status] ||
-                      'border-slate-400/30 bg-slate-500/10 text-slate-200';
+                      'border-slate-200 bg-slate-50 text-slate-700';
 
                     return (
-                      <tr key={order.id} className="bg-slate-950/40 transition hover:bg-white/5">
+                      <tr key={order.id} className="bg-white transition hover:bg-slate-50">
                         <td className="px-4 py-4 font-bold">{order.code}</td>
                         <td className="px-4 py-4">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-200">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-700 shadow-sm">
                             {typeLabel}
                           </span>
                         </td>
                         <td className="px-4 py-4">
                           <div className="font-semibold">{order.customerName || '-'}</div>
                           {order.customerAddress ? (
-                            <div className="mt-1 max-w-[220px] truncate text-xs text-slate-400">
+                            <div className="mt-1 max-w-[220px] truncate text-xs text-slate-500">
                               {order.customerAddress}
                             </div>
                           ) : null}
@@ -418,7 +418,7 @@ export default function OrderHistoryPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedOrder(order)}
-                            className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-slate-200 transition hover:bg-white/10"
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                           >
                             Detay
                           </button>
@@ -434,15 +434,15 @@ export default function OrderHistoryPage() {
       </div>
 
       {selectedOrder ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl shadow-black">
-            <div className="flex flex-col gap-4 border-b border-white/10 pb-5 md:flex-row md:items-start md:justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl shadow-slate-400/30">
+            <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">
                   Geçmiş Sipariş Detayı
                 </p>
-                <h3 className="mt-2 text-2xl font-black">{selectedOrder.code}</h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <h3 className="mt-2 text-2xl font-black text-slate-950">{selectedOrder.code}</h3>
+                <p className="mt-1 text-sm text-slate-500">
                   {formatOrderDate(selectedOrder.createdAt)}
                 </p>
               </div>
@@ -450,74 +450,74 @@ export default function OrderHistoryPage() {
               <button
                 type="button"
                 onClick={() => setSelectedOrder(null)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-200 transition hover:bg-white/10"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
                 Kapat
               </button>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Sipariş Tipi
                 </p>
-                <p className="mt-2 text-lg font-bold">
+                <p className="mt-2 text-lg font-bold text-slate-950">
                   {ORDER_TYPE_LABELS[selectedOrder.type || ''] || '-'}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Masa No
                 </p>
-                <p className="mt-2 text-lg font-bold">{selectedOrder.tableNumber || '-'}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{selectedOrder.tableNumber || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Durum
                 </p>
                 <span
                   className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold ${
                     ORDER_STATUS_BADGE_CLASSES[selectedOrder.status] ||
-                    'border-slate-400/30 bg-slate-500/10 text-slate-200'
+                    'border-slate-200 bg-slate-50 text-slate-700'
                   }`}
                 >
                   {ORDER_STATUS_LABELS[selectedOrder.status] || selectedOrder.status}
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Müşteri
                 </p>
-                <p className="mt-2 text-lg font-bold">{selectedOrder.customerName || '-'}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{selectedOrder.customerName || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Telefon
                 </p>
-                <p className="mt-2 text-lg font-bold">{selectedOrder.customerPhone || '-'}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{selectedOrder.customerPhone || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Şube
                 </p>
-                <p className="mt-2 text-lg font-bold">{selectedOrder.branch?.name || '-'}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{selectedOrder.branch?.name || '-'}</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Toplam
                 </p>
-                <p className="mt-2 text-lg font-bold">{formatMoney(selectedOrder.total)}</p>
+                <p className="mt-2 text-lg font-bold text-slate-950">{formatMoney(selectedOrder.total)}</p>
               </div>
 
               {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4 md:col-span-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm md:col-span-2">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">
                     Sipariş Ürünleri
                   </p>
 
@@ -525,20 +525,20 @@ export default function OrderHistoryPage() {
                     {selectedOrder.items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4"
+                        className="flex items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                       >
                         <div>
-                          <p className="font-bold text-white">{item.name}</p>
+                          <p className="font-bold text-slate-950">{item.name}</p>
                           {item.note ? (
-                            <p className="mt-1 text-xs text-amber-200">Not: {item.note}</p>
+                            <p className="mt-1 text-xs font-bold text-amber-700">Not: {item.note}</p>
                           ) : null}
                         </div>
 
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-300">
+                          <p className="text-sm font-semibold text-slate-500">
                             {item.quantity} x {formatMoney(item.unitPrice)}
                           </p>
-                          <p className="mt-1 text-base font-black text-emerald-300">
+                          <p className="mt-1 text-base font-black text-emerald-600">
                             {formatMoney(item.totalPrice)}
                           </p>
                         </div>
@@ -548,20 +548,20 @@ export default function OrderHistoryPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Adres
                 </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
                   {selectedOrder.customerAddress || '-'}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm md:col-span-2">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">
                   Not
                 </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-100">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-amber-800">
                   {selectedOrder.note || '-'}
                 </p>
               </div>
