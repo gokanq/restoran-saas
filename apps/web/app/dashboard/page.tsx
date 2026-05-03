@@ -362,6 +362,35 @@ type IncomingCallState = {
   isUnknown: boolean;
 };
 
+type CallerRegistrationForm = {
+  name: string;
+  phone: string;
+  addressTitle: string;
+  addressType: string;
+  district: string;
+  neighborhood: string;
+  street: string;
+  buildingNo: string;
+  floorNo: string;
+  doorNo: string;
+  description: string;
+};
+
+const DEFAULT_CALLER_REGISTRATION_FORM: CallerRegistrationForm = {
+  name: '',
+  phone: '',
+  addressTitle: 'Ev',
+  addressType: 'Ev',
+  district: '',
+  neighborhood: '',
+  street: '',
+  buildingNo: '',
+  floorNo: '',
+  doorNo: '',
+  description: '',
+};
+
+
 function getCallerAddressText(address?: CallerCustomerAddress | null) {
   if (!address) {
     return '';
@@ -453,7 +482,12 @@ export default function DashboardPage() {
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallState | null>(null);
-  const [callerPanelMode, setCallerPanelMode] = useState<'idle' | 'known' | 'unknown'>('idle');
+  const [callerPanelMode, setCallerPanelMode] = useState<'idle' | 'known' | 'unknown' | 'register'>('idle');
+  const [callerRegistrationForm, setCallerRegistrationForm] = useState<CallerRegistrationForm>(
+    DEFAULT_CALLER_REGISTRATION_FORM,
+  );
+  const [isSavingCallerCustomer, setIsSavingCallerCustomer] = useState(false);
+  const [callerRegistrationError, setCallerRegistrationError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -1294,6 +1328,8 @@ export default function DashboardPage() {
   function closeIncomingCall() {
     setIncomingCall(null);
     setCallerPanelMode('idle');
+    setCallerRegistrationForm(DEFAULT_CALLER_REGISTRATION_FORM);
+    setCallerRegistrationError('');
   }
 
   function fillOrderFromIncomingCall() {
@@ -1316,9 +1352,118 @@ export default function DashboardPage() {
     setSuccess('Caller ID bilgileri sipariş formuna aktarıldı.');
   }
 
+  function updateCallerRegistrationField(field: keyof CallerRegistrationForm, value: string) {
+    setCallerRegistrationForm((currentForm) => ({
+      ...currentForm,
+      [field]: value,
+    }));
+  }
+
   function startUnknownCallerRegistration() {
-    setSuccess('Yeni kayıt paneli bir sonraki adımda eklenecek. Şimdilik Caller ID sayfasından kayıt/sipariş devam edebilir.');
-    router.push('/dashboard/caller-id');
+    if (!incomingCall) {
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setCallerRegistrationError('');
+    setCallerRegistrationForm({
+      ...DEFAULT_CALLER_REGISTRATION_FORM,
+      phone: incomingCall.phone,
+    });
+    setCallerPanelMode('register');
+  }
+
+  async function saveUnknownCallerCustomer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    const name = callerRegistrationForm.name.trim();
+    const phone = callerRegistrationForm.phone.trim();
+
+    if (!name) {
+      setCallerRegistrationError('Ad soyad zorunlu.');
+      return;
+    }
+
+    if (!phone) {
+      setCallerRegistrationError('Telefon numarası zorunlu.');
+      return;
+    }
+
+    setIsSavingCallerCustomer(true);
+    setCallerRegistrationError('');
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          branchId: selectedBranchId || null,
+          name,
+          phone,
+          notes: 'Caller ID hızlı kayıt',
+          addresses: [
+            {
+              title: callerRegistrationForm.addressTitle.trim() || callerRegistrationForm.addressType,
+              type: callerRegistrationForm.addressType,
+              district: callerRegistrationForm.district.trim() || null,
+              neighborhood: callerRegistrationForm.neighborhood.trim() || null,
+              street: callerRegistrationForm.street.trim() || null,
+              buildingNo: callerRegistrationForm.buildingNo.trim() || null,
+              floorNo: callerRegistrationForm.floorNo.trim() || null,
+              doorNo: callerRegistrationForm.doorNo.trim() || null,
+              description: callerRegistrationForm.description.trim() || null,
+              isDefault: true,
+            },
+          ],
+        }),
+      });
+
+      if (response.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const rawMessage = errorData?.message;
+        const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+
+        throw new Error(message || 'Müşteri kaydı oluşturulamadı.');
+      }
+
+      const customer = (await response.json()) as CallerCustomer;
+      const defaultAddress =
+        customer.addresses?.find((address) => address.isDefault) || customer.addresses?.[0] || null;
+
+      setIncomingCall({
+        phone: customer.phone || phone,
+        customer,
+        selectedAddressId: defaultAddress?.id || '',
+        isSearching: false,
+        isUnknown: false,
+      });
+      setCallerPanelMode('known');
+      setCallerRegistrationForm(DEFAULT_CALLER_REGISTRATION_FORM);
+      setSuccess('Yeni müşteri kaydı oluşturuldu. Siparişe Git aktif.');
+    } catch (saveError) {
+      console.error(saveError);
+      setCallerRegistrationError(saveError instanceof Error ? saveError.message : 'Müşteri kaydı oluşturulamadı.');
+    } finally {
+      setIsSavingCallerCustomer(false);
+    }
   }
 
   function logout() {
@@ -1837,6 +1982,168 @@ export default function DashboardPage() {
                   <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm font-black text-sky-800">
                     Telefon numarası müşteri kayıtlarında aranıyor...
                   </div>
+                ) : callerPanelMode === 'register' ? (
+                  <form
+                    onSubmit={saveUnknownCallerCustomer}
+                    className="mt-5 rounded-[28px] border border-sky-200 bg-sky-50 p-5 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.25em] text-sky-700">
+                          Operasyon İçi Yeni Kayıt
+                        </p>
+                        <h4 className="mt-2 text-2xl font-black text-slate-950">Kayıtsız arayanı müşteriye çevir</h4>
+                        <p className="mt-1 text-sm font-semibold text-slate-600">
+                          Telefon numarası otomatik geldi. Müşteri ve adres bilgisini kaydedince Siparişe Git aktif olur.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCallerPanelMode('unknown');
+                          setCallerRegistrationError('');
+                        }}
+                        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                      >
+                        Geri
+                      </button>
+                    </div>
+
+                    {callerRegistrationError ? (
+                      <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                        {callerRegistrationError}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ad Soyad</span>
+                        <input
+                          value={callerRegistrationForm.name}
+                          onChange={(event) => updateCallerRegistrationField('name', event.target.value)}
+                          placeholder="Gökhan Köse"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Telefon</span>
+                        <input
+                          value={callerRegistrationForm.phone}
+                          onChange={(event) => updateCallerRegistrationField('phone', event.target.value)}
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Adres Tipi</span>
+                        <select
+                          value={callerRegistrationForm.addressType}
+                          onChange={(event) => {
+                            updateCallerRegistrationField('addressType', event.target.value);
+                            updateCallerRegistrationField('addressTitle', event.target.value);
+                          }}
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        >
+                          <option value="Ev">Ev</option>
+                          <option value="İş">İş</option>
+                          <option value="Diğer">Diğer</option>
+                        </select>
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">İlçe</span>
+                        <input
+                          value={callerRegistrationForm.district}
+                          onChange={(event) => updateCallerRegistrationField('district', event.target.value)}
+                          placeholder="Giresun Merkez"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Mahalle</span>
+                        <input
+                          value={callerRegistrationForm.neighborhood}
+                          onChange={(event) => updateCallerRegistrationField('neighborhood', event.target.value)}
+                          placeholder="Mahalle"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Cadde / Sokak</span>
+                        <input
+                          value={callerRegistrationForm.street}
+                          onChange={(event) => updateCallerRegistrationField('street', event.target.value)}
+                          placeholder="Atatürk Caddesi"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Bina No</span>
+                        <input
+                          value={callerRegistrationForm.buildingNo}
+                          onChange={(event) => updateCallerRegistrationField('buildingNo', event.target.value)}
+                          placeholder="12"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kat</span>
+                        <input
+                          value={callerRegistrationForm.floorNo}
+                          onChange={(event) => updateCallerRegistrationField('floorNo', event.target.value)}
+                          placeholder="3"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kapı No</span>
+                        <input
+                          value={callerRegistrationForm.doorNo}
+                          onChange={(event) => updateCallerRegistrationField('doorNo', event.target.value)}
+                          placeholder="7"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+
+                      <label className="space-y-2 md:col-span-2 xl:col-span-3">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Adres Açıklaması</span>
+                        <textarea
+                          value={callerRegistrationForm.description}
+                          onChange={(event) => updateCallerRegistrationField('description', event.target.value)}
+                          placeholder="Zile basmayın, telefonla arayın."
+                          rows={3}
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCallerPanelMode('unknown');
+                          setCallerRegistrationError('');
+                        }}
+                        className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingCallerCustomer}
+                        className="rounded-2xl bg-sky-600 px-6 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(2,132,199,0.18)] transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {isSavingCallerCustomer ? 'Kaydediliyor...' : 'Kaydet ve Siparişe Hazırla'}
+                      </button>
+                    </div>
+                  </form>
                 ) : incomingCall.customer ? (
                   <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_340px]">
                     <div className="rounded-[24px] border border-white bg-white p-5 shadow-sm">
