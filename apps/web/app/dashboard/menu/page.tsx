@@ -607,14 +607,14 @@ export default function DashboardMenuPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-5 py-8 text-white">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-3xl border border-white/10 bg-white/5 p-6">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-bold uppercase tracking-[0.25em] text-emerald-400">
             Menü Yönetimi
           </p>
-          <h1 className="mt-2 text-3xl font-black">Menü, Ürün ve Opsiyonlar</h1>
-          <p className="mt-2 max-w-3xl text-sm text-slate-300">
+          <h1 className="mt-2 text-3xl font-black text-slate-950">Menü, Ürün ve Opsiyonlar</h1>
+          <p className="mt-2 max-w-3xl text-sm text-slate-500">
             Ürün ekleme, kategori yönetimi, QR link üretimi ve ürün opsiyonlarını tek profesyonel
             ekranda yönetin.
           </p>
@@ -622,22 +622,22 @@ export default function DashboardMenuPage() {
           <div className="mt-5 flex flex-wrap gap-3">
             <a
               href="/dashboard"
-              className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm font-bold hover:bg-slate-800"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
               Ana Sayfa
             </a>
           </div>
         </header>
 
-        <section className="rounded-3xl border border-white/10 bg-white/5 p-3">
+        <section className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)]">
           <div className="grid gap-3 md:grid-cols-3">
             <button
               type="button"
               onClick={() => setActiveTab('products')}
               className={`rounded-2xl px-5 py-4 text-sm font-black transition ${
                 activeTab === 'products'
-                  ? 'bg-emerald-500 text-slate-950'
-                  : 'bg-slate-900 text-slate-200 hover:bg-slate-800'
+                  ? 'border border-emerald-300 bg-emerald-500 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50'
               }`}
             >
               Ürünler
@@ -648,8 +648,8 @@ export default function DashboardMenuPage() {
               onClick={() => setActiveTab('options')}
               className={`rounded-2xl px-5 py-4 text-sm font-black transition ${
                 activeTab === 'options'
-                  ? 'bg-emerald-500 text-slate-950'
-                  : 'bg-slate-900 text-slate-200 hover:bg-slate-800'
+                  ? 'border border-emerald-300 bg-emerald-500 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50'
               }`}
             >
               Opsiyonlar
@@ -660,8 +660,8 @@ export default function DashboardMenuPage() {
               onClick={() => setActiveTab('qr')}
               className={`rounded-2xl px-5 py-4 text-sm font-black transition ${
                 activeTab === 'qr'
-                  ? 'bg-emerald-500 text-slate-950'
-                  : 'bg-slate-900 text-slate-200 hover:bg-slate-800'
+                  ? 'border border-emerald-300 bg-emerald-500 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50'
               }`}
             >
               QR Linkleri
@@ -670,13 +670,13 @@ export default function DashboardMenuPage() {
         </section>
 
         {error ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm">
             {error}
           </div>
         ) : null}
 
         {message ? (
-          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-200">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700 shadow-sm">
             {message}
           </div>
         ) : null}
@@ -685,9 +685,9 @@ export default function DashboardMenuPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <form
               onSubmit={createCategory}
-              className="rounded-3xl border border-white/10 bg-white/5 p-6"
+              className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]"
             >
-              <h2 className="text-xl font-black">Kategori Ekle</h2>
+              <h2 className="text-xl font-black text-slate-950">Kategori Ekle</h2>
 
               <div className="mt-5 space-y-4">
                 <label className="block text-sm font-bold">
@@ -695,7 +695,7 @@ export default function DashboardMenuPage() {
                   <select
                     value={categoryBranchId}
                     onChange={(event) => setCategoryBranchId(event.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   >
                     {branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
@@ -711,22 +711,22 @@ export default function DashboardMenuPage() {
                     value={categoryName}
                     onChange={(event) => setCategoryName(event.target.value)}
                     placeholder="Pizzalar"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </label>
 
                 <button
                   type="submit"
                   disabled={isSavingCategory}
-                  className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-60"
+                  className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                 >
                   {isSavingCategory ? 'Ekleniyor...' : 'Kategori Ekle'}
                 </button>
               </div>
             </form>
 
-            <form onSubmit={createItem} className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <h2 className="text-xl font-black">Ürün Ekle</h2>
+            <form onSubmit={createItem} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+              <h2 className="text-xl font-black text-slate-950">Ürün Ekle</h2>
 
               <div className="mt-5 space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -735,7 +735,7 @@ export default function DashboardMenuPage() {
                     <select
                       value={itemBranchId}
                       onChange={(event) => setItemBranchId(event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     >
                       {branches.map((branch) => (
                         <option key={branch.id} value={branch.id}>
@@ -750,7 +750,7 @@ export default function DashboardMenuPage() {
                     <select
                       value={itemCategoryId}
                       onChange={(event) => setItemCategoryId(event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     >
                       <option value="">Kategori seç</option>
                       {categories.map((category) => (
@@ -768,7 +768,7 @@ export default function DashboardMenuPage() {
                     value={itemName}
                     onChange={(event) => setItemName(event.target.value)}
                     placeholder="Karışık Pizza"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </label>
 
@@ -778,7 +778,7 @@ export default function DashboardMenuPage() {
                     value={itemDescription}
                     onChange={(event) => setItemDescription(event.target.value)}
                     placeholder="Sucuk, mantar, mısır, kaşar"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </label>
 
@@ -788,39 +788,39 @@ export default function DashboardMenuPage() {
                     value={itemPrice}
                     onChange={(event) => setItemPrice(event.target.value)}
                     placeholder="250"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   />
                 </label>
 
                 <button
                   type="submit"
                   disabled={isSavingItem}
-                  className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-60"
+                  className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                 >
                   {isSavingItem ? 'Ekleniyor...' : 'Ürün Ekle'}
                 </button>
               </div>
             </form>
 
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6 lg:col-span-2">
-              <h2 className="text-xl font-black">Mevcut Ürünler</h2>
+            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] lg:col-span-2">
+              <h2 className="text-xl font-black text-slate-950">Mevcut Ürünler</h2>
 
               <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {items.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 text-sm text-slate-400">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
                     Henüz ürün yok.
                   </div>
                 ) : (
                   items.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-slate-950 p-5">
-                      <p className="text-lg font-black">{item.name}</p>
-                      <p className="mt-1 text-sm text-slate-400">
+                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                      <p className="text-lg font-black text-slate-950">{item.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">
                         {item.category?.name || 'Kategori yok'} • {item.branch?.name || 'Genel'}
                       </p>
                       {item.description ? (
                         <p className="mt-2 text-sm text-slate-500">{item.description}</p>
                       ) : null}
-                      <p className="mt-3 text-xl font-black text-emerald-300">
+                      <p className="mt-3 text-xl font-black text-emerald-600">
                         {formatMoney(item.price)}
                       </p>
 
@@ -830,7 +830,7 @@ export default function DashboardMenuPage() {
                           setSelectedItemId(item.id);
                           setActiveTab('options');
                         }}
-                        className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-black text-emerald-200 hover:bg-emerald-500/20"
+                        className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
                       >
                         Opsiyonları Yönet
                       </button>
@@ -844,12 +844,12 @@ export default function DashboardMenuPage() {
 
         {activeTab === 'options' ? (
           <div className="space-y-6">
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <label className="text-sm font-bold text-slate-200">Ürün Seç</label>
+            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+              <label className="text-sm font-bold text-slate-700">Ürün Seç</label>
               <select
                 value={selectedItemId}
                 onChange={(event) => setSelectedItemId(event.target.value)}
-                className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 text-sm font-bold outline-none focus:border-emerald-400"
+                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-bold text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 disabled={isLoading || items.length === 0}
               >
                 {items.length === 0 ? (
@@ -867,9 +867,9 @@ export default function DashboardMenuPage() {
             <div className="grid gap-6 lg:grid-cols-2">
               <form
                 onSubmit={createOptionGroup}
-                className="rounded-3xl border border-white/10 bg-white/5 p-6"
+                className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]"
               >
-                <h2 className="text-xl font-black">Opsiyon Grubu Ekle</h2>
+                <h2 className="text-xl font-black text-slate-950">Opsiyon Grubu Ekle</h2>
 
                 <div className="mt-5 space-y-4">
                   <label className="block text-sm font-bold">
@@ -878,7 +878,7 @@ export default function DashboardMenuPage() {
                       value={groupName}
                       onChange={(event) => setGroupName(event.target.value)}
                       placeholder="Ekstra Malzeme"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>
 
@@ -890,7 +890,7 @@ export default function DashboardMenuPage() {
                         onChange={(event) => setGroupMinSelect(event.target.value)}
                         type="number"
                         min="0"
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                       />
                     </label>
 
@@ -901,12 +901,12 @@ export default function DashboardMenuPage() {
                         onChange={(event) => setGroupMaxSelect(event.target.value)}
                         type="number"
                         min="1"
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                       />
                     </label>
                   </div>
 
-                  <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950 p-4 text-sm font-bold">
+                  <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-800">
                     <input
                       checked={groupRequired}
                       onChange={(event) => setGroupRequired(event.target.checked)}
@@ -919,7 +919,7 @@ export default function DashboardMenuPage() {
                   <button
                     type="submit"
                     disabled={isSavingGroup || !selectedItemId}
-                    className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-60"
+                    className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                   >
                     {isSavingGroup ? 'Ekleniyor...' : 'Grubu Ekle'}
                   </button>
@@ -928,9 +928,9 @@ export default function DashboardMenuPage() {
 
               <form
                 onSubmit={createOption}
-                className="rounded-3xl border border-white/10 bg-white/5 p-6"
+                className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]"
               >
-                <h2 className="text-xl font-black">Opsiyon Ekle</h2>
+                <h2 className="text-xl font-black text-slate-950">Opsiyon Ekle</h2>
 
                 <div className="mt-5 space-y-4">
                   <label className="block text-sm font-bold">
@@ -938,7 +938,7 @@ export default function DashboardMenuPage() {
                     <select
                       value={selectedGroupId}
                       onChange={(event) => setSelectedGroupId(event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                       disabled={selectedGroups.length === 0}
                     >
                       {selectedGroups.length === 0 ? (
@@ -959,7 +959,7 @@ export default function DashboardMenuPage() {
                       value={optionName}
                       onChange={(event) => setOptionName(event.target.value)}
                       placeholder="Ekstra Peynir"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>
 
@@ -969,14 +969,14 @@ export default function DashboardMenuPage() {
                       value={optionPriceDelta}
                       onChange={(event) => setOptionPriceDelta(event.target.value)}
                       placeholder="25"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                     />
                   </label>
 
                   <button
                     type="submit"
                     disabled={isSavingOption || !selectedGroupId}
-                    className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-60"
+                    className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
                   >
                     {isSavingOption ? 'Ekleniyor...' : 'Opsiyonu Ekle'}
                   </button>
@@ -984,28 +984,28 @@ export default function DashboardMenuPage() {
               </form>
             </div>
 
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-              <h2 className="text-xl font-black">Mevcut Opsiyonlar</h2>
+            <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+              <h2 className="text-xl font-black text-slate-950">Mevcut Opsiyonlar</h2>
 
               <div className="mt-5 space-y-4">
                 {selectedGroups.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 text-sm text-slate-400">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
                     Bu ürün için henüz opsiyon grubu yok.
                   </div>
                 ) : (
                   selectedGroups.map((group) => (
-                    <div key={group.id} className="rounded-2xl border border-white/10 bg-slate-950 p-5">
+                    <div key={group.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-lg font-black">{group.name}</p>
-                          <p className="mt-1 text-xs text-slate-400">
+                          <p className="text-lg font-black text-slate-950">{group.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">
                             {group.isRequired ? 'Zorunlu' : 'Opsiyonel'} • Min {group.minSelect ?? 0} •
                             Max {group.maxSelect ?? 1} • {group.isActive === false ? 'Pasif' : 'Aktif'}
                           </p>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700">
                             {group.options?.length || 0} seçenek
                           </span>
 
@@ -1020,7 +1020,7 @@ export default function DashboardMenuPage() {
                           <button
                             type="button"
                             onClick={() => deleteOptionGroup(group)}
-                            className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-black text-red-200 hover:bg-red-500/20"
+                            className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-black text-red-700 hover:bg-red-500/20"
                           >
                             Sil
                           </button>
@@ -1029,14 +1029,14 @@ export default function DashboardMenuPage() {
 
                       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {(group.options || []).length === 0 ? (
-                          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-400">
+                          <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-500">
                             Bu grupta seçenek yok.
                           </div>
                         ) : (
                           (group.options || []).map((option) => (
-                            <div key={option.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <div key={option.id} className="rounded-xl border border-slate-200 bg-white p-3">
                               <p className="font-bold">{option.name}</p>
-                              <p className="mt-1 text-sm font-black text-emerald-300">
+                              <p className="mt-1 text-sm font-black text-emerald-600">
                                 +{formatMoney(option.priceDelta)}
                               </p>
                               <p className="mt-1 text-xs text-slate-500">
@@ -1055,7 +1055,7 @@ export default function DashboardMenuPage() {
                                 <button
                                   type="button"
                                   onClick={() => deleteOption(option)}
-                                  className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-black text-red-200 hover:bg-red-500/20"
+                                  className="rounded-full border border-red-400/30 bg-red-500/10 px-3 py-1 text-xs font-black text-red-700 hover:bg-red-500/20"
                                 >
                                   Sil
                                 </button>
@@ -1074,8 +1074,8 @@ export default function DashboardMenuPage() {
 
         {activeTab === 'qr' ? (
           <section className="rounded-3xl border border-emerald-400/20 bg-emerald-500/10 p-6">
-            <h2 className="text-xl font-black">QR Masa Linki Oluştur</h2>
-            <p className="mt-2 text-sm text-slate-300">
+            <h2 className="text-xl font-black text-slate-950">QR Masa Linki Oluştur</h2>
+            <p className="mt-2 text-sm text-slate-500">
               Masa numarası girerek müşterinin açacağı QR sipariş linkini oluşturun.
             </p>
 
@@ -1088,7 +1088,7 @@ export default function DashboardMenuPage() {
                     setQrBranchId(event.target.value);
                     setQrCopied(false);
                   }}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 >
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
@@ -1107,7 +1107,7 @@ export default function DashboardMenuPage() {
                     setQrCopied(false);
                   }}
                   placeholder="5"
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 />
               </label>
             </div>
@@ -1116,14 +1116,14 @@ export default function DashboardMenuPage() {
               <input
                 readOnly
                 value={qrLink || 'Şube ve masa seçince link oluşur'}
-                className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-4 text-sm text-emerald-100 outline-none"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-emerald-100 outline-none"
               />
 
               <button
                 type="button"
                 disabled={!qrLink}
                 onClick={copyQrLink}
-                className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 disabled:opacity-60"
+                className="rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-sm transition hover:bg-emerald-600 disabled:opacity-60"
               >
                 {qrCopied ? 'Kopyalandı' : 'Linki Kopyala'}
               </button>
@@ -1131,7 +1131,7 @@ export default function DashboardMenuPage() {
 
             {qrLink ? (
               <div className="mt-5 grid gap-5 lg:grid-cols-[360px_1fr]">
-                <div className="rounded-3xl border border-white/10 bg-white p-5">
+                <div className="rounded-3xl border border-slate-200 bg-white p-5">
                   {qrDataUrl ? (
                     <img
                       src={qrDataUrl}
@@ -1145,14 +1145,14 @@ export default function DashboardMenuPage() {
                   )}
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-slate-950 p-5">
-                  <p className="text-sm font-black uppercase tracking-[0.2em] text-emerald-300">
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-sm font-black uppercase tracking-[0.2em] text-emerald-600">
                     QR Oluşturucu
                   </p>
 
                   <h3 className="mt-2 text-2xl font-black">Masa {qrTableNumber.trim()} QR Kodu</h3>
 
-                  <p className="mt-2 text-sm text-slate-400">
+                  <p className="mt-2 text-sm text-slate-500">
                     Bu QR kodu yazdırıp masaya koyabilirsiniz. Müşteri kamerayla okuttuğunda direkt masa sipariş ekranı açılır.
                   </p>
 
@@ -1169,7 +1169,7 @@ export default function DashboardMenuPage() {
                     <a
                       href={qrLink}
                       target="_blank"
-                      className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-200 hover:bg-emerald-500/20"
+                      className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-black text-emerald-700 hover:bg-emerald-500/20"
                     >
                       Linki Aç
                     </a>
@@ -1189,7 +1189,7 @@ export default function DashboardMenuPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
           <form
             onSubmit={updateOptionGroup}
-            className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl"
+            className="w-full max-w-xl rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-2xl"
           >
             <h2 className="text-2xl font-black">Opsiyon Grubunu Düzenle</h2>
 
@@ -1199,7 +1199,7 @@ export default function DashboardMenuPage() {
                 <input
                   value={editGroupName}
                   onChange={(event) => setEditGroupName(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none focus:border-emerald-400"
                 />
               </label>
 
@@ -1211,7 +1211,7 @@ export default function DashboardMenuPage() {
                     onChange={(event) => setEditGroupMinSelect(event.target.value)}
                     type="number"
                     min="0"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none focus:border-emerald-400"
                   />
                 </label>
 
@@ -1222,12 +1222,12 @@ export default function DashboardMenuPage() {
                     onChange={(event) => setEditGroupMaxSelect(event.target.value)}
                     type="number"
                     min="1"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none focus:border-emerald-400"
                   />
                 </label>
               </div>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-bold">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold">
                 <input
                   checked={editGroupRequired}
                   onChange={(event) => setEditGroupRequired(event.target.checked)}
@@ -1237,7 +1237,7 @@ export default function DashboardMenuPage() {
                 Zorunlu seçim olsun
               </label>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-bold">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold">
                 <input
                   checked={editGroupActive}
                   onChange={(event) => setEditGroupActive(event.target.checked)}
@@ -1252,7 +1252,7 @@ export default function DashboardMenuPage() {
               <button
                 type="button"
                 onClick={() => setEditingGroup(null)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black hover:bg-white/10"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black hover:bg-white/10"
               >
                 Vazgeç
               </button>
@@ -1273,7 +1273,7 @@ export default function DashboardMenuPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
           <form
             onSubmit={updateOption}
-            className="w-full max-w-xl rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-2xl"
+            className="w-full max-w-xl rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-2xl"
           >
             <h2 className="text-2xl font-black">Opsiyonu Düzenle</h2>
 
@@ -1283,7 +1283,7 @@ export default function DashboardMenuPage() {
                 <input
                   value={editOptionName}
                   onChange={(event) => setEditOptionName(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none focus:border-emerald-400"
                 />
               </label>
 
@@ -1292,11 +1292,11 @@ export default function DashboardMenuPage() {
                 <input
                   value={editOptionPriceDelta}
                   onChange={(event) => setEditOptionPriceDelta(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-4 outline-none focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 outline-none focus:border-emerald-400"
                 />
               </label>
 
-              <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 p-4 text-sm font-bold">
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold">
                 <input
                   checked={editOptionActive}
                   onChange={(event) => setEditOptionActive(event.target.checked)}
@@ -1311,7 +1311,7 @@ export default function DashboardMenuPage() {
               <button
                 type="button"
                 onClick={() => setEditingOption(null)}
-                className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black hover:bg-white/10"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black hover:bg-white/10"
               >
                 Vazgeç
               </button>
