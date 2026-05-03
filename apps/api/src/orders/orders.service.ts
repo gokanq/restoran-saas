@@ -36,6 +36,10 @@ export class OrdersService {
           orderBy: {
             createdAt: 'asc',
           },
+          include: {
+            menuItem: true,
+            options: true,
+          },
         },
       },
       orderBy: {
@@ -123,6 +127,11 @@ export class OrdersService {
     customerPhone?: string;
     customerAddress?: string;
     note?: string;
+    items?: {
+      menuItemId?: string;
+      quantity?: number | string;
+      note?: string | null;
+    }[];
   }) {
     if (!data.branchId) {
       throw new BadRequestException('branchId zorunludur');
@@ -171,6 +180,80 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
       throw new ForbiddenException('Bu şube için sipariş oluşturma yetkiniz yok');
     }
 
+    const requestedItems = Array.isArray(data.items) ? data.items : [];
+    const requestedMenuItemIds = [
+      ...new Set(
+        requestedItems
+          .map((item) => optionalText(item.menuItemId))
+          .filter((itemId): itemId is string => Boolean(itemId)),
+      ),
+    ];
+
+    const menuItems =
+      requestedMenuItemIds.length > 0
+        ? await this.prisma.menuItem.findMany({
+            where: {
+              id: {
+                in: requestedMenuItemIds,
+              },
+              restaurantId: data.restaurantId,
+              isActive: true,
+              OR: [
+                {
+                  branchId: null,
+                },
+                {
+                  branchId: data.branchId,
+                },
+              ],
+            },
+            select: {
+              id: true,
+              name: true,
+              price: true,
+            },
+          })
+        : [];
+
+    const menuItemMap = new Map(menuItems.map((menuItem) => [menuItem.id, menuItem]));
+
+    const normalizedItems = requestedItems
+      .map((item) => {
+        const menuItemId = optionalText(item.menuItemId);
+
+        if (!menuItemId) {
+          return null;
+        }
+
+        const menuItem = menuItemMap.get(menuItemId);
+
+        if (!menuItem) {
+          return null;
+        }
+
+        const rawQuantity = Number(item.quantity ?? 1);
+        const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? Math.floor(rawQuantity) : 1;
+        const unitPrice = Number(menuItem.price);
+        const totalPrice = unitPrice * quantity;
+
+        return {
+          menuItemId: menuItem.id,
+          name: menuItem.name,
+          quantity,
+          unitPrice,
+          totalPrice,
+          note: optionalText(item.note),
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    if (requestedItems.length > 0 && normalizedItems.length === 0) {
+      throw new BadRequestException('Siparişe eklenecek geçerli ürün bulunamadı');
+    }
+
+    const itemsTotal = normalizedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    const calculatedOrderTotal = normalizedItems.length > 0 ? itemsTotal : data.total ?? 0;
+
     return this.prisma.order.create({
       data: {
         restaurantId: data.restaurantId,
@@ -180,11 +263,25 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
         tableNumber: orderType === OrderType.TABLE ? tableNumber : null,
         status: data.status,
         paymentMethod,
-        total: data.total ?? 0,
+        total: calculatedOrderTotal,
         customerName: optionalText(data.customerName),
         customerPhone: optionalText(data.customerPhone),
         customerAddress: orderType === OrderType.DELIVERY ? optionalText(data.customerAddress) : null,
         note: optionalText(data.note),
+        ...(normalizedItems.length > 0
+          ? {
+              items: {
+                create: normalizedItems.map((item) => ({
+                  menuItemId: item.menuItemId,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  totalPrice: item.totalPrice,
+                  note: item.note,
+                })),
+              },
+            }
+          : {}),
       },
       include: {
         branch: true,

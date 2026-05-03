@@ -65,6 +65,11 @@ export class OrdersController {
       customerPhone?: string;
       customerAddress?: string;
       note?: string;
+      items?: {
+        menuItemId?: string;
+        quantity?: number | string;
+        note?: string | null;
+      }[];
     },
     @Req() req: AuthenticatedRequest,
   ) {
@@ -85,6 +90,7 @@ export class OrdersController {
       customerPhone: body.customerPhone,
       customerAddress: body.customerAddress,
       note: body.note,
+      items: body.items,
     });
   }
 
