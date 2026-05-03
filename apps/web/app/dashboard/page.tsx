@@ -414,6 +414,7 @@ export default function DashboardPage() {
     return `${publicBaseUrl}/qr?branchId=${qrBranchId}&table=${encodeURIComponent(tableNumber)}`;
   }, [publicBaseUrl, qrBranchId, qrTableNumber]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState('');
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [couriers, setCouriers] = useState<Courier[]>([]);
@@ -753,6 +754,13 @@ export default function DashboardPage() {
     const safeOrders = Array.isArray(ordersData) ? ordersData : [];
 
     setOrders(safeOrders);
+    setLastOrdersRefreshAt(
+      new Date().toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }),
+    );
     setOrderCode((currentCode) => currentCode || generateNextOrderCode(safeOrders));
 
     return safeOrders;
@@ -839,6 +847,40 @@ export default function DashboardPage() {
 
     loadDashboard();
   }, [router]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      return;
+    }
+
+    const accessToken = token;
+
+    let isRefreshing = false;
+
+    async function refreshOrdersSilently() {
+      if (isRefreshing || updatingOrderId || dispatchCourierOrder || courierChangeOrder) {
+        return;
+      }
+
+      isRefreshing = true;
+
+      try {
+        await loadOrders(accessToken);
+      } catch (refreshError) {
+        console.error('Sipariş otomatik yenileme hatası:', refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    const intervalId = window.setInterval(refreshOrdersSilently, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [updatingOrderId, dispatchCourierOrder, courierChangeOrder]);
 
   async function createOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1903,6 +1945,7 @@ export default function DashboardPage() {
               <h2 className="mt-2 text-2xl font-black">Sipariş Operasyon Ekranı V2</h2>
               <p className="mt-1 text-sm text-slate-500">
                 Siparişler aşama aşama ilerler: Kabul Et → Yola Çıkar → Teslim Et. Teslim edilen ve iptal edilen siparişler Geçmiş Siparişler bölümüne aktarılır.
+                {lastOrdersRefreshAt ? ` Son güncelleme: ${lastOrdersRefreshAt}` : ''}
               </p>
             </div>
 
