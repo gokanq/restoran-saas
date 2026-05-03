@@ -14,6 +14,14 @@ type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'ONLINE' | 'MEAL_CARD' | 'OPEN_ACC
 type OrderLite = {
   id?: string;
   code?: string;
+  type?: OrderType | string | null;
+  status?: string | null;
+  total?: number | string | null;
+  paymentMethod?: PaymentMethod | string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  note?: string | null;
   createdAt?: string;
 };
 
@@ -83,10 +91,74 @@ function getNewestOrderCode(orders: OrderLite[]) {
   return sortedOrders[0]?.code || '';
 }
 
+function normalizePhone(value?: string | null) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function getComparablePhone(value?: string | null) {
+  const normalized = normalizePhone(value);
+
+  return normalized.length > 10 ? normalized.slice(-10) : normalized;
+}
+
+function sortNewestOrders(orders: OrderLite[]) {
+  return [...orders].sort((first, second) => {
+    const firstTime = new Date(first.createdAt || '').getTime();
+    const secondTime = new Date(second.createdAt || '').getTime();
+
+    return (Number.isFinite(secondTime) ? secondTime : 0) - (Number.isFinite(firstTime) ? firstTime : 0);
+  });
+}
+
+function formatMoney(value?: number | string | null) {
+  const numericValue = Number(value || 0);
+
+  if (!Number.isFinite(numericValue)) {
+    return '0,00 ₺';
+  }
+
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+  }).format(numericValue);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('tr-TR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function getPaymentLabel(value?: string | null) {
+  return PAYMENT_METHOD_OPTIONS.find((method) => method.value === value)?.label || value || '-';
+}
+
+function getOrderTypeLabel(value?: string | null) {
+  return ORDER_TYPE_OPTIONS.find((type) => type.value === value)?.label || value || '-';
+}
+
+function toPaymentMethod(value?: string | null): PaymentMethod {
+  const found = PAYMENT_METHOD_OPTIONS.find((method) => method.value === value);
+
+  return found?.value || 'CASH';
+}
+
 export default function CallerIdPage() {
   const router = useRouter();
 
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [orders, setOrders] = useState<OrderLite[]>([]);
   const [branchId, setBranchId] = useState('');
   const [orderType, setOrderType] = useState<OrderType>('DELIVERY');
   const [tableNumber, setTableNumber] = useState('');
@@ -119,6 +191,7 @@ export default function CallerIdPage() {
     }
 
     const orders = normalizeOrders(data);
+    setOrders(orders);
     setOrderCodePreview(getNextOrderCode(orders));
 
     return orders;
@@ -163,6 +236,80 @@ export default function CallerIdPage() {
 
     loadInitialData();
   }, [router]);
+
+  const customerPhoneKey = getComparablePhone(customerPhone);
+  const customerHistory =
+    customerPhoneKey.length >= 7
+      ? sortNewestOrders(
+          orders.filter((order) => {
+            const orderPhoneKey = getComparablePhone(order.customerPhone);
+
+            return Boolean(orderPhoneKey) && orderPhoneKey === customerPhoneKey;
+          }),
+        )
+      : [];
+
+  const latestCustomerOrder = customerHistory[0];
+  const customerTotalSpent = customerHistory.reduce((sum, order) => {
+    const orderTotal = Number(order.total || 0);
+
+    return Number.isFinite(orderTotal) ? sum + orderTotal : sum;
+  }, 0);
+
+  function applyLatestCustomerInfo() {
+    if (!latestCustomerOrder) {
+      return;
+    }
+
+    setOrderType('DELIVERY');
+
+    if (latestCustomerOrder.customerName) {
+      setCustomerName(latestCustomerOrder.customerName);
+    }
+
+    if (latestCustomerOrder.customerPhone) {
+      setCustomerPhone(latestCustomerOrder.customerPhone);
+    }
+
+    if (latestCustomerOrder.customerAddress) {
+      setCustomerAddress(latestCustomerOrder.customerAddress);
+    }
+
+    if (latestCustomerOrder.paymentMethod) {
+      setPaymentMethod(toPaymentMethod(String(latestCustomerOrder.paymentMethod)));
+    }
+
+    if (latestCustomerOrder.note) {
+      setNote(latestCustomerOrder.note);
+    }
+
+    setSuccess('Müşterinin son sipariş bilgileri forma aktarıldı.');
+  }
+
+  function simulateIncomingCall() {
+    const existingCustomer = sortNewestOrders(orders).find((order) => order.customerPhone);
+
+    setOrderType('DELIVERY');
+    setTableNumber('');
+
+    if (existingCustomer) {
+      setCustomerName(existingCustomer.customerName || 'Kayıtlı Müşteri');
+      setCustomerPhone(existingCustomer.customerPhone || '0532 000 11 22');
+      setCustomerAddress(existingCustomer.customerAddress || '');
+      setPaymentMethod(toPaymentMethod(String(existingCustomer.paymentMethod || 'CASH')));
+      setNote(existingCustomer.note || '');
+      setSuccess('Kayıtlı müşteriden gelen arama simüle edildi.');
+      return;
+    }
+
+    setCustomerName('Demo Müşteri');
+    setCustomerPhone('0532 000 11 22');
+    setCustomerAddress('Demo Mahallesi, Demo Sokak No: 12');
+    setPaymentMethod('CASH');
+    setNote('Demo arama simülasyonu.');
+    setTotal((currentTotal) => currentTotal || '250');
+    setSuccess('Demo gelen arama simüle edildi. Bu numarayla sipariş oluşturunca müşteri geçmişi oluşur.');
+  }
 
   async function createOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -315,6 +462,115 @@ export default function CallerIdPage() {
             <p className="mt-2 text-4xl font-black text-cyan-900">{lastOrderCode}</p>
           </div>
         ) : null}
+
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-sky-700">Gelen Arama</p>
+              <h2 className="mt-2 text-xl font-black text-slate-950">Telefon müşteri geçmişi</h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                Telefon numarası yazıldığında aynı numaraya ait eski siparişler burada görünür.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={simulateIncomingCall}
+              className="rounded-2xl border border-sky-300 bg-sky-50 px-5 py-3 text-sm font-black text-sky-800 shadow-sm transition hover:bg-sky-100"
+            >
+              Gelen Arama Simüle Et
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Arayan Numara</p>
+              <p className="mt-2 text-2xl font-black text-slate-950">{customerPhone || '-'}</p>
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                {customerPhoneKey.length >= 7 ? `${customerHistory.length} geçmiş sipariş bulundu` : 'Geçmiş için telefon gir.'}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Müşteri Özeti</p>
+              <p className="mt-2 text-2xl font-black text-emerald-900">
+                {latestCustomerOrder?.customerName || customerName || 'Yeni müşteri'}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-emerald-700">
+                Toplam geçmiş harcama: {formatMoney(customerTotalSpent)}
+              </p>
+            </div>
+
+            <div className="rounded-[24px] border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-700">Son Sipariş</p>
+              <p className="mt-2 text-2xl font-black text-cyan-900">{latestCustomerOrder?.code || '-'}</p>
+              <p className="mt-2 text-sm font-semibold text-cyan-700">
+                {latestCustomerOrder ? `${formatDate(latestCustomerOrder.createdAt)} • ${formatMoney(latestCustomerOrder.total)}` : 'Henüz kayıt yok'}
+              </p>
+            </div>
+          </div>
+
+          {latestCustomerOrder ? (
+            <div className="mt-5 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-black text-slate-950">Son müşteri bilgileri</p>
+                  <div className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+                    <p className="rounded-2xl border border-slate-200 bg-slate-50 p-3 font-semibold text-slate-700">
+                      <span className="block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Adres</span>
+                      {latestCustomerOrder.customerAddress || '-'}
+                    </p>
+                    <p className="rounded-2xl border border-slate-200 bg-slate-50 p-3 font-semibold text-slate-700">
+                      <span className="block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ödeme</span>
+                      {getPaymentLabel(String(latestCustomerOrder.paymentMethod || ''))}
+                    </p>
+                    <p className="rounded-2xl border border-slate-200 bg-slate-50 p-3 font-semibold text-slate-700 md:col-span-2">
+                      <span className="block text-xs font-black uppercase tracking-[0.18em] text-slate-500">Not</span>
+                      {latestCustomerOrder.note || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={applyLatestCustomerInfo}
+                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600"
+                >
+                  Bilgileri Forma Aktar
+                </button>
+              </div>
+
+              <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 bg-white">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-slate-900 text-white">
+                    <tr>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Kod</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Tip</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Ödeme</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Toplam</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Tarih</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {customerHistory.slice(0, 5).map((order) => (
+                      <tr key={order.id || order.code} className="transition hover:bg-slate-50">
+                        <td className="px-4 py-3 font-black text-slate-950">{order.code || '-'}</td>
+                        <td className="px-4 py-3 font-bold text-slate-700">{getOrderTypeLabel(String(order.type || ''))}</td>
+                        <td className="px-4 py-3 font-bold text-slate-700">{getPaymentLabel(String(order.paymentMethod || ''))}</td>
+                        <td className="px-4 py-3 font-black text-slate-950">{formatMoney(order.total)}</td>
+                        <td className="px-4 py-3 font-bold text-slate-700">{formatDate(order.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+              Bu telefon için geçmiş sipariş bulunamadı. İlk sipariş oluşturulduktan sonra müşteri kartı otomatik oluşur.
+            </div>
+          )}
+        </section>
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="mb-6">
