@@ -244,23 +244,23 @@ export default function CallerIdPage() {
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-800 text-white">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-950">
         <p className="text-lg font-semibold">CALLER ID yükleniyor...</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 px-6 py-8 text-white">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8 rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl shadow-black/20">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">
+              <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-600">
                 Telefon Siparişi
               </p>
-              <h1 className="mt-2 text-3xl font-black">CALLER ID</h1>
-              <p className="mt-2 text-sm text-slate-200">
+              <h1 className="mt-2 text-3xl font-black text-slate-950">CALLER ID</h1>
+              <p className="mt-2 text-sm text-slate-500">
                 Telefonla gelen siparişleri buradan oluştur. Sipariş kodu sistem tarafından otomatik verilir.
               </p>
             </div>
@@ -269,7 +269,7 @@ export default function CallerIdPage() {
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
-                className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-black text-slate-100 transition hover:bg-white/15"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
               >
                 Ana Sayfa
               </button>
@@ -277,69 +277,69 @@ export default function CallerIdPage() {
               <button
                 type="button"
                 onClick={() => router.push('/dashboard/orders/history')}
-                className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-black text-slate-100 transition hover:bg-white/15"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
               >
                 Geçmiş Siparişler
               </button>
             </div>
           </div>
 
-          <div className="mt-6 rounded-3xl border border-cyan-400/30 bg-cyan-500/15 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-200">
+          <div className="mt-6 rounded-[24px] border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-700">
               Sıradaki Sipariş Kodu
             </p>
-            <p className="mt-2 text-4xl font-black text-white">{lastOrderCode || orderCodePreview}</p>
-            <p className="mt-2 text-xs font-bold text-cyan-100/80">
+            <p className="mt-2 text-4xl font-black text-cyan-900">{lastOrderCode || orderCodePreview}</p>
+            <p className="mt-2 text-xs font-bold text-cyan-700">
               Sipariş oluşturulduğunda bu kod operasyon ekranında da görünür.
             </p>
           </div>
         </header>
 
         {error ? (
-          <div className="mb-5 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-bold text-red-100">
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm">
             {error}
           </div>
         ) : null}
 
         {success ? (
-          <div className="mb-5 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-100">
+          <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700 shadow-sm">
             {success}
           </div>
         ) : null}
 
         {lastOrderCode ? (
-          <div className="mb-5 rounded-3xl border border-emerald-400/40 bg-emerald-500/15 p-5 shadow-xl shadow-black/10">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-200">
+          <div className="mb-5 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-700">
               Oluşturulan Sipariş Kodu
             </p>
-            <p className="mt-2 text-4xl font-black text-white">{lastOrderCode}</p>
+            <p className="mt-2 text-4xl font-black text-cyan-900">{lastOrderCode}</p>
           </div>
         ) : null}
 
-        <section className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl shadow-black/20">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="mb-6">
-            <h2 className="text-xl font-black">Yeni Telefon Siparişi</h2>
-            <p className="mt-1 text-sm text-slate-300">
+            <h2 className="text-xl font-black text-slate-950">Yeni Telefon Siparişi</h2>
+            <p className="mt-1 text-sm text-slate-500">
               Sipariş oluşturulduktan sonra Yeni Siparişler operasyon bölümüne düşer.
             </p>
           </div>
 
-          <form onSubmit={createOrder} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <label className="block text-sm font-semibold text-slate-100">
+          <form onSubmit={createOrder} className="grid gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3">
+            <label className="block text-sm font-black text-slate-800">
               Sipariş Kodu
               <input
                 value={lastOrderCode || orderCodePreview}
                 readOnly
-                className="mt-2 w-full cursor-not-allowed rounded-2xl border border-cyan-400/30 bg-cyan-500/15 px-4 py-3 font-black text-cyan-50 outline-none"
+                className="mt-2 w-full cursor-not-allowed rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 font-black text-cyan-900 shadow-inner outline-none"
               />
             </label>
 
-            <label className="block text-sm font-semibold text-slate-100">
+            <label className="block text-sm font-black text-slate-800">
               Şube
               <select
                 value={branchId}
                 onChange={(event) => setBranchId(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               >
                 <option value="">Şube seçilmedi</option>
                 {branches.map((branch) => (
@@ -350,12 +350,12 @@ export default function CallerIdPage() {
               </select>
             </label>
 
-            <label className="block text-sm font-semibold text-slate-100">
+            <label className="block text-sm font-black text-slate-800">
               Sipariş Tipi
               <select
                 value={orderType}
                 onChange={(event) => setOrderType(event.target.value as OrderType)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               >
                 {ORDER_TYPE_OPTIONS.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -366,65 +366,65 @@ export default function CallerIdPage() {
             </label>
 
             {orderType === 'TABLE' ? (
-              <label className="block text-sm font-semibold text-slate-100">
+              <label className="block text-sm font-black text-slate-800">
                 Masa No
                 <input
                   value={tableNumber}
                   onChange={(event) => setTableNumber(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   placeholder="Örn: 5"
                 />
               </label>
             ) : null}
 
-            <label className="block text-sm font-semibold text-slate-100">
+            <label className="block text-sm font-black text-slate-800">
               Müşteri Adı
               <input
                 value={customerName}
                 onChange={(event) => setCustomerName(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 placeholder="Müşteri adı"
               />
             </label>
 
-            <label className="block text-sm font-semibold text-slate-100">
+            <label className="block text-sm font-black text-slate-800">
               Telefon
               <input
                 value={customerPhone}
                 onChange={(event) => setCustomerPhone(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 placeholder="05xx xxx xx xx"
               />
             </label>
 
             {orderType === 'DELIVERY' ? (
-              <label className="block text-sm font-semibold text-slate-100 md:col-span-2">
+              <label className="block text-sm font-black text-slate-800 md:col-span-2">
                 Adres
                 <input
                   value={customerAddress}
                   onChange={(event) => setCustomerAddress(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                   placeholder="Teslimat adresi"
                 />
               </label>
             ) : null}
 
-            <label className="block text-sm font-semibold text-slate-100">
+            <label className="block text-sm font-black text-slate-800">
               Toplam Tutar
               <input
                 value={total}
                 onChange={(event) => setTotal(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 placeholder="Örn: 250"
               />
             </label>
 
-            <label className="block text-sm font-semibold text-slate-100">
+            <label className="block text-sm font-black text-slate-800">
               Ödeme Tipi
               <select
                 value={paymentMethod}
                 onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition focus:border-emerald-400"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
               >
                 {PAYMENT_METHOD_OPTIONS.map((method) => (
                   <option key={method.value} value={method.value}>
@@ -434,12 +434,12 @@ export default function CallerIdPage() {
               </select>
             </label>
 
-            <label className="block text-sm font-semibold text-slate-100 md:col-span-2 xl:col-span-3">
+            <label className="block text-sm font-black text-slate-800 md:col-span-2 xl:col-span-3">
               Not
               <textarea
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                className="mt-2 min-h-28 w-full rounded-2xl border border-white/10 bg-slate-800 px-4 py-3 text-white outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                className="mt-2 min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
                 placeholder="Sipariş notu"
               />
             </label>
@@ -448,7 +448,7 @@ export default function CallerIdPage() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="rounded-2xl bg-emerald-500 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
               </button>
