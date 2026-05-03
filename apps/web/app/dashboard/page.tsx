@@ -331,6 +331,59 @@ function shouldShowCancelAction(order: Order) {
   return order.status === 'PENDING' || DISPATCH_READY_STATUSES.has(order.status);
 }
 
+type CallerCustomerAddress = {
+  id: string;
+  title?: string | null;
+  type?: string | null;
+  district?: string | null;
+  neighborhood?: string | null;
+  street?: string | null;
+  buildingNo?: string | null;
+  floorNo?: string | null;
+  doorNo?: string | null;
+  description?: string | null;
+  fullAddress?: string | null;
+  isDefault?: boolean | null;
+};
+
+type CallerCustomer = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  notes?: string | null;
+  addresses?: CallerCustomerAddress[];
+};
+
+type IncomingCallState = {
+  phone: string;
+  customer: CallerCustomer | null;
+  selectedAddressId: string;
+  isSearching: boolean;
+  isUnknown: boolean;
+};
+
+function getCallerAddressText(address?: CallerCustomerAddress | null) {
+  if (!address) {
+    return '';
+  }
+
+  if (address.fullAddress) {
+    return address.fullAddress;
+  }
+
+  return [
+    address.district,
+    address.neighborhood,
+    address.street,
+    address.buildingNo ? `Bina No: ${address.buildingNo}` : '',
+    address.floorNo ? `Kat: ${address.floorNo}` : '',
+    address.doorNo ? `Kapı: ${address.doorNo}` : '',
+    address.description,
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -398,6 +451,8 @@ export default function DashboardPage() {
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [incomingCall, setIncomingCall] = useState<IncomingCallState | null>(null);
+  const [callerPanelMode, setCallerPanelMode] = useState<'idle' | 'known' | 'unknown'>('idle');
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -1119,6 +1174,111 @@ export default function DashboardPage() {
     }
   }
 
+  async function simulateIncomingCall(phone: string) {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setCallerPanelMode('idle');
+    setIncomingCall({
+      phone,
+      customer: null,
+      selectedAddressId: '',
+      isSearching: true,
+      isUnknown: false,
+    });
+
+    try {
+      const response = await fetch(`/api/customers/by-phone/${encodeURIComponent(phone)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      if (response.status === 404) {
+        setIncomingCall({
+          phone,
+          customer: null,
+          selectedAddressId: '',
+          isSearching: false,
+          isUnknown: true,
+        });
+        setCallerPanelMode('unknown');
+        setError('');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Arayan müşteri bilgisi alınamadı.');
+      }
+
+      const customer = (await response.json()) as CallerCustomer;
+      const defaultAddress =
+        customer.addresses?.find((address) => address.isDefault) || customer.addresses?.[0] || null;
+
+      setIncomingCall({
+        phone,
+        customer,
+        selectedAddressId: defaultAddress?.id || '',
+        isSearching: false,
+        isUnknown: false,
+      });
+      setCallerPanelMode('known');
+      setError('');
+    } catch (requestError) {
+      console.error(requestError);
+      setIncomingCall({
+        phone,
+        customer: null,
+        selectedAddressId: '',
+        isSearching: false,
+        isUnknown: true,
+      });
+      setCallerPanelMode('unknown');
+      setError('');
+    }
+  }
+
+  function closeIncomingCall() {
+    setIncomingCall(null);
+    setCallerPanelMode('idle');
+  }
+
+  function fillOrderFromIncomingCall() {
+    if (!incomingCall?.customer) {
+      return;
+    }
+
+    const selectedAddress =
+      incomingCall.customer.addresses?.find((address) => address.id === incomingCall.selectedAddressId) ||
+      incomingCall.customer.addresses?.[0] ||
+      null;
+
+    setOrderType('DELIVERY');
+    setTableNumber('');
+    setCustomerName(incomingCall.customer.name || '');
+    setCustomerPhone(incomingCall.customer.phone || incomingCall.phone);
+    setCustomerAddress(getCallerAddressText(selectedAddress));
+    setOrderNote(incomingCall.customer.notes || '');
+    setOrderFilter('ALL');
+    setSuccess('Caller ID bilgileri sipariş formuna aktarıldı.');
+  }
+
+  function startUnknownCallerRegistration() {
+    setSuccess('Yeni kayıt paneli bir sonraki adımda eklenecek. Şimdilik Caller ID sayfasından kayıt/sipariş devam edebilir.');
+    router.push('/dashboard/caller-id');
+  }
+
   function logout() {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
@@ -1575,7 +1735,166 @@ export default function DashboardPage() {
 
         
 
-        <section className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/10">
+                  <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-sky-700">
+                  Caller ID Gelen Arama Paneli
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-slate-950">Operasyonda canlı arama</h2>
+                <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">
+                  Telefon araması geldiğinde müşteri ve adres bilgisi operasyon ekranında açılır. Şimdilik demo simülasyonla test ediyoruz.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => simulateIncomingCall('05320001122')}
+                  className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100"
+                >
+                  Kayıtlı Arama Simüle Et
+                </button>
+                <button
+                  type="button"
+                  onClick={() => simulateIncomingCall('05329998877')}
+                  className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 shadow-sm transition hover:bg-amber-100"
+                >
+                  Kayıtsız Arama Simüle Et
+                </button>
+              </div>
+            </div>
+
+            {incomingCall ? (
+              <div className="mt-5 rounded-[28px] border border-slate-200 bg-slate-50 p-5 shadow-inner">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
+                      {incomingCall.isSearching ? 'Aranıyor' : callerPanelMode === 'known' ? 'Kayıtlı Müşteri' : 'Kayıtsız Numara'}
+                    </p>
+                    <h3 className="mt-2 text-3xl font-black text-slate-950">
+                      {incomingCall.isSearching
+                        ? `${incomingCall.phone} aranıyor...`
+                        : incomingCall.customer
+                          ? `${incomingCall.customer.name} Arıyor...`
+                          : `${incomingCall.phone} Arıyor...`}
+                    </h3>
+                    <p className="mt-2 text-sm font-bold text-slate-500">Telefon: {incomingCall.phone}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeIncomingCall}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                  >
+                    Kapat ×
+                  </button>
+                </div>
+
+                {incomingCall.isSearching ? (
+                  <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm font-black text-sky-800">
+                    Telefon numarası müşteri kayıtlarında aranıyor...
+                  </div>
+                ) : incomingCall.customer ? (
+                  <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_340px]">
+                    <div className="rounded-[24px] border border-white bg-white p-5 shadow-sm">
+                      <p className="text-sm font-black text-slate-950">Kayıtlı adresler</p>
+
+                      <div className="mt-4 grid gap-3">
+                        {(incomingCall.customer.addresses || []).length > 0 ? (
+                          incomingCall.customer.addresses?.map((address) => (
+                            <label
+                              key={address.id}
+                              className={`cursor-pointer rounded-2xl border p-4 transition ${
+                                incomingCall.selectedAddressId === address.id
+                                  ? 'border-emerald-400 bg-emerald-50 shadow-sm'
+                                  : 'border-slate-200 bg-slate-50 hover:bg-white'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="radio"
+                                  name="incoming-address"
+                                  checked={incomingCall.selectedAddressId === address.id}
+                                  onChange={() =>
+                                    setIncomingCall((current) =>
+                                      current ? { ...current, selectedAddressId: address.id } : current,
+                                    )
+                                  }
+                                  className="mt-1"
+                                />
+                                <div>
+                                  <p className="font-black text-slate-950">
+                                    {address.title || address.type || 'Adres'}
+                                    {address.isDefault ? ' • Varsayılan' : ''}
+                                  </p>
+                                  <p className="mt-1 text-sm font-semibold text-slate-600">
+                                    {getCallerAddressText(address) || 'Adres detayı girilmemiş.'}
+                                  </p>
+                                </div>
+                              </div>
+                            </label>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                            Bu müşteriye kayıtlı adres yok. Düzenle ile adres eklenebilir.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={fillOrderFromIncomingCall}
+                        className="w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600"
+                      >
+                        Siparişe Git
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/caller-id')}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                      >
+                        Düzenle
+                      </button>
+                      <p className="text-xs font-semibold leading-5 text-slate-500">
+                        Siparişe Git, müşteri bilgilerini aşağıdaki yeni sipariş formuna aktarır.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_300px]">
+                    <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                      <p className="text-sm font-black text-amber-900">Kayıtsız numara</p>
+                      <p className="mt-2 text-sm font-bold leading-6 text-amber-800">
+                        Bu telefon numarası müşteri kayıtlarında bulunamadı. Yeni kayıt açıldıktan sonra adres seçilip siparişe devam edilecek.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full cursor-not-allowed rounded-2xl bg-slate-200 px-5 py-4 text-sm font-black text-slate-500"
+                      >
+                        Siparişe Git
+                      </button>
+                      <button
+                        type="button"
+                        onClick={startUnknownCallerRegistration}
+                        className="w-full rounded-2xl bg-sky-600 px-5 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(2,132,199,0.18)] transition hover:bg-sky-700"
+                      >
+                        Yeni Kayıt
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </section>
+
+<section className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/10">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-400">
