@@ -346,12 +346,32 @@ type CallerCustomerAddress = {
   isDefault?: boolean | null;
 };
 
+type CallerRecentOrderItem = {
+  id?: string;
+  name?: string | null;
+  quantity?: number | string | null;
+  unitPrice?: number | string | null;
+  totalPrice?: number | string | null;
+  note?: string | null;
+};
+
+type CallerRecentOrder = {
+  id?: string;
+  code?: string | null;
+  status?: string | null;
+  total?: number | string | null;
+  paymentMethod?: string | null;
+  createdAt?: string | null;
+  items?: CallerRecentOrderItem[];
+};
+
 type CallerCustomer = {
   id: string;
   name: string;
   phone?: string | null;
   notes?: string | null;
   addresses?: CallerCustomerAddress[];
+  recentOrders?: CallerRecentOrder[];
 };
 
 type IncomingCallState = {
@@ -2393,6 +2413,68 @@ export default function DashboardPage() {
                             Bu müşteriye kayıtlı adres yok. Düzenle ile adres eklenebilir.
                           </div>
                         )}
+                      </div>
+
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-black text-slate-950">Son sipariş geçmişi</p>
+                            <p className="text-xs font-semibold text-slate-500">
+                              Aynı telefon numarasından açılmış son 5 sipariş.
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-600">
+                            {(incomingCall.customer.recentOrders || []).length} kayıt
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid gap-3">
+                          {(incomingCall.customer.recentOrders || []).length > 0 ? (
+                            incomingCall.customer.recentOrders?.map((order) => (
+                              <div
+                                key={order.id || order.code || order.createdAt || 'recent-order'}
+                                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                              >
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <p className="text-sm font-black text-slate-950">{order.code || 'Sipariş'}</p>
+                                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                                      {order.createdAt ? new Date(order.createdAt).toLocaleString('tr-TR') : '-'}
+                                    </p>
+                                  </div>
+                                  <div className="text-left sm:text-right">
+                                    <p className="text-sm font-black text-emerald-700">
+                                      {Number(order.total || 0).toLocaleString('tr-TR', {
+                                        style: 'currency',
+                                        currency: 'TRY',
+                                      })}
+                                    </p>
+                                    <p className="mt-1 text-xs font-black text-slate-500">{order.status || '-'}</p>
+                                  </div>
+                                </div>
+
+                                {(order.items || []).length > 0 ? (
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {order.items?.slice(0, 4).map((item) => (
+                                      <span
+                                        key={item.id || `${item.name}-${item.quantity}`}
+                                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600"
+                                      >
+                                        {item.quantity || 1}× {item.name || 'Ürün'}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="mt-3 text-xs font-semibold text-slate-400">Ürün detayı yok.</p>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-500">
+                              Bu müşteri için henüz sipariş geçmişi bulunamadı.
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 

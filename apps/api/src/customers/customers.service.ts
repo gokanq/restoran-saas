@@ -65,6 +65,48 @@ function buildFullAddress(address: CustomerAddressInput) {
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async findRecentOrdersByPhone(restaurantId: string, phone: string) {
+    const phoneNormalized = normalizePhone(phone) ?? '';
+    const phoneTail = phoneNormalized.length > 10 ? phoneNormalized.slice(-10) : phoneNormalized;
+
+    if (!phoneTail || phoneTail.length < 7) {
+      return [];
+    }
+
+    const candidateOrders = await this.prisma.order.findMany({
+      where: {
+        restaurantId,
+        customerPhone: {
+          not: null,
+        },
+      },
+      include: {
+        items: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          include: {
+            menuItem: true,
+            options: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 100,
+    });
+
+    return candidateOrders
+      .filter((order) => {
+        const orderPhoneNormalized = normalizePhone(order.customerPhone) ?? '';
+
+        return orderPhoneNormalized === phoneNormalized || orderPhoneNormalized.endsWith(phoneTail);
+      })
+      .slice(0, 5);
+  }
+
+
   private includeAddresses() {
     return {
       addresses: {
@@ -131,23 +173,46 @@ export class CustomersService {
   }
 
   async findByPhone(restaurantId: string, phone: string) {
-    const phoneNormalized = normalizePhone(phone);
+    const phoneNormalized = normalizePhone(phone) ?? '';
+    const phoneTail = phoneNormalized.length > 10 ? phoneNormalized.slice(-10) : phoneNormalized;
 
     if (!phoneNormalized) {
-      throw new BadRequestException('Telefon numarası zorunlu');
+      throw new BadRequestException('Telefon numarası zorunludur');
     }
 
-    return this.prisma.customer.findFirst({
+    const customer = await this.prisma.customer.findFirst({
       where: {
         restaurantId,
-        phoneNormalized,
+        isActive: true,
         deletedAt: null,
+        OR: [
+          {
+            phoneNormalized,
+          },
+          ...(phoneTail.length >= 7
+            ? [
+                {
+                  phoneNormalized: {
+                    endsWith: phoneTail,
+                  },
+                },
+              ]
+            : []),
+        ],
       },
       include: this.includeAddresses(),
-      orderBy: {
-        updatedAt: 'desc',
-      },
     });
+
+    if (!customer) {
+      throw new NotFoundException('Müşteri bulunamadı');
+    }
+
+    const recentOrders = await this.findRecentOrdersByPhone(restaurantId, phone);
+
+    return {
+      ...customer,
+      recentOrders,
+    };
   }
 
   async get(restaurantId: string, id: string) {
@@ -170,7 +235,7 @@ export class CustomersService {
   async create(restaurantId: string, data: CustomerInput) {
     const name = optionalText(data.name);
     const phone = optionalText(data.phone);
-    const phoneNormalized = normalizePhone(phone);
+    const phoneNormalized = normalizePhone(phone) ?? '';
 
     if (!name) {
       throw new BadRequestException('Müşteri adı zorunlu');
@@ -232,7 +297,7 @@ export class CustomersService {
     await this.assertBranchBelongsToRestaurant(restaurantId, data.branchId);
 
     const phone = optionalText(data.phone);
-    const phoneNormalized = normalizePhone(phone);
+    const phoneNormalized = normalizePhone(phone) ?? '';
 
     if (phoneNormalized) {
       const existingCustomer = await this.prisma.customer.findFirst({
