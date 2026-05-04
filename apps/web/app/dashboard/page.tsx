@@ -442,6 +442,43 @@ function getCallerAddressText(address?: CallerCustomerAddress | null) {
     .join(', ');
 }
 
+
+function getCallerRecentOrderStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    PENDING: 'Bekliyor',
+    ACCEPTED: 'Kabul Edildi',
+    PREPARING: 'Hazırlanıyor',
+    ON_DELIVERY: 'Yolda',
+    DELIVERED: 'Teslim Edildi',
+    CANCELLED: 'İptal Edildi',
+  };
+
+  return labels[status || ''] || status || '-';
+}
+
+function getCallerRecentOrderStatusClass(status?: string | null) {
+  const baseClass =
+    'inline-flex items-center justify-center rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] shadow-sm';
+
+  if (status === 'DELIVERED') {
+    return `${baseClass} border-emerald-200 bg-emerald-50 text-emerald-700`;
+  }
+
+  if (status === 'CANCELLED') {
+    return `${baseClass} border-red-200 bg-red-50 text-red-700`;
+  }
+
+  if (status === 'ON_DELIVERY') {
+    return `${baseClass} border-sky-200 bg-sky-50 text-sky-700`;
+  }
+
+  if (status === 'ACCEPTED' || status === 'PREPARING') {
+    return `${baseClass} border-blue-200 bg-blue-50 text-blue-700`;
+  }
+
+  return `${baseClass} border-amber-200 bg-amber-50 text-amber-700`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -2449,7 +2486,9 @@ export default function DashboardPage() {
                                         currency: 'TRY',
                                       })}
                                     </p>
-                                    <p className="mt-1 text-xs font-black text-slate-500">{order.status || '-'}</p>
+                                    <span className={getCallerRecentOrderStatusClass(order.status)}>
+                                      {getCallerRecentOrderStatusLabel(order.status)}
+                                    </span>
                                   </div>
                                 </div>
 
