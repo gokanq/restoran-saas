@@ -348,6 +348,12 @@ type CallerCustomerAddress = {
 
 type CallerRecentOrderItem = {
   id?: string;
+  menuItemId?: string | null;
+  menuItem?: {
+    id?: string;
+    name?: string | null;
+    price?: number | string | null;
+  } | null;
   name?: string | null;
   quantity?: number | string | null;
   unitPrice?: number | string | null;
@@ -1613,6 +1619,70 @@ export default function DashboardPage() {
 
   }
 
+  function repeatRecentOrderToCart(order: CallerRecentOrder) {
+    if (!incomingCall?.customer) {
+      setError('Son siparişi sepete almak için aktif müşteri araması olmalıdır.');
+      return;
+    }
+
+    const repeatableItems = (order.items || [])
+      .map((item): OrderCartItem | null => {
+        const menuItemId = item.menuItemId || item.menuItem?.id || '';
+
+        if (!menuItemId) {
+          return null;
+        }
+
+        const quantity = Math.max(1, Number(item.quantity || 1));
+        const unitPrice = Number(item.unitPrice ?? item.menuItem?.price ?? 0);
+
+        return {
+          menuItemId,
+          name: item.name || item.menuItem?.name || 'Ürün',
+          unitPrice,
+          quantity,
+          note: item.note || '',
+        };
+      })
+      .filter((item): item is OrderCartItem => item !== null);
+
+    if (repeatableItems.length === 0) {
+      setError('Bu geçmiş siparişte sepete aktarılabilecek ürün kalemi bulunamadı.');
+      return;
+    }
+
+    const customerAddresses = incomingCall.customer.addresses || [];
+    const selectedAddress =
+      customerAddresses.find((address) => address.id === incomingCall.selectedAddressId) ||
+      customerAddresses[0];
+
+    const repeatedTotal = repeatableItems.reduce(
+      (sum, item) => sum + item.unitPrice * item.quantity,
+      0,
+    );
+
+    setOrderType('DELIVERY');
+    setTableNumber('');
+    setOrderCartItems(repeatableItems);
+    setOrderTotal(String(repeatedTotal));
+
+    if (!orderMenuCategoryId && menuCategories.length > 0) {
+      setOrderMenuCategoryId(menuCategories[0].id);
+    }
+
+    setCustomerName(incomingCall.customer.name || '');
+    setCustomerPhone(incomingCall.customer.phone || incomingCall.phone || '');
+    setCustomerAddress(selectedAddress ? getCallerAddressText(selectedAddress) : '');
+    setOrderNote(order.code ? `${order.code} tekrar sipariş olarak sepete alındı.` : 'Son sipariş tekrar sepete alındı.');
+    setError('');
+    setSuccess('Son sipariş ürünleri sepete aktarıldı. İstersen ürünleri düzenleyip siparişi oluşturabilirsin.');
+
+    setCallerPanelMode('idle');
+    setIncomingCall(null);
+    setIsCallerOrderCartOpen(true);
+  }
+
+
   function updateCallerRegistrationField(field: keyof CallerRegistrationForm, value: string) {
     setCallerRegistrationForm((currentForm) => ({
       ...currentForm,
@@ -2489,6 +2559,14 @@ export default function DashboardPage() {
                                     <span className={getCallerRecentOrderStatusClass(order.status)}>
                                       {getCallerRecentOrderStatusLabel(order.status)}
                                     </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => repeatRecentOrderToCart(order)}
+                                      disabled={(order.items || []).every((item) => !(item.menuItemId || item.menuItem?.id))}
+                                      className="mt-3 rounded-full border border-emerald-200 bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-400"
+                                    >
+                                      Tekrar Sepete Al
+                                    </button>
                                   </div>
                                 </div>
 
