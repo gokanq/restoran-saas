@@ -25,6 +25,26 @@ type CallerDevice = {
   message?: string;
 };
 
+
+type CallerEvent = {
+  id: string;
+  restaurantId?: string;
+  branchId?: string | null;
+  phone: string;
+  phoneNormalized?: string | null;
+  status?: 'NEW' | 'SEEN' | string | null;
+  source?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
+  payload?: {
+    deviceId?: string;
+    deviceName?: string;
+    [key: string]: unknown;
+  } | null;
+  receivedAt?: string | null;
+  seenAt?: string | null;
+};
+
 type OrderLite = {
   id?: string;
   code?: string;
@@ -70,6 +90,23 @@ function normalizeOrders(data: any): OrderLite[] {
 
   if (Array.isArray(data?.orders)) {
     return data.orders;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  return [];
+}
+
+
+function normalizeCallerEvents(data: any): CallerEvent[] {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
   }
 
   if (Array.isArray(data?.data)) {
@@ -173,6 +210,10 @@ export default function CallerIdPage() {
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [callerDevices, setCallerDevices] = useState<CallerDevice[]>([]);
+  const [callerEvents, setCallerEvents] = useState<CallerEvent[]>([]);
+  const [isLoadingCallerEvents, setIsLoadingCallerEvents] = useState(false);
+  const [updatingCallerEventId, setUpdatingCallerEventId] = useState<string | null>(null);
+  const [callerEventsMessage, setCallerEventsMessage] = useState('');
   const [callerDeviceName, setCallerDeviceName] = useState('Demo Android Caller ID');
   const [callerDeviceBranchId, setCallerDeviceBranchId] = useState('');
   const [newCallerDeviceKey, setNewCallerDeviceKey] = useState('');
@@ -218,6 +259,133 @@ export default function CallerIdPage() {
 
     return orders;
   }
+
+
+  async function loadCallerEvents(tokenArg?: string) {
+    const token = tokenArg || localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setIsLoadingCallerEvents(true);
+    setCallerEventsMessage('');
+
+    try {
+      const response = await fetch('/api/caller-events', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(typeof data?.message === 'string' ? data.message : 'Çağrı geçmişi alınamadı.');
+      }
+
+      setCallerEvents(normalizeCallerEvents(data));
+    } catch (requestError) {
+      setCallerEventsMessage(
+        requestError instanceof Error ? requestError.message : 'Çağrı geçmişi alınamadı.',
+      );
+    } finally {
+      setIsLoadingCallerEvents(false);
+    }
+  }
+
+  async function markCallerEventSeen(event: CallerEvent) {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setUpdatingCallerEventId(event.id);
+    setCallerEventsMessage('');
+
+    try {
+      const response = await fetch(`/api/caller-events/${event.id}/seen`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(typeof data?.message === 'string' ? data.message : 'Çağrı görüldü yapılamadı.');
+      }
+
+      setCallerEvents((currentEvents) =>
+        currentEvents.map((currentEvent) =>
+          currentEvent.id === event.id
+            ? {
+                ...currentEvent,
+                status: data?.status || 'SEEN',
+                seenAt: data?.seenAt || new Date().toISOString(),
+              }
+            : currentEvent,
+        ),
+      );
+      setCallerEventsMessage('Çağrı görüldü olarak işaretlendi.');
+    } catch (requestError) {
+      setCallerEventsMessage(
+        requestError instanceof Error ? requestError.message : 'Çağrı görüldü yapılamadı.',
+      );
+    } finally {
+      setUpdatingCallerEventId(null);
+    }
+  }
+
+  function startOrderFromCallerEvent(event: CallerEvent) {
+    const phone = event.phone || '';
+    const phoneKey = getComparablePhone(phone);
+    const latestOrderForCaller =
+      phoneKey.length >= 7
+        ? sortNewestOrders(orders).find((order) => getComparablePhone(order.customerPhone) === phoneKey)
+        : null;
+
+    setCustomerPhone(phone);
+    setCustomerName(event.customerName || latestOrderForCaller?.customerName || '');
+    setCustomerAddress(latestOrderForCaller?.customerAddress || '');
+    setPaymentMethod(toPaymentMethod(String(latestOrderForCaller?.paymentMethod || 'CASH')));
+
+    if (latestOrderForCaller?.total) {
+      setTotal(String(latestOrderForCaller.total));
+    }
+
+    setNote(
+      latestOrderForCaller?.code
+        ? `${latestOrderForCaller.code} çağrı geçmişinden forma aktarıldı.`
+        : 'Caller ID çağrı geçmişinden forma aktarıldı.',
+    );
+
+    setSuccess('Çağrı bilgileri sipariş formuna aktarıldı.');
+    setError('');
+
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      return;
+    }
+
+    loadCallerEvents(token);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -606,6 +774,111 @@ export default function CallerIdPage() {
             <p className="mt-2 text-4xl font-black text-cyan-900">{lastOrderCode}</p>
           </div>
         ) : null}
+
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-700">Caller ID</p>
+              <h2 className="mt-2 text-xl font-black text-slate-950">Gelen Çağrı Geçmişi</h2>
+              <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">
+                Cihazdan veya manuel event&apos;ten gelen son aramaları takip et. Numara üzerinden sipariş formunu hızlı başlatabilirsin.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => loadCallerEvents()}
+              disabled={isLoadingCallerEvents}
+              className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-black text-indigo-800 shadow-sm transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoadingCallerEvents ? 'Yükleniyor...' : 'Çağrıları Yenile'}
+            </button>
+          </div>
+
+          {callerEventsMessage ? (
+            <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-bold text-sky-800">
+              {callerEventsMessage}
+            </div>
+          ) : null}
+
+          <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 bg-white">
+            {callerEvents.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[980px] text-left text-sm">
+                  <thead className="bg-slate-950 text-white">
+                    <tr>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Telefon</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Müşteri</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Kaynak</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Durum</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Geliş</th>
+                      <th className="px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em]">Görüldü</th>
+                      <th className="px-4 py-3 text-right text-[11px] font-black uppercase tracking-[0.18em]">Aksiyon</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {callerEvents.slice(0, 20).map((event) => {
+                      const isNew = event.status !== 'SEEN' && !event.seenAt;
+                      const sourceLabel = event.source || event.payload?.deviceName || 'Caller ID';
+
+                      return (
+                        <tr key={event.id} className={isNew ? 'bg-amber-50/70' : 'transition hover:bg-slate-50'}>
+                          <td className="px-4 py-3 font-black text-slate-950">{event.phone || '-'}</td>
+                          <td className="px-4 py-3 font-bold text-slate-700">{event.customerName || 'Yeni müşteri'}</td>
+                          <td className="px-4 py-3 font-bold text-slate-700">{sourceLabel}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`rounded-full border px-3 py-1 text-xs font-black ${
+                                isNew
+                                  ? 'border-amber-200 bg-amber-100 text-amber-800'
+                                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              }`}
+                            >
+                              {isNew ? 'Yeni' : 'Görüldü'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-slate-700">{formatDate(event.receivedAt)}</td>
+                          <td className="px-4 py-3 font-bold text-slate-700">{formatDate(event.seenAt)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-2">
+                              {isNew ? (
+                                <button
+                                  type="button"
+                                  onClick={() => markCallerEventSeen(event)}
+                                  disabled={updatingCallerEventId === event.id}
+                                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {updatingCallerEventId === event.id ? 'İşleniyor...' : 'Görüldü Yap'}
+                                </button>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={() => startOrderFromCallerEvent(event)}
+                                className="rounded-2xl bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+                              >
+                                Sipariş Başlat
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <p className="text-sm font-black text-slate-900">
+                  {isLoadingCallerEvents ? 'Çağrılar yükleniyor...' : 'Henüz çağrı geçmişi yok'}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Cihazdan event geldiğinde burada listelenir.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
