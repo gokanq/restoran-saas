@@ -390,6 +390,15 @@ const DEFAULT_CALLER_REGISTRATION_FORM: CallerRegistrationForm = {
   description: '',
 };
 
+type OrderCartItem = {
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  note: string;
+};
+
+
 
 function getCallerAddressText(address?: CallerCustomerAddress | null) {
   if (!address) {
@@ -446,6 +455,9 @@ export default function DashboardPage() {
   const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState('');
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [orderMenuCategoryId, setOrderMenuCategoryId] = useState('');
+  const [orderCartItems, setOrderCartItems] = useState<OrderCartItem[]>([]);
+  const [isCallerOrderCartOpen, setIsCallerOrderCartOpen] = useState(false);
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [selectedCourierByOrderId, setSelectedCourierByOrderId] = useState<Record<string, string>>({});
   const [dispatchCourierOrder, setDispatchCourierOrder] = useState<Order | null>(null);
@@ -842,6 +854,7 @@ export default function DashboardPage() {
 
     if (safeCategories.length > 0) {
       setItemCategoryId((currentCategoryId) => currentCategoryId || safeCategories[0].id);
+      setOrderMenuCategoryId((currentCategoryId) => currentCategoryId || safeCategories[0].id);
     }
   }
 
@@ -915,6 +928,188 @@ export default function DashboardPage() {
       window.clearInterval(intervalId);
     };
   }, [updatingOrderId, dispatchCourierOrder, courierChangeOrder]);
+
+
+  const filteredOrderMenuItems = useMemo(() => {
+    if (!orderMenuCategoryId) {
+      return menuItems;
+    }
+
+    return menuItems.filter((item) => {
+      const categoryId = String(
+        (item as any).categoryId ||
+          (item as any).menuCategoryId ||
+          (item as any).category?.id ||
+          '',
+      );
+
+      return categoryId === orderMenuCategoryId;
+    });
+  }, [menuItems, orderMenuCategoryId]);
+
+  const orderCartTotal = useMemo(
+    () => orderCartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
+    [orderCartItems],
+  );
+
+  useEffect(() => {
+    if (orderCartItems.length > 0) {
+      setOrderTotal(String(orderCartTotal));
+    }
+  }, [orderCartItems.length, orderCartTotal]);
+
+  function addMenuItemToOrderCart(menuItem: MenuItem) {
+    const menuItemId = String((menuItem as any).id || '');
+    const menuItemName = String((menuItem as any).name || 'Ürün');
+    const menuItemPrice = Number((menuItem as any).totalPrice || (menuItem as any).price || 0);
+
+    if (!menuItemId) {
+      setError('Ürün bilgisi okunamadı.');
+      return;
+    }
+
+    if (!Number.isFinite(menuItemPrice) || menuItemPrice <= 0) {
+      setError('Ürün fiyatı geçerli değil.');
+      return;
+    }
+
+    setError('');
+
+    setOrderCartItems((currentItems) => {
+      const existingItem = currentItems.find((item) => item.menuItemId === menuItemId);
+
+      if (existingItem) {
+        return currentItems.map((item) =>
+          item.menuItemId === menuItemId ? { ...item, quantity: item.quantity + 1 } : item,
+        );
+      }
+
+      return [
+        ...currentItems,
+        {
+          menuItemId,
+          name: menuItemName,
+          quantity: 1,
+          unitPrice: menuItemPrice,
+          note: '',
+        },
+      ];
+    });
+  }
+
+  function increaseOrderCartItem(menuItemId: string) {
+    setOrderCartItems((currentItems) =>
+      currentItems.map((item) =>
+        item.menuItemId === menuItemId ? { ...item, quantity: item.quantity + 1 } : item,
+      ),
+    );
+  }
+
+  function decreaseOrderCartItem(menuItemId: string) {
+    setOrderCartItems((currentItems) =>
+      currentItems
+        .map((item) =>
+          item.menuItemId === menuItemId ? { ...item, quantity: Math.max(0, item.quantity - 1) } : item,
+        )
+        .filter((item) => item.quantity > 0),
+    );
+  }
+
+  function removeOrderCartItem(menuItemId: string) {
+    setOrderCartItems((currentItems) => currentItems.filter((item) => item.menuItemId !== menuItemId));
+  }
+
+  function updateOrderCartItemNote(menuItemId: string, note: string) {
+    setOrderCartItems((currentItems) =>
+      currentItems.map((item) => (item.menuItemId === menuItemId ? { ...item, note } : item)),
+    );
+  }
+
+  async function createCallerCartOrder() {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    if (!selectedBranchId) {
+      setError('Lütfen şube seçin');
+      return;
+    }
+
+    if (!customerPhone.trim()) {
+      setError('Telefon siparişi için müşteri telefonu zorunludur');
+      return;
+    }
+
+    if (!customerAddress.trim()) {
+      setError('Paket siparişlerde adres zorunludur');
+      return;
+    }
+
+    if (orderCartItems.length === 0) {
+      setError('Sipariş oluşturmak için sepete ürün ekleyin');
+      return;
+    }
+
+    if (!Number.isFinite(orderCartTotal) || orderCartTotal <= 0) {
+      setError('Sepet toplamı 0’dan büyük olmalıdır');
+      return;
+    }
+
+    setIsCreatingOrder(true);
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          branchId: selectedBranchId,
+          code: orderCode.trim() || generateNextOrderCode(orders),
+          type: 'DELIVERY',
+          tableNumber: '',
+          total: orderCartTotal,
+          paymentMethod: orderPaymentMethod,
+          customerName: customerName.trim(),
+          customerPhone: customerPhone.trim(),
+          customerAddress: customerAddress.trim(),
+          note: orderNote.trim(),
+          items: orderCartItems.map((item) => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            note: item.note.trim() || null,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Caller ID siparişi oluşturulamadı');
+        return;
+      }
+
+      setOrderCartItems([]);
+      setIsCallerOrderCartOpen(false);
+      setOrderTotal('');
+      setOrderNote('');
+      setSuccess('Caller ID siparişi oluşturuldu');
+
+      const latestOrders = await loadOrders(token);
+      setOrderCode(generateNextOrderCode(latestOrders));
+    } catch {
+      setError('Caller ID siparişi oluşturulurken hata oluştu');
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  }
 
   async function createOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1330,6 +1525,8 @@ export default function DashboardPage() {
     setCallerPanelMode('idle');
     setCallerRegistrationForm(DEFAULT_CALLER_REGISTRATION_FORM);
     setCallerRegistrationError('');
+    setIsCallerOrderCartOpen(false);
+
   }
 
   function fillOrderFromIncomingCall() {
@@ -1344,12 +1541,19 @@ export default function DashboardPage() {
 
     setOrderType('DELIVERY');
     setTableNumber('');
+    setOrderCartItems([]);
+    setOrderTotal('');
+    if (!orderMenuCategoryId && menuCategories.length > 0) {
+      setOrderMenuCategoryId(menuCategories[0].id);
+    }
     setCustomerName(incomingCall.customer.name || '');
     setCustomerPhone(incomingCall.customer.phone || incomingCall.phone);
     setCustomerAddress(getCallerAddressText(selectedAddress));
     setOrderNote(incomingCall.customer.notes || '');
     setOrderFilter('ALL');
     setSuccess('Caller ID bilgileri sipariş formuna aktarıldı.');
+    setIsCallerOrderCartOpen(true);
+
   }
 
   function updateCallerRegistrationField(field: keyof CallerRegistrationForm, value: string) {
@@ -2263,6 +2467,252 @@ export default function DashboardPage() {
             >
               Kurye Takip / Gün Sonu
             </button>
+          </div>
+
+
+          <div className={`${!isCallerOrderCartOpen ? 'hidden ' : ''}mt-6 rounded-[30px] border border-emerald-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)]`}>
+            <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-600">
+                  Caller ID Sepet
+                </p>
+                <h3 className="mt-1 text-xl font-black text-slate-950">Telefon Siparişi Sepeti</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Arayan müşteriyi seçtikten sonra ürünleri sepete ekle ve tek tuşla operasyon siparişi oluştur.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-right">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Sepet Toplamı</p>
+                <p className="mt-1 text-2xl font-black text-emerald-950">{formatMoney(orderCartTotal)}</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 xl:grid-cols-[0.9fr_1.2fr_0.9fr]">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-black text-slate-950">Müşteri Bilgisi</p>
+
+                <div className="mt-4 grid gap-3">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    Ad Soyad
+                    <input
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value)}
+                      placeholder="Müşteri adı"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-slate-950 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    Telefon
+                    <input
+                      value={customerPhone}
+                      onChange={(event) => setCustomerPhone(event.target.value)}
+                      placeholder="05xx xxx xx xx"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-slate-950 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    Adres
+                    <textarea
+                      value={customerAddress}
+                      onChange={(event) => setCustomerAddress(event.target.value)}
+                      placeholder="Teslimat adresi"
+                      rows={4}
+                      className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-slate-950 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    />
+                  </label>
+
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                    Ödeme
+                    <select
+                      value={orderPaymentMethod}
+                      onChange={(event) => setOrderPaymentMethod(event.target.value as PaymentMethod)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-slate-950 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                    >
+                      {PAYMENT_METHOD_OPTIONS.map((paymentOption) => (
+                        <option key={paymentOption.value} value={paymentOption.value}>
+                          {paymentOption.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setOrderMenuCategoryId('')}
+                    className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
+                      !orderMenuCategoryId
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    Tümü
+                  </button>
+
+                  {menuCategories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setOrderMenuCategoryId(category.id)}
+                      className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
+                        orderMenuCategoryId === category.id
+                          ? 'border-emerald-700 bg-emerald-700 text-white shadow-lg shadow-emerald-700/20'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+
+                {filteredOrderMenuItems.length > 0 ? (
+                  <div className="mt-4 grid max-h-[520px] gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+                    {filteredOrderMenuItems.map((menuItem) => (
+                      <button
+                        key={menuItem.id}
+                        type="button"
+                        onClick={() => addMenuItemToOrderCart(menuItem)}
+                        className="group rounded-3xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-xl hover:shadow-emerald-900/10"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-950">{menuItem.name}</p>
+                            {(menuItem as any).description ? (
+                              <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
+                                {(menuItem as any).description}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-emerald-700 ring-1 ring-slate-200">
+                            {formatMoney(Number((menuItem as any).totalPrice || (menuItem as any).price || 0))}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between text-xs font-black text-slate-500">
+                          <span>Sepete ekle</span>
+                          <span className="rounded-full bg-emerald-600 px-3 py-1 text-white transition group-hover:bg-emerald-700">
+                            + Ekle
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
+                    <p className="text-sm font-black text-slate-900">Bu kategoride ürün yok</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Menü Yönetimi bölümünden ürün ekleyebilirsin.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-black text-slate-950">Sepet Ürünleri</p>
+                  {orderCartItems.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrderCartItems([]);
+                        setOrderTotal('');
+                      }}
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100"
+                    >
+                      Temizle
+                    </button>
+                  ) : null}
+                </div>
+
+                {orderCartItems.length > 0 ? (
+                  <div className="mt-4 max-h-[390px] space-y-3 overflow-y-auto pr-1">
+                    {orderCartItems.map((cartItem) => (
+                      <div key={cartItem.menuItemId} className="rounded-2xl border border-slate-200 bg-white p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-950">{cartItem.name}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              {formatMoney(cartItem.unitPrice)} x {cartItem.quantity}
+                            </p>
+                          </div>
+
+                          <p className="text-sm font-black text-emerald-700">
+                            {formatMoney(cartItem.unitPrice * cartItem.quantity)}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => decreaseOrderCartItem(cartItem.menuItemId)}
+                            className="h-9 w-9 rounded-xl border border-slate-200 bg-slate-50 text-lg font-black text-slate-700 hover:bg-slate-100"
+                          >
+                            -
+                          </button>
+                          <span className="min-w-10 text-center text-sm font-black text-slate-900">
+                            {cartItem.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => increaseOrderCartItem(cartItem.menuItemId)}
+                            className="h-9 w-9 rounded-xl border border-emerald-200 bg-emerald-50 text-lg font-black text-emerald-700 hover:bg-emerald-100"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeOrderCartItem(cartItem.menuItemId)}
+                            className="ml-auto rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-100"
+                          >
+                            Sil
+                          </button>
+                        </div>
+
+                        <input
+                          value={cartItem.note}
+                          onChange={(event) => updateOrderCartItemNote(cartItem.menuItemId, event.target.value)}
+                          placeholder="Ürün notu"
+                          className="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
+                    <p className="text-sm font-black text-slate-900">Sepet boş</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Telefon siparişi için ürün seç.
+                    </p>
+                  </div>
+                )}
+
+                <label className="mt-4 block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  Sipariş Notu
+                  <textarea
+                    value={orderNote}
+                    onChange={(event) => setOrderNote(event.target.value)}
+                    placeholder="Zil çalışmıyor, acısız olsun vb."
+                    rows={3}
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold normal-case tracking-normal text-slate-950 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={createCallerCartOrder}
+                  disabled={isCreatingOrder || orderCartItems.length === 0}
+                  className="mt-4 w-full rounded-2xl bg-gradient-to-r from-emerald-700 to-slate-900 px-5 py-4 text-sm font-black text-white shadow-xl shadow-emerald-900/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreatingOrder ? 'Sipariş Oluşturuluyor...' : 'Caller ID Siparişi Oluştur'}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] md:flex-row md:items-center md:justify-between">
