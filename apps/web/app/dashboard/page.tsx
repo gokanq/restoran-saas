@@ -2297,6 +2297,12 @@ export default function DashboardPage() {
             >
               Kuryeler / Gün Sonu
             </a>
+            <a
+              href="/dashboard/settings"
+              className="rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-4 shadow-inner text-sm font-black text-emerald-800 transition hover:bg-emerald-100"
+            >
+              Sistem Ayarları
+            </a>
           </nav>
         </header>
 
@@ -2322,9 +2328,6 @@ export default function DashboardPage() {
             <p className="mt-2 text-3xl font-black tracking-tight text-amber-700">{operationalSummary.pending}</p>
             <p className="mt-1 text-xs text-amber-700/70">Aksiyon bekleyen sipariş</p>
           </button>
-
-
-
           <button
             type="button"
             onClick={() => setOrderFilter('PREPARING')}
