@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type User = {
@@ -346,6 +346,17 @@ type CallerCustomerAddress = {
   isDefault?: boolean | null;
 };
 
+type CallerEvent = {
+  id: string;
+  phone: string;
+  phoneNormalized?: string | null;
+  status?: string | null;
+  source?: string | null;
+  customerId?: string | null;
+  customerName?: string | null;
+  receivedAt?: string | null;
+};
+
 type CallerRecentOrderItem = {
   id?: string;
   menuItemId?: string | null;
@@ -558,6 +569,7 @@ export default function DashboardPage() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallState | null>(null);
   const [callerPanelMode, setCallerPanelMode] = useState<'idle' | 'known' | 'unknown' | 'register'>('idle');
+  const handledCallerEventIdRef = useRef('');
   const [callerRegistrationForm, setCallerRegistrationForm] = useState<CallerRegistrationForm>(
     DEFAULT_CALLER_REGISTRATION_FORM,
   );
@@ -1582,6 +1594,72 @@ export default function DashboardPage() {
       setError('');
     }
   }
+
+  // Dashboard CallerEvent listener: gerçek cihaz/santral event gönderince paneli otomatik açar.
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      return;
+    }
+
+    const accessToken = token;
+    let isPollingCallerEvent = false;
+
+    async function pollLatestCallerEvent() {
+      if (isPollingCallerEvent) {
+        return;
+      }
+
+      isPollingCallerEvent = true;
+
+      try {
+        const response = await fetch('/api/caller-events/latest', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const latestEvent = (await response.json()) as CallerEvent | null;
+
+        if (!latestEvent?.id || !latestEvent.phone) {
+          return;
+        }
+
+        if (handledCallerEventIdRef.current === latestEvent.id) {
+          return;
+        }
+
+        handledCallerEventIdRef.current = latestEvent.id;
+
+        await simulateIncomingCall(latestEvent.phone);
+
+        await fetch(`/api/caller-events/${latestEvent.id}/seen`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+      } catch (callerEventError) {
+        console.error('Caller ID event dinleme hatası:', callerEventError);
+      } finally {
+        isPollingCallerEvent = false;
+      }
+    }
+
+    pollLatestCallerEvent();
+
+    const intervalId = window.setInterval(pollLatestCallerEvent, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
 
   function closeIncomingCall() {
     setIncomingCall(null);
