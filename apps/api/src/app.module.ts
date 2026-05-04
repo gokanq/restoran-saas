@@ -10,6 +10,7 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
 import { UsersModule } from './users/users.module';
 import { TableServiceModule } from './table-service/table-service.module';
 import { CustomersModule } from './customers/customers.module';
+import { CallerEventsModule } from './caller-events/caller-events.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CustomersModule } from './customers/customers.module';
     OrdersModule,
     TableServiceModule,
     CustomersModule,
+    CallerEventsModule,
     MenuModule,
     PublicModule,
   ],
