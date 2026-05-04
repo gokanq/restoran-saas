@@ -1,7 +1,7 @@
 import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { CallerDeviceEventsService } from './caller-device-events.service';
 
-@Controller('caller-events/device')
+@Controller(['caller-events/device', 'caller-device-events'])
 export class CallerDeviceEventsController {
   constructor(private readonly callerDeviceEventsService: CallerDeviceEventsService) {}
 
