@@ -205,6 +205,64 @@ function toPaymentMethod(value?: string | null): PaymentMethod {
   return found?.value || 'CASH';
 }
 
+
+async function copyTextToClipboard(value: string): Promise<boolean> {
+  const text = value.trim();
+
+  if (!text) {
+    return false;
+  }
+
+  const clipboardApi =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & {
+          clipboard?: {
+            writeText?: (value: string) => Promise<void>;
+          };
+        }).clipboard
+      : undefined;
+
+  try {
+    if (
+      typeof window !== 'undefined' &&
+      window.isSecureContext &&
+      typeof clipboardApi?.writeText === 'function'
+    ) {
+      await clipboardApi.writeText(text);
+      return true;
+    }
+  } catch (clipboardError) {
+    console.warn('Modern clipboard kullanılamadı, fallback deneniyor:', clipboardError);
+  }
+
+  try {
+    if (typeof document === 'undefined') {
+      return false;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '-9999px';
+    textarea.style.opacity = '0';
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    return copied;
+  } catch (fallbackError) {
+    console.error('Clipboard fallback başarısız:', fallbackError);
+    return false;
+  }
+}
+
 export default function CallerIdPage() {
   const router = useRouter();
 
@@ -1066,8 +1124,12 @@ export default function CallerIdPage() {
                   <button
                     type="button"
                     onClick={async () => {
-                      await navigator.clipboard?.writeText(newCallerDeviceKey);
-                      setCallerDeviceMessage('Cihaz anahtarı kopyalandı.');
+                      const copied = await copyTextToClipboard(newCallerDeviceKey);
+                      setCallerDeviceMessage(
+                        copied
+                          ? 'Cihaz anahtarı kopyalandı.'
+                          : 'Kopyalama tarayıcı tarafından engellendi. Anahtarı elle seçip kopyalayabilirsin.',
+                      );
                     }}
                     className="rounded-2xl bg-amber-600 px-4 py-3 text-sm font-black text-white transition hover:bg-amber-700"
                   >
