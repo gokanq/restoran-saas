@@ -568,6 +568,7 @@ export default function DashboardPage() {
   const [isCreatingItem, setIsCreatingItem] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallState | null>(null);
+  const [activeCallerEvent, setActiveCallerEvent] = useState<CallerEvent | null>(null);
   const [callerPanelMode, setCallerPanelMode] = useState<'idle' | 'known' | 'unknown' | 'register'>('idle');
   const handledCallerEventIdRef = useRef('');
   const [callerRegistrationForm, setCallerRegistrationForm] = useState<CallerRegistrationForm>(
@@ -1520,7 +1521,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function simulateIncomingCall(phone: string) {
+  async function simulateIncomingCall(phone: string, callerEvent?: CallerEvent | null) {
     const token = localStorage.getItem('accessToken');
 
     if (!token) {
@@ -1531,6 +1532,7 @@ export default function DashboardPage() {
     setError('');
     setSuccess('');
     setCallerPanelMode('idle');
+    setActiveCallerEvent(callerEvent || null);
     setIncomingCall({
       phone,
       customer: null,
@@ -1636,14 +1638,7 @@ export default function DashboardPage() {
 
         handledCallerEventIdRef.current = latestEvent.id;
 
-        await simulateIncomingCall(latestEvent.phone);
-
-        await fetch(`/api/caller-events/${latestEvent.id}/seen`, {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
+        await simulateIncomingCall(latestEvent.phone, latestEvent);
       } catch (callerEventError) {
         console.error('Caller ID event dinleme hatası:', callerEventError);
       } finally {
@@ -1661,8 +1656,50 @@ export default function DashboardPage() {
   }, []);
 
 
-  function closeIncomingCall() {
+  async function markCallerEventSeen(eventId?: string | null) {
+    if (!eventId) {
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      await fetch(`/api/caller-events/${eventId}/seen`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (seenError) {
+      console.error('Caller ID event görüldü işaretlenemedi:', seenError);
+    }
+  }
+
+  async function openCallerIdPageForActiveCall() {
+    const eventId = activeCallerEvent?.id;
+
+    if (eventId) {
+      await markCallerEventSeen(eventId);
+    }
+
+    setActiveCallerEvent(null);
+    router.push('/dashboard/caller-id');
+  }
+
+  async function closeIncomingCall() {
+    const eventId = activeCallerEvent?.id;
+
+    if (eventId) {
+      await markCallerEventSeen(eventId);
+    }
+
     setIncomingCall(null);
+    setActiveCallerEvent(null);
     setCallerPanelMode('idle');
     setCallerRegistrationForm(DEFAULT_CALLER_REGISTRATION_FORM);
     setCallerRegistrationError('');
@@ -2339,7 +2376,7 @@ export default function DashboardPage() {
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-slate-950">Operasyonda canlı arama</h2>
                 <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">
-                  Telefon araması geldiğinde müşteri ve adres bilgisi operasyon ekranında açılır. Şimdilik demo simülasyonla test ediyoruz.
+                  Telefon araması geldiğinde müşteri ve adres bilgisi operasyon ekranında açılır. Cihazdan gelen çağrılar kullanıcı aksiyonuyla görüldü yapılır.
                 </p>
               </div>
 
@@ -2376,15 +2413,49 @@ export default function DashboardPage() {
                           : `${incomingCall.phone} Arıyor...`}
                     </h3>
                     <p className="mt-2 text-sm font-bold text-slate-500">Telefon: {incomingCall.phone}</p>
+
+                    {activeCallerEvent ? (
+                      <div className="mt-4 grid gap-3 rounded-2xl border border-sky-200 bg-white p-4 text-sm shadow-sm md:grid-cols-3">
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Kaynak</p>
+                          <p className="mt-1 font-black text-slate-900">{activeCallerEvent.source || 'Caller ID cihazı'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Durum</p>
+                          <p className="mt-1 font-black text-amber-700">Yeni çağrı</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Geliş zamanı</p>
+                          <p className="mt-1 font-black text-slate-900">
+                            {new Intl.DateTimeFormat('tr-TR', {
+                              dateStyle: 'short',
+                              timeStyle: 'short',
+                            }).format(new Date(activeCallerEvent.receivedAt || Date.now()))}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={closeIncomingCall}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                  >
-                    Kapat ×
-                  </button>
+                  <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
+                    {activeCallerEvent ? (
+                      <button
+                        type="button"
+                        onClick={openCallerIdPageForActiveCall}
+                        className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-black text-sky-800 shadow-sm transition hover:bg-sky-100"
+                      >
+                        Caller ID Ekranını Aç
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={closeIncomingCall}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                    >
+                      {activeCallerEvent ? 'Gördüm' : 'Kapat ×'}
+                    </button>
+                  </div>
                 </div>
 
                 {incomingCall.isSearching ? (
