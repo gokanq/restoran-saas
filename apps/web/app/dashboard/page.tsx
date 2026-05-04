@@ -2739,11 +2739,7 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          {activeOrders.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">
-              Aktif sipariş yok.
-            </div>
-          ) : filteredOrders.length === 0 ? (
+          {orderSearch && filteredOrders.length === 0 ? (
             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">
               Bu arama sonucunda sipariş bulunamadı.
             </div>
