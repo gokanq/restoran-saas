@@ -12,6 +12,8 @@ import { TableServiceModule } from './table-service/table-service.module';
 import { CustomersModule } from './customers/customers.module';
 import { CallerEventsModule } from './caller-events/caller-events.module';
 
+import { CallerDevicesModule } from './caller-devices/caller-devices.module';
+import { CallerDeviceEventsModule } from './caller-device-events/caller-device-events.module';
 @Module({
   imports: [
     AuthModule,
@@ -24,6 +26,8 @@ import { CallerEventsModule } from './caller-events/caller-events.module';
     TableServiceModule,
     CustomersModule,
     CallerEventsModule,
+    CallerDevicesModule,
+    CallerDeviceEventsModule,
     MenuModule,
     PublicModule,
   ],
