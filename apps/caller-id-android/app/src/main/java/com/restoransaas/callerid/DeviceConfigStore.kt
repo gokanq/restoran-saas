@@ -20,4 +20,12 @@ class DeviceConfigStore(context: Context) {
     fun setDeviceKey(value: String) {
         prefs.edit().putString("device_key", value.trim()).apply()
     }
+
+    fun getLoginEmail(): String {
+        return prefs.getString("login_email", "") ?: ""
+    }
+
+    fun setLoginEmail(value: String) {
+        prefs.edit().putString("login_email", value.trim()).apply()
+    }
 }
