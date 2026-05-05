@@ -2,6 +2,9 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
+const DUPLICATE_WINDOW_MS = 30_000;
+
+
 @Injectable()
 export class CallerDeviceEventsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -82,6 +85,28 @@ export class CallerDeviceEventsService {
         lastSeenAt: new Date(),
       },
     });
+
+
+    // Android cihazlar bazi telefonlarda ayni arama icin birden fazla event gonderebiliyor.
+    // Ayni restoran + ayni numara 30 saniye icinde tekrar gelirse yeni cagri kaydi acma.
+    const duplicateSince = new Date(Date.now() - DUPLICATE_WINDOW_MS);
+
+    const recentDuplicate = await this.prisma.callerEvent.findFirst({
+      where: {
+        restaurantId: device.restaurantId,
+        phoneNormalized,
+        createdAt: {
+          gte: duplicateSince,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (recentDuplicate) {
+      return recentDuplicate;
+    }
 
     return this.prisma.callerEvent.create({
       data: {
