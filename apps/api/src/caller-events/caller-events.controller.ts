@@ -41,4 +41,17 @@ export class CallerEventsController {
   markSeen(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.callerEventsService.markSeen(request.user.restaurantId, id);
   }
+
+  @Patch(':id/converted')
+  markConverted(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      orderId?: string | null;
+      orderCode?: string | null;
+    },
+  ) {
+    return this.callerEventsService.markConverted(request.user.restaurantId, id, body);
+  }
 }

@@ -258,17 +258,24 @@ model CallerEvent {
   source          String?
   customerId      String?
   customerName    String?
+  orderId         String?
+  orderCode       String?
+  convertedAt     DateTime?
   payload         Json?
   receivedAt      DateTime  @default(now())
   seenAt          DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId, status, receivedAt])
   @@index([restaurantId, phoneNormalized])
   @@index([branchId])
   @@index([customerId])
+  @@index([orderId])
+  @@index([restaurantId, convertedAt])
 }
+
 
 model Customer {
   id              String            @id @default(cuid())
@@ -409,6 +416,7 @@ model Order {
   courier         Courier?       @relation(fields: [courierId], references: [id], onDelete: SetNull)
   items           OrderItem[]
   tableSessions   TableSession[]
+  callerEvents    CallerEvent[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

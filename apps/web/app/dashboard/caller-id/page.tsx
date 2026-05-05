@@ -43,6 +43,9 @@ type CallerEvent = {
   } | null;
   receivedAt?: string | null;
   seenAt?: string | null;
+  orderId?: string | null;
+  orderCode?: string | null;
+  convertedAt?: string | null;
 };
 
 type OrderLite = {
@@ -129,6 +132,11 @@ function getNextOrderCode(orders: OrderLite[]) {
 
 function extractOrderCode(data: any) {
   return String(data?.code || data?.order?.code || data?.data?.code || '').trim();
+}
+
+
+function extractOrderId(data: any) {
+  return String(data?.id || data?.order?.id || data?.data?.id || '').trim();
 }
 
 function getNewestOrderCode(orders: OrderLite[]) {
@@ -292,6 +300,7 @@ export default function CallerIdPage() {
 
   const [orderCodePreview, setOrderCodePreview] = useState('ORD-1');
   const [lastOrderCode, setLastOrderCode] = useState('');
+  const [activeCallerEventId, setActiveCallerEventId] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -406,6 +415,7 @@ export default function CallerIdPage() {
 
   async function startOrderFromCallerEvent(event: CallerEvent) {
     const phone = event.phone || '';
+    setActiveCallerEventId(event.id);
     const phoneKey = getComparablePhone(phone);
 
     if (!phone.trim()) {
@@ -805,6 +815,33 @@ export default function CallerIdPage() {
 
       const refreshedOrders = await loadOrdersForCode(token);
       const createdOrderCode = extractOrderCode(data) || getNewestOrderCode(refreshedOrders) || orderCodePreview;
+      const createdOrderId = extractOrderId(data);
+
+      let callerEventLinked = false;
+
+      if (activeCallerEventId && createdOrderId) {
+        try {
+          const linkResponse = await fetch(`/api/caller-events/${activeCallerEventId}/converted`, {
+            method: 'PATCH',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: createdOrderId,
+              orderCode: createdOrderCode,
+            }),
+          });
+
+          if (linkResponse.ok) {
+            callerEventLinked = true;
+            setActiveCallerEventId('');
+            await loadCallerEvents(token);
+          }
+        } catch (callerLinkError) {
+          console.error('Caller ID çağrı sipariş bağlantısı kurulamadı:', callerLinkError);
+        }
+      }
 
       setLastOrderCode(createdOrderCode);
       setTableNumber('');
@@ -814,7 +851,7 @@ export default function CallerIdPage() {
       setTotal('');
       setPaymentMethod('CASH');
       setNote('');
-      setSuccess(`${createdOrderCode} oluşturuldu ve operasyon ekranına düştü.`);
+      setSuccess(callerEventLinked ? `${createdOrderCode} oluşturuldu ve Caller ID çağrısıyla eşleştirildi.` : `${createdOrderCode} oluşturuldu ve operasyon ekranına düştü.`);
     } catch {
       setError('Sipariş oluşturulurken hata oluştu.');
     } finally {
@@ -941,6 +978,7 @@ export default function CallerIdPage() {
                     {callerEvents.slice(0, 20).map((event) => {
                       const isNew = event.status !== 'SEEN' && !event.seenAt;
                       const sourceLabel = event.source || event.payload?.deviceName || 'Caller ID';
+                      const isConverted = Boolean(event.orderCode || event.convertedAt);
 
                       return (
                         <tr key={event.id} className={isNew ? 'bg-amber-50/70' : 'transition hover:bg-slate-50'}>
@@ -948,15 +986,23 @@ export default function CallerIdPage() {
                           <td className="px-4 py-3 font-bold text-slate-700">{event.customerName || 'Yeni müşteri'}</td>
                           <td className="px-4 py-3 font-bold text-slate-700">{sourceLabel}</td>
                           <td className="px-4 py-3">
-                            <span
-                              className={`rounded-full border px-3 py-1 text-xs font-black ${
-                                isNew
-                                  ? 'border-amber-200 bg-amber-100 text-amber-800'
-                                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                              }`}
-                            >
-                              {isNew ? 'Yeni' : 'Görüldü'}
-                            </span>
+                            <div className="flex flex-col items-start gap-2">
+                              <span
+                                className={`rounded-full border px-3 py-1 text-xs font-black ${
+                                  isNew
+                                    ? 'border-amber-200 bg-amber-100 text-amber-800'
+                                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                }`}
+                              >
+                                {isNew ? 'Yeni' : 'Görüldü'}
+                              </span>
+
+                              {isConverted ? (
+                                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-black text-cyan-800">
+                                  Siparişe dönüştü{event.orderCode ? `: ${event.orderCode}` : ''}
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                           <td className="px-4 py-3 font-bold text-slate-700">{formatDate(event.receivedAt)}</td>
                           <td className="px-4 py-3 font-bold text-slate-700">{formatDate(event.seenAt)}</td>
@@ -976,9 +1022,14 @@ export default function CallerIdPage() {
                               <button
                                 type="button"
                                 onClick={() => startOrderFromCallerEvent(event)}
-                                className="rounded-2xl bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+                                disabled={isConverted}
+                                className={`rounded-2xl px-3 py-2 text-xs font-black shadow-sm transition disabled:cursor-not-allowed ${
+                                  isConverted
+                                    ? 'bg-slate-100 text-slate-500'
+                                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                }`}
                               >
-                                Sipariş Başlat
+                                {isConverted ? 'Siparişe Dönüştü' : 'Sipariş Başlat'}
                               </button>
                             </div>
                           </td>

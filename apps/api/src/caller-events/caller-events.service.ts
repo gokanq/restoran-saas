@@ -8,6 +8,11 @@ type CreateCallerEventInput = {
   payload?: unknown;
 };
 
+type MarkCallerEventConvertedInput = {
+  orderId?: string | null;
+  orderCode?: string | null;
+};
+
 function normalizePhone(phone?: string | null) {
   return (phone || '').replace(/\D/g, '');
 }
@@ -124,4 +129,52 @@ export class CallerEventsService {
       },
     });
   }
+  async markConverted(restaurantId: string, id: string, data: MarkCallerEventConvertedInput) {
+    const event = await this.prisma.callerEvent.findFirst({
+      where: {
+        id,
+        restaurantId,
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Caller ID olayı bulunamadı');
+    }
+
+    const orderId = (data.orderId || '').trim();
+    const orderCode = (data.orderCode || '').trim();
+
+    if (!orderId && !orderCode) {
+      throw new BadRequestException('Sipariş bilgisi zorunludur');
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: {
+        restaurantId,
+        ...(orderId ? { id: orderId } : { code: orderCode }),
+      },
+      select: {
+        id: true,
+        code: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Sipariş bulunamadı');
+    }
+
+    return this.prisma.callerEvent.update({
+      where: {
+        id,
+      },
+      data: {
+        status: 'SEEN',
+        seenAt: event.seenAt || new Date(),
+        orderId: order.id,
+        orderCode: order.code,
+        convertedAt: new Date(),
+      },
+    });
+  }
+
 }
