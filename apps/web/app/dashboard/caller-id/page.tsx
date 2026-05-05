@@ -404,35 +404,98 @@ export default function CallerIdPage() {
     }
   }
 
-  function startOrderFromCallerEvent(event: CallerEvent) {
+  async function startOrderFromCallerEvent(event: CallerEvent) {
     const phone = event.phone || '';
     const phoneKey = getComparablePhone(phone);
+
+    if (!phone.trim()) {
+      setError('Çağrı telefon numarası bulunamadı.');
+      return;
+    }
+
     const latestOrderForCaller =
       phoneKey.length >= 7
         ? sortNewestOrders(orders).find((order) => getComparablePhone(order.customerPhone) === phoneKey)
-        : null;
+        : undefined;
 
     setCustomerPhone(phone);
     setCustomerName(event.customerName || latestOrderForCaller?.customerName || '');
     setCustomerAddress(latestOrderForCaller?.customerAddress || '');
     setPaymentMethod(toPaymentMethod(String(latestOrderForCaller?.paymentMethod || 'CASH')));
-
-    if (latestOrderForCaller?.total) {
-      setTotal(String(latestOrderForCaller.total));
-    }
-
-    setNote(
-      latestOrderForCaller?.code
-        ? `${latestOrderForCaller.code} çağrı geçmişinden forma aktarıldı.`
-        : 'Caller ID çağrı geçmişinden forma aktarıldı.',
-    );
-
-    setSuccess('Çağrı bilgileri sipariş formuna aktarıldı.');
+    setNote(latestOrderForCaller?.note || '');
+    setOrderType('DELIVERY');
+    setTotal('0');
+    setLastOrderCode('');
     setError('');
 
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      const authToken =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('token') || localStorage.getItem('accessToken') || ''
+          : '';
+
+      if (authToken && phoneKey.length >= 7) {
+        const response = await fetch(`/api/customers/by-phone/${encodeURIComponent(phone)}`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const customer = await readJson(response);
+          const addresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
+          const defaultAddress =
+            addresses.find((address: any) => address?.isDefault) ||
+            addresses[0] ||
+            null;
+          const recentOrders = Array.isArray(customer?.recentOrders) ? customer.recentOrders : [];
+          const latestCustomerOrder = recentOrders[0];
+
+          setCustomerName(customer?.name || event.customerName || latestOrderForCaller?.customerName || '');
+          setCustomerPhone(customer?.phone || phone);
+          setCustomerAddress(
+            defaultAddress?.fullAddress ||
+              latestCustomerOrder?.customerAddress ||
+              latestOrderForCaller?.customerAddress ||
+              '',
+          );
+
+          if (latestCustomerOrder?.paymentMethod) {
+            setPaymentMethod(toPaymentMethod(String(latestCustomerOrder.paymentMethod)));
+          }
+
+          if (latestCustomerOrder?.note) {
+            setNote(latestCustomerOrder.note);
+          }
+
+          setSuccess('Kayıtlı müşteri bulundu ve sipariş formuna aktarıldı.');
+        } else if (response.status === 404) {
+          setSuccess('Yeni müşteri için çağrı bilgileri sipariş formuna aktarıldı.');
+        } else {
+          setSuccess('Çağrı bilgileri sipariş formuna aktarıldı. Müşteri sorgusu tamamlanamadı.');
+        }
+      } else {
+        setSuccess('Çağrı bilgileri sipariş formuna aktarıldı.');
+      }
+
+      if (event.status !== 'SEEN' && !event.seenAt) {
+        await markCallerEventSeen(event);
+      }
+    } catch (lookupError) {
+      console.error('Caller ID müşteri bilgisi alınamadı:', lookupError);
+      setSuccess('Çağrı bilgileri sipariş formuna aktarıldı.');
     }
+
+    setTimeout(() => {
+      const formElement =
+        document.getElementById('caller-id-order-form') ||
+        document.querySelector('form');
+
+      formElement?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
   }
 
   useEffect(() => {
@@ -1216,7 +1279,7 @@ export default function CallerIdPage() {
             </p>
           </div>
 
-          <form onSubmit={createOrder} className="grid gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3">
+          <form id="caller-id-order-form" onSubmit={createOrder} className="grid gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3">
             <label className="block text-sm font-black text-slate-800">
               Sipariş Kodu
               <input
