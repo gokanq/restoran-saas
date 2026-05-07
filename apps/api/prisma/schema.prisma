@@ -501,3 +501,60 @@ model OrderItemOption {
   @@index([orderItemId])
   @@index([optionId])
 }
+
+enum PlatformType {
+  TRENDYOL
+  GETIR
+  YEMEKSEPETI
+}
+
+model PlatformIntegration {
+  id             String       @id @default(cuid())
+  restaurantId   String
+  branchId       String?
+  platform       PlatformType
+  name           String       @default("")
+  isActive       Boolean      @default(true)
+  supplierId     String?
+  apiKey         String?
+  apiSecret      String?
+  baseUrl        String?
+  lastSyncAt     DateTime?
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([restaurantId])
+  @@index([platform])
+  @@index([isActive])
+}
+
+model PlatformOrder {
+  id                    String       @id @default(cuid())
+  restaurantId          String
+  platform              PlatformType
+  platformOrderId       String
+  platformStatus        String?
+  orderId               String?      @unique
+  rawPayload            Json?
+  syncedAt              DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  @@unique([platform, platformOrderId])
+  @@index([restaurantId])
+  @@index([platform, restaurantId])
+}
+
+model RestaurantSettings {
+  id                 String   @id @default(cuid())
+  restaurantId       String   @unique
+  isOpen             Boolean  @default(true)
+  autoApproveOrders  Boolean  @default(false)
+  notificationSound  String   @default("bell")
+  notificationVolume Int      @default(80)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([restaurantId])
+}

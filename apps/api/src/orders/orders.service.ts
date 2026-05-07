@@ -254,7 +254,7 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
     const itemsTotal = normalizedItems.reduce((sum, item) => sum + item.totalPrice, 0);
     const calculatedOrderTotal = normalizedItems.length > 0 ? itemsTotal : data.total ?? 0;
 
-    return this.prisma.order.create({
+    const order = await this.prisma.order.create({
       data: {
         restaurantId: data.restaurantId,
         branchId: data.branchId,
@@ -292,6 +292,24 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
         },
       },
     });
+
+    // Auto-approve if enabled
+    try {
+      const settings = await this.prisma.restaurantSettings.findUnique({
+        where: { restaurantId: data.restaurantId },
+      });
+      if (settings?.autoApproveOrders && order.status === 'PENDING') {
+        await this.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'ACCEPTED' },
+        });
+        order.status = 'ACCEPTED';
+      }
+    } catch (e) {
+      // ignore auto-approve errors
+    }
+
+    return order;
   }
 
   async updateStatus(data: {

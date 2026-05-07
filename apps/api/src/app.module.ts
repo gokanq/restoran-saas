@@ -11,9 +11,11 @@ import { UsersModule } from './users/users.module';
 import { TableServiceModule } from './table-service/table-service.module';
 import { CustomersModule } from './customers/customers.module';
 import { CallerEventsModule } from './caller-events/caller-events.module';
-
 import { CallerDevicesModule } from './caller-devices/caller-devices.module';
 import { CallerDeviceEventsModule } from './caller-device-events/caller-device-events.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { RestaurantSettingsModule } from './restaurant-settings/restaurant-settings.module';
+
 @Module({
   imports: [
     AuthModule,
@@ -30,6 +32,8 @@ import { CallerDeviceEventsModule } from './caller-device-events/caller-device-e
     CallerDeviceEventsModule,
     MenuModule,
     PublicModule,
+    IntegrationsModule,
+    RestaurantSettingsModule,
   ],
 })
 export class AppModule {}

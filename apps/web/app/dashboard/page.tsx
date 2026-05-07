@@ -508,6 +508,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setPublicBaseUrl(window.location.origin);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    // Load restaurant settings
+    const savedToken = localStorage.getItem('accessToken');
+    if (savedToken) {
+      fetch('/api/restaurant-settings', { headers: { Authorization: 'Bearer ' + savedToken } })
+        .then(r => r.ok ? r.json() : null)
+        .then(s => {
+          if (s) {
+            setIsStoreOpen(s.isOpen);
+            setAutoApproveOrders(s.autoApproveOrders);
+            setNotificationSound(s.notificationSound || 'bell');
+            setNotificationVolume(s.notificationVolume ?? 80);
+            setSettingsLoaded(true);
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -526,6 +545,14 @@ export default function DashboardPage() {
     return `${publicBaseUrl}/qr?branchId=${qrBranchId}&table=${encodeURIComponent(tableNumber)}`;
   }, [publicBaseUrl, qrBranchId, qrTableNumber]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [notificationEnabled, setNotificationEnabled] = useState(true);
+  const [notificationSound, setNotificationSound] = useState('bell');
+  const [notificationVolume, setNotificationVolume] = useState(80);
+  const [isStoreOpen, setIsStoreOpen] = useState(true);
+  const [autoApproveOrders, setAutoApproveOrders] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const previousPendingCountRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [lastOrdersRefreshAt, setLastOrdersRefreshAt] = useState('');
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -874,6 +901,37 @@ export default function DashboardPage() {
 
     const ordersData = ordersResponse.ok ? await ordersResponse.json() : [];
     const safeOrders = Array.isArray(ordersData) ? ordersData : [];
+
+    // Notification: check for new pending orders
+    const newPendingCount = safeOrders.filter((o: any) => o.status === 'PENDING').length;
+    if (newPendingCount > previousPendingCountRef.current && previousPendingCountRef.current >= 0 && notificationEnabled) {
+      // Play notification sound
+      try {
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.value = notificationVolume / 100;
+        const cfgs: Record<string, [number, number, OscillatorType]> = {
+          bell: [830, 0.3, 'sine'],
+          chime: [1200, 0.2, 'sine'],
+          ding: [600, 0.5, 'triangle'],
+          alert: [440, 0.8, 'square'],
+        };
+        const [freq, dur, type] = cfgs[notificationSound] || cfgs.bell;
+        osc.type = type;
+        osc.frequency.value = freq;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+        osc.stop(ctx.currentTime + dur);
+      } catch (e) {}
+      // Show browser notification
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('Yeni Sipariş!', { body: 'Yeni bir sipariş geldi.', icon: '/favicon.ico' });
+      }
+    }
+    previousPendingCountRef.current = newPendingCount;
 
     setOrders(safeOrders);
     setLastOrdersRefreshAt(
@@ -2305,6 +2363,50 @@ export default function DashboardPage() {
             </a>
           </nav>
         </header>
+
+        {/* Store Controls Bar */}
+        <div className="flex flex-wrap items-center gap-4 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-slate-600">Mağaza:</span>
+            <button
+              onClick={async () => {
+                const newVal = !isStoreOpen;
+                setIsStoreOpen(newVal);
+                const t = localStorage.getItem('accessToken');
+                await fetch('/api/restaurant-settings', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+                  body: JSON.stringify({ isOpen: newVal }),
+                });
+              }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${isStoreOpen ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+            >
+              {isStoreOpen ? '\u2713 Açık' : '\u2717 Kapalı'}
+            </button>
+          </div>
+          <div className="w-px h-6 bg-slate-200" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-slate-600">Otomatik Onay:</span>
+            <button
+              onClick={async () => {
+                const newVal = !autoApproveOrders;
+                setAutoApproveOrders(newVal);
+                const t = localStorage.getItem('accessToken');
+                await fetch('/api/restaurant-settings', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t },
+                  body: JSON.stringify({ autoApproveOrders: newVal }),
+                });
+              }}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${autoApproveOrders ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+            >
+              {autoApproveOrders ? '\u2713 Açık' : '\u2717 Kapalı'}
+            </button>
+          </div>
+          <div className="ml-auto text-xs text-slate-400">
+            Her 3 saniyede güncelleniyor
+          </div>
+        </div>
 
         {error ? (
           <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-700">

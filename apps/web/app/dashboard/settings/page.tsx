@@ -67,6 +67,20 @@ const SETTINGS_CARDS: SettingsCard[] = [
     badge: 'Yetki',
     status: 'soon',
   },
+  {
+    title: 'Bildirim ve Ses Ayarları',
+    description: 'Sipariş bildirim sesi, ses seviyesi ve bildirim tercihleri.',
+    href: '/dashboard/settings/notifications',
+    badge: 'Bildirim',
+    status: 'ready' as const,
+  },
+  {
+    title: 'Platform Entegrasyonları',
+    description: 'Trendyol, Yemeksepeti, Getir Yemek sipariş entegrasyonu ve platform ayarları.',
+    href: '/dashboard/integrations',
+    badge: 'Entegrasyon',
+    status: 'ready' as const,
+  },
 ];
 
 export default function SettingsPage() {
