@@ -205,6 +205,43 @@ const ORDER_TYPE_OPTIONS: { value: OrderType; label: string }[] = [
   { value: 'TAKEAWAY', label: 'Gel-al' },
 ];
 
+
+// __CALLER_ID_MENU_DISPLAY_V2_STEP2__
+type PhoneOrderMenuCategory = {
+  id: string;
+  name: string;
+  sortOrder?: number | null;
+  isActive?: boolean | null;
+};
+
+type PhoneOrderMenuItem = {
+  id: string;
+  name: string;
+  description?: string | null;
+  categoryId?: string | null;
+  category?: {
+    id?: string | null;
+    name?: string | null;
+  } | null;
+  price?: string | number | null;
+  totalPrice?: string | number | null;
+  isActive?: boolean | null;
+};
+
+type PhoneOrderCartItem = {
+  menuItemId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+};
+
+function getPhoneOrderMenuItemPrice(menuItem: PhoneOrderMenuItem) {
+  const rawPrice = menuItem.totalPrice ?? menuItem.price ?? 0;
+  const numericPrice = Number(rawPrice);
+
+  return Number.isFinite(numericPrice) ? numericPrice : 0;
+}
+
 const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
   { value: 'CASH', label: 'Nakit' },
   { value: 'CREDIT_CARD', label: 'Kredi / Banka Kartı' },
@@ -434,6 +471,14 @@ export default function CallerIdPage() {
   const [total, setTotal] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
+  const [isPhoneOrderStageOpen, setIsPhoneOrderStageOpen] = useState(false);
+  const [phoneOrderMenuCategories, setPhoneOrderMenuCategories] = useState<PhoneOrderMenuCategory[]>([]);
+  const [phoneOrderMenuItems, setPhoneOrderMenuItems] = useState<PhoneOrderMenuItem[]>([]);
+  const [phoneOrderMenuCategoryId, setPhoneOrderMenuCategoryId] = useState('');
+  const [phoneOrderCartItems, setPhoneOrderCartItems] = useState<PhoneOrderCartItem[]>([]);
+  const [isLoadingPhoneOrderMenu, setIsLoadingPhoneOrderMenu] = useState(false);
+  const [phoneOrderMenuMessage, setPhoneOrderMenuMessage] = useState('');
+
 
   const [orderCodePreview, setOrderCodePreview] = useState('ORD-1');
   const [lastOrderCode, setLastOrderCode] = useState('');
@@ -574,6 +619,8 @@ export default function CallerIdPage() {
     setNote(latestOrderForCaller?.note || '');
     setOrderType('DELIVERY');
     setTotal('0');
+    setIsPhoneOrderStageOpen(false);
+    setPhoneOrderCartItems([]);
     setLastOrderCode('');
     setError('');
 
@@ -893,6 +940,167 @@ export default function CallerIdPage() {
     loadCallerDevices();
   }, []);
 
+  async function loadPhoneOrderMenu() {
+    const token = localStorage.getItem('accessToken');
+
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    setIsLoadingPhoneOrderMenu(true);
+    setPhoneOrderMenuMessage('');
+
+    try {
+      const [categoriesResponse, itemsResponse] = await Promise.all([
+        fetch('/api/menu/categories', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
+        }),
+        fetch('/api/menu/items', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
+        }),
+      ]);
+
+      const categoriesData = await categoriesResponse.json().catch(() => []);
+      const itemsData = await itemsResponse.json().catch(() => []);
+
+      if (!categoriesResponse.ok) {
+        throw new Error(categoriesData?.message || 'Menü kategorileri alınamadı.');
+      }
+
+      if (!itemsResponse.ok) {
+        throw new Error(itemsData?.message || 'Menü ürünleri alınamadı.');
+      }
+
+      const safeCategories = Array.isArray(categoriesData) ? categoriesData : [];
+      const safeItems = Array.isArray(itemsData) ? itemsData : [];
+
+      const activeCategories = safeCategories.filter((category) => category.isActive !== false);
+      const activeItems = safeItems.filter((item) => item.isActive !== false);
+
+      setPhoneOrderMenuCategories(activeCategories);
+      setPhoneOrderMenuItems(activeItems);
+
+      setPhoneOrderMenuCategoryId((currentCategoryId) => {
+        if (currentCategoryId && activeCategories.some((category) => category.id === currentCategoryId)) {
+          return currentCategoryId;
+        }
+
+        return activeCategories[0]?.id || '';
+      });
+
+      setPhoneOrderMenuMessage(
+        activeItems.length > 0
+          ? `${activeItems.length} menü ürünü yüklendi.`
+          : 'Aktif menü ürünü bulunamadı.',
+      );
+    } catch (loadError) {
+      setPhoneOrderMenuMessage(
+        loadError instanceof Error ? loadError.message : 'Menü yüklenirken hata oluştu.',
+      );
+    } finally {
+      setIsLoadingPhoneOrderMenu(false);
+    }
+  }
+
+  // __CALLER_ID_CART_V2_STEP3__
+  function getPhoneOrderCartTotal(cartItems: PhoneOrderCartItem[]) {
+    return cartItems.reduce((sum, cartItem) => sum + cartItem.unitPrice * cartItem.quantity, 0);
+  }
+
+  function syncPhoneOrderCart(nextCartItems: PhoneOrderCartItem[]) {
+    setPhoneOrderCartItems(nextCartItems);
+    setTotal(getPhoneOrderCartTotal(nextCartItems).toFixed(2));
+  }
+
+  function addPhoneOrderMenuItemToCart(menuItem: PhoneOrderMenuItem) {
+    const unitPrice = getPhoneOrderMenuItemPrice(menuItem);
+
+    setPhoneOrderCartItems((currentCartItems) => {
+      const existingCartItem = currentCartItems.find((cartItem) => cartItem.menuItemId === menuItem.id);
+
+      const nextCartItems = existingCartItem
+        ? currentCartItems.map((cartItem) =>
+            cartItem.menuItemId === menuItem.id
+              ? { ...cartItem, quantity: cartItem.quantity + 1 }
+              : cartItem,
+          )
+        : [
+            ...currentCartItems,
+            {
+              menuItemId: menuItem.id,
+              name: menuItem.name,
+              unitPrice,
+              quantity: 1,
+            },
+          ];
+
+      setTotal(getPhoneOrderCartTotal(nextCartItems).toFixed(2));
+      return nextCartItems;
+    });
+
+    setPhoneOrderMenuMessage(`${menuItem.name} sepete eklendi.`);
+  }
+
+  function increasePhoneOrderCartItem(menuItemId: string) {
+    const nextCartItems = phoneOrderCartItems.map((cartItem) =>
+      cartItem.menuItemId === menuItemId
+        ? { ...cartItem, quantity: cartItem.quantity + 1 }
+        : cartItem,
+    );
+
+    syncPhoneOrderCart(nextCartItems);
+  }
+
+  function decreasePhoneOrderCartItem(menuItemId: string) {
+    const nextCartItems = phoneOrderCartItems
+      .map((cartItem) =>
+        cartItem.menuItemId === menuItemId
+          ? { ...cartItem, quantity: cartItem.quantity - 1 }
+          : cartItem,
+      )
+      .filter((cartItem) => cartItem.quantity > 0);
+
+    syncPhoneOrderCart(nextCartItems);
+  }
+
+  function removePhoneOrderCartItem(menuItemId: string) {
+    const nextCartItems = phoneOrderCartItems.filter((cartItem) => cartItem.menuItemId !== menuItemId);
+
+    syncPhoneOrderCart(nextCartItems);
+  }
+
+  // __CALLER_ID_ORDER_STAGE_V2_STEP1_SAFE__
+  function goToPhoneOrderStage() {
+    if (orderType === 'DELIVERY' && !customerPhone.trim()) {
+      setError('Siparişe geçmeden önce telefon numarası gir.');
+      return;
+    }
+
+    setError('');
+    setSuccess('Müşteri bilgisi hazır. Sipariş aşaması açıldı.');
+    setIsPhoneOrderStageOpen(true);
+
+    if (phoneOrderMenuItems.length === 0) {
+      void loadPhoneOrderMenu();
+    }
+
+    setTimeout(() => {
+      const formElement = document.getElementById('caller-id-menu-display') || document.getElementById('caller-id-order-form');
+
+      formElement?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  }
+
   async function createOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -903,10 +1111,31 @@ export default function CallerIdPage() {
       return;
     }
 
+    if (!isPhoneOrderStageOpen) {
+      setError('Önce müşteri bilgisini kontrol edip Siparişe Git butonuna bas.');
+      return;
+    }
+
     const numericTotal = Number(total.replace(',', '.'));
 
     if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
       setError('Geçerli bir toplam tutar gir.');
+      return;
+    }
+
+
+    // __CALLER_ID_ORDER_ITEMS_STEP4_V2__
+    const callerIdCartItemsPayload = phoneOrderCartItems.map((cartItem) => ({
+      menuItemId: cartItem.menuItemId,
+      quantity: cartItem.quantity,
+      note: null,
+    }));
+
+    const finalOrderTotal =
+      callerIdCartItemsPayload.length > 0 ? getPhoneOrderCartTotal(phoneOrderCartItems) : numericTotal;
+
+    if (isPhoneOrderStageOpen && callerIdCartItemsPayload.length === 0) {
+      setError('Sipariş oluşturmak için sepete en az bir ürün ekle.');
       return;
     }
 
@@ -935,12 +1164,13 @@ export default function CallerIdPage() {
           branchId: branchId || null,
           type: orderType,
           tableNumber: orderType === 'TABLE' ? tableNumber.trim() : null,
-          total: numericTotal,
+          total: finalOrderTotal,
           paymentMethod,
           customerName: customerName.trim() || null,
           customerPhone: customerPhone.trim() || null,
           customerAddress: orderType === 'DELIVERY' ? customerAddress.trim() || null : null,
           note: note.trim() || null,
+          items: callerIdCartItemsPayload,
           status: 'PENDING',
         }),
       });
@@ -990,6 +1220,8 @@ export default function CallerIdPage() {
       setTotal('');
       setPaymentMethod('CASH');
       setNote('');
+      setIsPhoneOrderStageOpen(false);
+      setPhoneOrderCartItems([]);
       setSuccess(callerEventLinked ? `${createdOrderCode} oluşturuldu ve Caller ID çağrısıyla eşleştirildi.` : `${createdOrderCode} oluşturuldu ve operasyon ekranına düştü.`);
     } catch {
       setError('Sipariş oluşturulurken hata oluştu.');
@@ -1050,6 +1282,7 @@ export default function CallerIdPage() {
     setPaymentMethod(toPaymentMethod(String(row.lastPaymentMethod || 'CASH')));
     setNote(row.lastNote || '');
     setTotal('0');
+    setIsPhoneOrderStageOpen(false);
     setLastOrderCode('');
     setActiveCallerEventId('');
     setError('');
@@ -1075,6 +1308,7 @@ export default function CallerIdPage() {
     setPaymentMethod('CASH');
     setNote('');
     setTotal('0');
+    setIsPhoneOrderStageOpen(false);
     setLastOrderCode('');
     setActiveCallerEventId('');
     setError('');
@@ -1849,7 +2083,292 @@ export default function CallerIdPage() {
             </p>
           </div>
 
-          <form id="caller-id-order-form" onSubmit={createOrder} className="grid gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3">
+          <div id="caller-id-order-stage-card" className={`${isPhoneOrderStageOpen ? 'hidden' : 'mb-4'} rounded-[24px] border border-sky-200 bg-sky-50 p-5 shadow-sm`}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-700">
+                  Müşteri Aşaması
+                </p>
+                <h3 className="mt-1 text-xl font-black text-slate-950">
+                  Önce müşteri bilgisini kontrol et
+                </h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                  Çağrıdan gelen numara ve müşteri bilgisi hazırsa Siparişe Git butonuna bas. Sonraki adımda menü ve sepet bu aşamadan sonra açılacak.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <span
+                  className={`w-fit rounded-full border px-3 py-2 text-xs font-black ${
+                    isPhoneOrderStageOpen
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-amber-200 bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {isPhoneOrderStageOpen ? 'Sipariş aşaması açık' : 'Müşteri aşaması'}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={goToPhoneOrderStage}
+                  className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-sky-900/15 transition hover:bg-sky-600"
+                >
+                  Siparişe Git
+                </button>
+              </div>
+            </div>
+
+            {isPhoneOrderStageOpen ? (
+              <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4">
+                <p className="text-sm font-black text-emerald-800">
+                  Sipariş aşaması açıldı.
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-600">
+                  Şimdilik mevcut form korunuyor. Menü ve sepeti sonraki adımda buraya bağlayacağız.
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {isPhoneOrderStageOpen ? (
+            <div id="caller-id-menu-display" className="mb-4 rounded-[32px] border border-emerald-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+              {/* __CALLER_ID_STAGE_SEPARATE_VIEW_STEP2C_SAFE__ */}
+              <div className="mb-5 flex flex-col gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">
+                    Telefon Sipariş Ekranı
+                  </p>
+                  <h3 className="mt-1 text-2xl font-black text-slate-950">
+                    Menüden ürün seçerek sipariş oluştur
+                  </h3>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                    Müşteri bilgisi hazırlandı. Bu bölüm ayrı sipariş ekranı olarak açılır.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPhoneOrderStageOpen(false)}
+                  className="w-fit rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                >
+                  Müşteri Bilgisine Dön
+                </button>
+              </div>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">
+                    Menüden Ürün Seç
+                  </p>
+                  <h3 className="mt-1 text-xl font-black text-slate-950">
+                    Telefon siparişi için menü ürünleri
+                  </h3>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                    Bu adımda sadece ürünleri görüntülüyoruz. Sonraki adımda + Ekle ve sepet alanını bağlayacağız.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={loadPhoneOrderMenu}
+                  disabled={isLoadingPhoneOrderMenu}
+                  className="w-fit rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-black text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoadingPhoneOrderMenu ? 'Menü Yükleniyor...' : 'Menüyü Yenile'}
+                </button>
+              </div>
+
+              {phoneOrderMenuMessage ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                  {phoneOrderMenuMessage}
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={() => setPhoneOrderMenuCategoryId('')}
+                  className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
+                    !phoneOrderMenuCategoryId
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Tümü
+                </button>
+
+                {phoneOrderMenuCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => setPhoneOrderMenuCategoryId(category.id)}
+                    className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
+                      phoneOrderMenuCategoryId === category.id
+                        ? 'border-emerald-700 bg-emerald-700 text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+
+              {phoneOrderMenuItems.length > 0 ? (
+                <div className="mt-4 grid max-h-[480px] gap-3 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
+                  {phoneOrderMenuItems
+                    .filter((menuItem) => {
+                      if (!phoneOrderMenuCategoryId) return true;
+
+                      const categoryId = menuItem.categoryId || menuItem.category?.id || '';
+
+                      return categoryId === phoneOrderMenuCategoryId;
+                    })
+                    .map((menuItem) => (
+                      <div
+                        key={menuItem.id}
+                        className="rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-emerald-300 hover:bg-emerald-50"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black text-slate-950">{menuItem.name}</p>
+                            {menuItem.description ? (
+                              <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
+                                {menuItem.description}
+                              </p>
+                            ) : null}
+                          </div>
+
+                          <span className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-700">
+                            {formatMoney(getPhoneOrderMenuItemPrice(menuItem))}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => addPhoneOrderMenuItemToCart(menuItem)}
+                          className="mt-3 w-full rounded-2xl bg-emerald-600 px-4 py-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+                        >
+                          + Sepete Ekle
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                  <p className="text-sm font-black text-slate-900">Menü ürünü görünmüyor</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Menü Yönetimi bölümünde aktif ürün varsa Menüyü Yenile butonunu dene.
+                  </p>
+                </div>
+              )}
+
+              <div id="caller-id-cart-panel" className="mt-5 rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
+                      Sepet
+                    </p>
+                    <h3 className="mt-1 text-xl font-black text-slate-950">
+                      Telefon siparişi sepeti
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      Ürünleri ekle, adetleri düzenle. Sepet toplamı otomatik olarak toplam tutara aktarılır.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-right">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
+                      Sepet Toplamı
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-slate-950">
+                      {formatMoney(getPhoneOrderCartTotal(phoneOrderCartItems))}
+                    </p>
+                  </div>
+                </div>
+
+                {/* __CALLER_ID_CART_SUBMIT_BUTTON_STEP4_V2__ */}
+                <div className="mt-4 flex flex-col gap-3 rounded-3xl border border-emerald-200 bg-white p-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">
+                      Siparişi tamamla
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Sepetteki ürünler sipariş kalemleri olarak kaydedilecek.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    form="caller-id-order-form"
+                    disabled={isSaving || phoneOrderCartItems.length === 0}
+                    className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-900/15 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSaving ? 'Oluşturuluyor...' : 'Siparişi Oluştur'}
+                  </button>
+                </div>
+
+                {phoneOrderCartItems.length > 0 ? (
+                  <div className="mt-4 grid gap-3">
+                    {phoneOrderCartItems.map((cartItem) => (
+                      <div
+                        key={cartItem.menuItemId}
+                        className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-black text-slate-950">{cartItem.name}</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            {cartItem.quantity} x {formatMoney(cartItem.unitPrice)}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => decreasePhoneOrderCartItem(cartItem.menuItemId)}
+                            className="h-10 w-10 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                          >
+                            -
+                          </button>
+
+                          <span className="min-w-10 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-center text-sm font-black text-slate-900">
+                            {cartItem.quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => increasePhoneOrderCartItem(cartItem.menuItemId)}
+                            className="h-10 w-10 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-800 transition hover:bg-emerald-100"
+                          >
+                            +
+                          </button>
+
+                          <span className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-900">
+                            {formatMoney(cartItem.unitPrice * cartItem.quantity)}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => removePhoneOrderCartItem(cartItem.menuItemId)}
+                            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
+                    <p className="text-sm font-black text-slate-900">Sepet boş</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Menüden ürün seçerek telefon siparişini hazırlamaya başlayabilirsin.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          <form id="caller-id-order-form" onSubmit={createOrder} className={`${isPhoneOrderStageOpen ? 'hidden' : 'grid'} gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3`}>
             <label className="block text-sm font-black text-slate-800">
               Sipariş Kodu
               <input
@@ -1975,7 +2494,7 @@ export default function CallerIdPage() {
                 disabled={isSaving}
                 className="rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSaving ? 'Oluşturuluyor...' : 'Sipariş Oluştur'}
+                {isSaving ? 'Oluşturuluyor...' : isPhoneOrderStageOpen ? 'Sipariş Oluştur' : 'Önce Siparişe Git'}
               </button>
             </div>
           </form>
