@@ -21,9 +21,16 @@ const settingsCards = [
     badge: "Önemli",
   },
   {
-    title: "Caller ID",
+    title: "Caller ID Cihazları",
     description:
-      "Telefon aramalarından sipariş başlatma ve çağrı geçmişi akışını kontrol et.",
+      "Android Caller ID uygulaması ve cihaz anahtarlarını ayrı ayar ekranından yönet.",
+    href: "/dashboard/settings/cagrilar",
+    badge: "Yeni",
+  },
+  {
+    title: "Caller ID Operasyonu",
+    description:
+      "Telefon aramalarından sipariş başlatma ve çağrı ekranına git.",
     href: "/dashboard/caller-id",
     badge: "Aktif",
   },
@@ -53,8 +60,8 @@ export default function SettingsPage() {
                 </h1>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
                   Bu alan restoranın genel ayarları, bildirim tercihleri,
-                  platform entegrasyonları ve operasyon modülleri için merkezi
-                  kontrol ekranı olacak şekilde düzenlendi.
+                  platform entegrasyonları ve Caller ID ayar ekranları için
+                  merkezi kontrol sayfasıdır.
                 </p>
               </div>
 
@@ -76,7 +83,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="grid gap-5 lg:grid-cols-4">
+        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
           {settingsCards.map((card) => (
             <a
               key={card.title}
@@ -92,7 +99,7 @@ export default function SettingsPage() {
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 {card.description}
               </p>
-              <p className="mt-5 text-sm font-black text-sky-700 transition group-hover:text-sky-700">
+              <p className="mt-5 text-sm font-black text-sky-700 transition group-hover:text-sky-800">
                 Aç →
               </p>
             </a>
@@ -118,7 +125,7 @@ export default function SettingsPage() {
               {operationalChecks.map((check) => (
                 <div
                   key={check}
-                  className="rounded-2xl border border-slate-200 bg-slate-100/50 px-4 py-3 text-sm font-bold text-slate-200"
+                  className="rounded-2xl border border-slate-200 bg-slate-100/50 px-4 py-3 text-sm font-bold text-slate-700"
                 >
                   ✓ {check}
                 </div>
@@ -134,8 +141,8 @@ export default function SettingsPage() {
               Sistem temiz durumda
             </h2>
             <p className="mt-3 text-sm leading-7 text-emerald-900/80">
-              Son commit sonrası çalışma alanı temizdi. Bu UI iyileştirmesi
-              commitlenmeden önce yine build ve route testiyle kontrol edilecek.
+              Caller ID cihaz yönetimi artık ayrı bir ayar sayfasında tutulur.
+              Commit öncesinde yine build ve route testi yapılacak.
             </p>
           </div>
         </section>

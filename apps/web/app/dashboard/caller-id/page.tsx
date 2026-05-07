@@ -62,6 +62,143 @@ type OrderLite = {
   createdAt?: string;
 };
 
+
+type CallerIdPanelTab = 'CUSTOMERS' | 'CALLS' | 'MISSED' | 'CONVERTED' | 'DEVICES';
+
+type CustomerDirectoryRow = {
+  key: string;
+  name: string;
+  phone: string;
+  address: string;
+  lastOrderCode: string;
+  lastOrderAt?: string | null;
+  lastPaymentMethod?: string | null;
+  lastNote?: string | null;
+  totalSpent: number;
+  orderCount: number;
+  callCount: number;
+  latestCallAt?: string | null;
+  convertedOrderCode?: string | null;
+  status: string;
+};
+
+function getTimeValue(value?: string | null) {
+  const time = new Date(value || '').getTime();
+
+  return Number.isFinite(time) ? time : 0;
+}
+
+function buildCustomerDirectory(orders: OrderLite[], callerEvents: CallerEvent[]): CustomerDirectoryRow[] {
+  const rows = new Map<string, CustomerDirectoryRow>();
+
+  function ensureRow(phone: string, fallbackName?: string | null) {
+    const phoneKey = getComparablePhone(phone);
+
+    if (!phoneKey || phoneKey.length < 7) {
+      return null;
+    }
+
+    const current = rows.get(phoneKey);
+
+    if (current) {
+      if ((!current.name || current.name === 'Yeni müşteri') && fallbackName) {
+        current.name = fallbackName;
+      }
+
+      return current;
+    }
+
+    const row: CustomerDirectoryRow = {
+      key: phoneKey,
+      name: fallbackName || 'Yeni müşteri',
+      phone,
+      address: '',
+      lastOrderCode: '',
+      lastOrderAt: null,
+      lastPaymentMethod: null,
+      lastNote: null,
+      totalSpent: 0,
+      orderCount: 0,
+      callCount: 0,
+      latestCallAt: null,
+      convertedOrderCode: null,
+      status: 'Sadece arama',
+    };
+
+    rows.set(phoneKey, row);
+
+    return row;
+  }
+
+  for (const order of sortNewestOrders(orders)) {
+    const row = ensureRow(order.customerPhone || '', order.customerName || null);
+
+    if (!row) {
+      continue;
+    }
+
+    row.orderCount += 1;
+
+    const total = Number(order.total || 0);
+
+    if (Number.isFinite(total)) {
+      row.totalSpent += total;
+    }
+
+    const orderTime = getTimeValue(order.createdAt);
+    const currentLastOrderTime = getTimeValue(row.lastOrderAt);
+
+    if (!row.lastOrderAt || orderTime >= currentLastOrderTime) {
+      row.name = order.customerName || row.name || 'Yeni müşteri';
+      row.phone = order.customerPhone || row.phone;
+      row.address = order.customerAddress || row.address;
+      row.lastOrderCode = order.code || row.lastOrderCode;
+      row.lastOrderAt = order.createdAt || row.lastOrderAt;
+      row.lastPaymentMethod = order.paymentMethod || row.lastPaymentMethod;
+      row.lastNote = order.note || row.lastNote;
+    }
+  }
+
+  for (const event of callerEvents) {
+    const row = ensureRow(event.phone || '', event.customerName || null);
+
+    if (!row) {
+      continue;
+    }
+
+    row.callCount += 1;
+
+    const callTime = getTimeValue(event.receivedAt);
+    const currentCallTime = getTimeValue(row.latestCallAt);
+
+    if (!row.latestCallAt || callTime >= currentCallTime) {
+      row.latestCallAt = event.receivedAt || row.latestCallAt;
+      row.name = event.customerName || row.name || 'Yeni müşteri';
+      row.phone = event.phone || row.phone;
+    }
+
+    if (event.orderCode || event.convertedAt || event.orderId) {
+      row.convertedOrderCode = event.orderCode || row.convertedOrderCode || 'Siparişe dönüştü';
+    }
+  }
+
+  return Array.from(rows.values())
+    .map((row) => ({
+      ...row,
+      status: row.convertedOrderCode
+        ? 'Siparişe dönüştü'
+        : row.orderCount > 0
+          ? 'Kayıtlı müşteri'
+          : 'Sadece arama',
+    }))
+    .sort((first, second) => {
+      const secondTime = Math.max(getTimeValue(second.latestCallAt), getTimeValue(second.lastOrderAt));
+      const firstTime = Math.max(getTimeValue(first.latestCallAt), getTimeValue(first.lastOrderAt));
+
+      return secondTime - firstTime;
+    });
+}
+
 const ORDER_TYPE_OPTIONS: { value: OrderType; label: string }[] = [
   { value: 'DELIVERY', label: 'Paket' },
   { value: 'TABLE', label: 'Masa' },
@@ -306,6 +443,8 @@ export default function CallerIdPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [callerIdPanelTab, setCallerIdPanelTab] = useState<CallerIdPanelTab>('CUSTOMERS');
+  const [customerDirectorySearch, setCustomerDirectorySearch] = useState('');
 
   async function loadOrdersForCode(token: string) {
     const response = await fetch('/api/orders', {
@@ -867,6 +1006,92 @@ export default function CallerIdPage() {
     );
   }
 
+
+  const customerDirectoryRows = buildCustomerDirectory(orders, callerEvents);
+  const activeCallerDevices = callerDevices.filter((device) => device.isActive);
+  const latestCallerDevice = [...callerDevices].sort((first, second) => {
+    return getTimeValue(second.lastSeenAt || second.updatedAt || second.createdAt) - getTimeValue(first.lastSeenAt || first.updatedAt || first.createdAt);
+  })[0];
+
+  const pendingCallerEvents = callerEvents.filter((event) => event.status !== 'SEEN' && !event.seenAt);
+  const convertedCallerEvents = callerEvents.filter((event) => event.orderId || event.orderCode || event.convertedAt);
+
+  const customerDirectorySearchKey = customerDirectorySearch.trim().toLocaleLowerCase('tr-TR');
+  const filteredCustomerDirectoryRows = customerDirectoryRows.filter((row) => {
+    if (!customerDirectorySearchKey) {
+      return true;
+    }
+
+    return [
+      row.name,
+      row.phone,
+      row.address,
+      row.lastOrderCode,
+      row.status,
+      row.convertedOrderCode || '',
+    ]
+      .join(' ')
+      .toLocaleLowerCase('tr-TR')
+      .includes(customerDirectorySearchKey);
+  });
+
+  const selectedCallerEvents =
+    callerIdPanelTab === 'MISSED'
+      ? pendingCallerEvents
+      : callerIdPanelTab === 'CONVERTED'
+        ? convertedCallerEvents
+        : callerEvents;
+
+  function startOrderFromCustomerRow(row: CustomerDirectoryRow) {
+    setOrderType('DELIVERY');
+    setCustomerName(row.name === 'Yeni müşteri' ? '' : row.name);
+    setCustomerPhone(row.phone || '');
+    setCustomerAddress(row.address || '');
+    setPaymentMethod(toPaymentMethod(String(row.lastPaymentMethod || 'CASH')));
+    setNote(row.lastNote || '');
+    setTotal('0');
+    setLastOrderCode('');
+    setActiveCallerEventId('');
+    setError('');
+    setSuccess('Müşteri bilgileri sipariş formuna aktarıldı.');
+
+    setTimeout(() => {
+      const formElement =
+        document.getElementById('caller-id-order-form') ||
+        document.querySelector('form');
+
+      formElement?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  }
+
+  function startNewCustomerOrder() {
+    setOrderType('DELIVERY');
+    setCustomerName('');
+    setCustomerPhone('');
+    setCustomerAddress('');
+    setPaymentMethod('CASH');
+    setNote('');
+    setTotal('0');
+    setLastOrderCode('');
+    setActiveCallerEventId('');
+    setError('');
+    setSuccess('Yeni müşteri için sipariş formu hazırlandı.');
+
+    setTimeout(() => {
+      const formElement =
+        document.getElementById('caller-id-order-form') ||
+        document.querySelector('form');
+
+      formElement?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -878,7 +1103,7 @@ export default function CallerIdPage() {
               </p>
               <h1 className="mt-2 text-3xl font-black text-slate-950">CALLER ID</h1>
               <p className="mt-2 text-sm text-slate-500">
-                Telefonla gelen siparişleri buradan oluştur. Sipariş kodu sistem tarafından otomatik verilir.
+
               </p>
             </div>
 
@@ -898,10 +1123,16 @@ export default function CallerIdPage() {
               >
                 Geçmiş Siparişler
               </button>
+                <a
+                  href="/dashboard/caller-id/cagrilar"
+                  className="caller-id-top-calls-button rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
+                >
+                  Çağrılar
+                </a>
             </div>
           </div>
 
-          <div className="mt-6 rounded-[24px] border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
+          <div className="hidden hidden-next-order-code-card mt-6 rounded-[24px] border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-700">
               Sıradaki Sipariş Kodu
             </p>
@@ -924,6 +1155,294 @@ export default function CallerIdPage() {
           </div>
         ) : null}
 
+        <section id="caller-id-calls-panel" className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/80">
+          <div className="border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-5 sm:p-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">
+                  CALLER ID / Müşteri Paneli
+                </p>
+                <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">
+                  Müşteri listesi ve hızlı sipariş ekranı
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                  Telefon numarası, müşteri adı veya adres ile arama yap. Müşteriyi bulup tek tıkla telefon siparişi başlat.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={startNewCustomerOrder}
+                  className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-black text-sky-800 transition hover:bg-sky-100"
+                >
+                  Yeni Müşteri
+                </button>
+                <button
+                  type="button"
+                  onClick={simulateIncomingCall}
+                  className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 transition hover:bg-emerald-100"
+                >
+                  Test Araması
+                </button>
+                <button
+                  type="button"
+                  onClick={() => loadCallerEvents()}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-100"
+                >
+                  Çağrıları Yenile
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_0.7fr]">
+              <label className="block">
+                <span className="sr-only">Müşteri ara</span>
+                <input
+                  value={customerDirectorySearch}
+                  onChange={(event) => setCustomerDirectorySearch(event.target.value)}
+                  placeholder="Müşteri adı, telefon, adres veya sipariş kodu ara..."
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                />
+              </label>
+
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Cihaz Durumu</p>
+                <p className="mt-1 text-sm font-black text-slate-950">
+                  {activeCallerDevices.length > 0 ? 'Android Caller ID bağlı' : 'Aktif cihaz bekleniyor'}
+                </p>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  {latestCallerDevice
+                    ? `${latestCallerDevice.name} • Son sinyal: ${formatDate(latestCallerDevice.lastSeenAt || latestCallerDevice.updatedAt || latestCallerDevice.createdAt)}`
+                    : 'Henüz cihaz sinyali yok'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {[
+                { key: 'CUSTOMERS' as CallerIdPanelTab, label: 'Tüm Müşteriler', count: customerDirectoryRows.length },
+                { key: 'CALLS' as CallerIdPanelTab, label: 'Gelen Çağrılar', count: callerEvents.length },
+                { key: 'MISSED' as CallerIdPanelTab, label: 'Kaçan / Görülmeyen', count: pendingCallerEvents.length },
+                { key: 'CONVERTED' as CallerIdPanelTab, label: 'Siparişe Dönüşenler', count: convertedCallerEvents.length },
+                { key: 'DEVICES' as CallerIdPanelTab, label: 'Cihazlar', count: callerDevices.length },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setCallerIdPanelTab(tab.key)}
+                  className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
+                    callerIdPanelTab === tab.key
+                      ? 'border-sky-300 bg-sky-50 text-sky-800 shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {tab.label}
+                  <span className="ml-2 rounded-full bg-white px-2 py-1 text-xs text-slate-600">
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {callerIdPanelTab === 'CUSTOMERS' ? (
+            <div className="p-4 sm:p-5">
+              <div className="mb-4 grid gap-3 md:grid-cols-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Müşteri</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{customerDirectoryRows.length}</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Kayıtlı Siparişli</p>
+                  <p className="mt-2 text-2xl font-black text-emerald-900">
+                    {customerDirectoryRows.filter((row) => row.orderCount > 0).length}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-700">Görülmeyen Çağrı</p>
+                  <p className="mt-2 text-2xl font-black text-orange-900">{pendingCallerEvents.length}</p>
+                </div>
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Dönüşen Çağrı</p>
+                  <p className="mt-2 text-2xl font-black text-violet-900">{convertedCallerEvents.length}</p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-slate-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[1120px] w-full divide-y divide-slate-200 text-left text-sm">
+                    <thead className="bg-slate-100 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3">Müşteri</th>
+                        <th className="px-4 py-3">Telefon</th>
+                        <th className="px-4 py-3">Son Adres</th>
+                        <th className="px-4 py-3">Son Sipariş</th>
+                        <th className="px-4 py-3">Çağrı</th>
+                        <th className="px-4 py-3">Durum</th>
+                        <th className="px-4 py-3 text-right">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {filteredCustomerDirectoryRows.slice(0, 12).map((row) => (
+                        <tr key={row.key} className="align-top transition hover:bg-slate-50">
+                          <td className="px-4 py-4">
+                            <p className="font-black text-slate-950">{row.name || 'Yeni müşteri'}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              Toplam harcama: {formatMoney(row.totalSpent)}
+                            </p>
+                          </td>
+                          <td className="px-4 py-4 font-bold text-slate-700">{row.phone || '-'}</td>
+                          <td className="px-4 py-4 text-slate-600">
+                            <span className="line-clamp-2">{row.address || 'Adres yok'}</span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <p className="font-black text-slate-800">{row.lastOrderCode || '-'}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              {row.lastOrderAt ? formatDate(row.lastOrderAt) : 'Henüz sipariş yok'}
+                            </p>
+                          </td>
+                          <td className="px-4 py-4">
+                            <p className="font-black text-slate-800">{row.callCount}</p>
+                            <p className="mt-1 text-xs font-bold text-slate-500">
+                              {row.latestCallAt ? formatDate(row.latestCallAt) : 'Çağrı yok'}
+                            </p>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${
+                              row.convertedOrderCode
+                                ? 'border-violet-200 bg-violet-50 text-violet-800'
+                                : row.orderCount > 0
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                  : 'border-slate-200 bg-slate-50 text-slate-700'
+                            }`}>
+                              {row.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startOrderFromCustomerRow(row)}
+                                className="rounded-2xl bg-sky-500 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-sky-600"
+                              >
+                                Sipariş Başlat
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCustomerDirectorySearch(row.phone);
+                                  setCallerIdPanelTab('CALLS');
+                                }}
+                                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                              >
+                                Çağrılar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {filteredCustomerDirectoryRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-10 text-center">
+                            <p className="text-lg font-black text-slate-900">Müşteri bulunamadı</p>
+                            <p className="mt-2 text-sm font-bold text-slate-500">
+                              Arama kriterini değiştir veya yeni müşteri için sipariş formunu başlat.
+                            </p>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {filteredCustomerDirectoryRows.length > 12 ? (
+                <p className="mt-3 text-center text-xs font-bold text-slate-500">
+                  İlk 12 kayıt gösteriliyor. Daha net sonuç için arama kutusunu kullan.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="p-4 sm:p-5">
+              {callerIdPanelTab === 'DEVICES' ? (
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <h3 className="text-xl font-black text-slate-950">Caller ID cihaz özeti</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Aktif cihaz: {activeCallerDevices.length} / Toplam cihaz: {callerDevices.length}. Detaylı cihaz yönetimi aşağıdaki mevcut bölümde duruyor.
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {callerDevices.slice(0, 4).map((device) => (
+                      <div key={device.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="font-black text-slate-950">{device.name}</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">
+                          {device.isActive ? 'Aktif' : 'Pasif'} • Son sinyal: {formatDate(device.lastSeenAt || device.updatedAt || device.createdAt)}
+                        </p>
+                      </div>
+                    ))}
+                    {callerDevices.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-500">
+                        Henüz cihaz kaydı yok.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-3xl border border-slate-200">
+                  <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                    <h3 className="text-lg font-black text-slate-950">
+                      {callerIdPanelTab === 'MISSED'
+                        ? 'Kaçan / görülmeyen çağrılar'
+                        : callerIdPanelTab === 'CONVERTED'
+                          ? 'Siparişe dönüşen çağrılar'
+                          : 'Gelen çağrılar'}
+                    </h3>
+                    <p className="mt-1 text-sm font-bold text-slate-500">
+                      Bu sekme hızlı özet içindir. Detaylı çağrı geçmişi aşağıdaki mevcut bölümde de korunuyor.
+                    </p>
+                  </div>
+                  <div className="divide-y divide-slate-200 bg-white">
+                    {selectedCallerEvents.slice(0, 8).map((event) => (
+                      <div key={event.id} className="grid gap-3 px-4 py-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Telefon</p>
+                          <p className="mt-1 font-black text-slate-950">{event.phone || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Müşteri</p>
+                          <p className="mt-1 font-bold text-slate-700">{event.customerName || 'Yeni müşteri'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Durum</p>
+                          <p className="mt-1 font-bold text-slate-700">
+                            {event.orderCode ? `Siparişe dönüştü: ${event.orderCode}` : event.seenAt ? 'Görüldü' : 'Yeni çağrı'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => startOrderFromCallerEvent(event)}
+                          className="rounded-2xl bg-sky-500 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-600"
+                        >
+                          Sipariş Başlat
+                        </button>
+                      </div>
+                    ))}
+
+                    {selectedCallerEvents.length === 0 ? (
+                      <div className="px-4 py-10 text-center">
+                        <p className="text-lg font-black text-slate-900">Bu sekmede kayıt yok</p>
+                        <p className="mt-2 text-sm font-bold text-slate-500">Yeni çağrı geldiğinde burada görünecek.</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+
         {lastOrderCode ? (
           <div className="mb-5 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-700">
@@ -933,7 +1452,7 @@ export default function CallerIdPage() {
           </div>
         ) : null}
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+        <section className="hidden hidden-old-call-history-section rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.25em] text-indigo-700">Caller ID</p>
@@ -1052,7 +1571,7 @@ export default function CallerIdPage() {
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
+        <section className="hidden hidden-phone-customer-history-section rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.25em] text-sky-700">Gelen Arama</p>
@@ -1163,7 +1682,7 @@ export default function CallerIdPage() {
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
           <div className="mb-6">
-            <section className="mb-6 rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+            <section className="hidden hidden-caller-device-management-section mb-6 rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.2em] text-emerald-600">Caller ID</p>
