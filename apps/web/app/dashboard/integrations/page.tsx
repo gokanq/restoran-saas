@@ -1,283 +1,476 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from "react";
 
-interface Integration {
-  id: string;
-  platform: string;
-  name: string;
-  supplierId: string | null;
-  apiKey: string | null;
-  apiSecret: string | null;
-  baseUrl: string | null;
-  isActive: boolean;
-  lastSyncAt: string | null;
-  lastError: string | null;
+type IntegrationRecord = {
+  id?: string;
+  platform?: string;
+  provider?: string;
+  name?: string;
+  label?: string;
+  merchantId?: string;
+  supplierId?: string;
+  restaurantId?: string;
+  branchId?: string;
+  isActive?: boolean;
+  enabled?: boolean;
+  status?: string;
+  syncStatus?: string;
+  lastSyncAt?: string;
+  updatedAt?: string;
+  createdAt?: string;
+};
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+
+function apiPath(path: string) {
+  return API_BASE ? `${API_BASE}${path}` : `/api${path}`;
 }
 
-const PLATFORMS = [
-  { id: 'TRENDYOL', name: 'Trendyol Yemek', color: 'bg-orange-500', letter: 'T', fields: ['supplierId', 'apiKey', 'apiSecret', 'baseUrl'] },
-  { id: 'GETIR', name: 'Getir Yemek', color: 'bg-purple-500', letter: 'G', fields: ['apiKey', 'baseUrl'] },
-  { id: 'YEMEKSEPETI', name: 'Yemeksepeti', color: 'bg-red-500', letter: 'Y', fields: [] },
+const platforms = [
+  {
+    key: "TRENDYOL",
+    title: "Trendyol Yemek",
+    badge: "Test için hazır",
+    description:
+      "Mağaza bilgileri geldiğinde ilk canlı bağlantı testi burada yapılacak.",
+    readiness: 80,
+    accent: "from-orange-50 to-amber-50",
+    bar: "bg-orange-500",
+    checklist: [
+      "Supplier / mağaza ID",
+      "API Key ve Secret",
+      "Şube / restoran ID",
+      "User-Agent bilgisi",
+    ],
+  },
+  {
+    key: "GETIR",
+    title: "Getir Yemek",
+    badge: "Altyapı hazır",
+    description:
+      "Getir tarafı için bağlantı alanları ve senkron altyapı genişletilebilir durumda.",
+    readiness: 60,
+    accent: "from-violet-50 to-fuchsia-50",
+    bar: "bg-violet-500",
+    checklist: ["Mağaza ID", "API bilgileri", "Sipariş endpointleri"],
+  },
+  {
+    key: "YEMEKSEPETI",
+    title: "Yemeksepeti",
+    badge: "Planlandı",
+    description:
+      "Çoklu platform mimarisi sayesinde sıradaki entegrasyon adayı olabilir.",
+    readiness: 35,
+    accent: "from-rose-50 to-red-50",
+    bar: "bg-rose-500",
+    checklist: ["Partner erişimi", "Webhook/polling kararı", "Menü eşleme"],
+  },
+  {
+    key: "MIGROS",
+    title: "Migros Yemek",
+    badge: "Planlandı",
+    description:
+      "Sipariş, müşteri ve platform kodu eşleme kurgusu için ayrıldı.",
+    readiness: 30,
+    accent: "from-emerald-50 to-lime-50",
+    bar: "bg-emerald-500",
+    checklist: ["API erişimi", "Platform kodu", "Durum eşleme"],
+  },
 ];
 
-export default function IntegrationsPage() {
-  const router = useRouter();
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState('');
+function normalizePlatform(value?: string) {
+  const raw = (value || "").toUpperCase();
 
-  const [form, setForm] = useState({
-    name: '',
-    platform: '',
-    supplierId: '',
-    apiKey: '',
-    apiSecret: '',
-    baseUrl: '',
-  });
+  if (raw.includes("TRENDYOL")) return "TRENDYOL";
+  if (raw.includes("GETIR") || raw.includes("GETİR")) return "GETIR";
+  if (raw.includes("YEMEK")) return "YEMEKSEPETI";
+  if (raw.includes("MIGROS") || raw.includes("MİGROS")) return "MIGROS";
 
-  const [testing, setTesting] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string } | null>(null);
+  return raw || "UNKNOWN";
+}
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
+function formatDate(value?: string) {
+  if (!value) return "Henüz yok";
 
-  useEffect(() => { fetchIntegrations(); }, []);
+  const date = new Date(value);
 
-  async function fetchIntegrations() {
-    try {
-      const res = await fetch('/api/integrations', { headers });
-      if (res.ok) setIntegrations(await res.json());
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
-  function openAddForm(platformId: string) {
-    setSelectedPlatform(platformId);
-    setEditingId(null);
-    setForm({ name: '', platform: platformId, supplierId: '', apiKey: '', apiSecret: '', baseUrl: '' });
-    setShowForm(true);
-    setTestResult(null);
-  }
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
 
-  function openEditForm(integration: Integration) {
-    setSelectedPlatform(integration.platform);
-    setEditingId(integration.id);
-    setForm({
-      name: integration.name || '',
-      platform: integration.platform,
-      supplierId: integration.supplierId || '',
-      apiKey: integration.apiKey || '',
-      apiSecret: integration.apiSecret || '',
-      baseUrl: integration.baseUrl || '',
-    });
-    setShowForm(true);
-    setTestResult(null);
-  }
+function statusText(item?: IntegrationRecord) {
+  if (!item) return "Henüz bağlanmadı";
+  if (item.isActive === false || item.enabled === false) return "Pasif";
+  return item.syncStatus || item.status || "Aktif / kayıtlı";
+}
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const url = editingId ? `/api/integrations/${editingId}` : '/api/integrations';
-      const method = editingId ? 'PUT' : 'POST';
-      const res = await fetch(url, { method, headers, body: JSON.stringify(form) });
-      if (res.ok) {
-        await fetchIntegrations();
-        setShowForm(false);
-        setEditingId(null);
-      } else {
-        const err = await res.json();
-        alert(err.message || 'Kayit hatasi');
-      }
-    } catch (e) { alert('Baglanti hatasi'); }
-  }
-
-  async function handleToggle(id: string, isActive: boolean) {
-    try {
-      await fetch(`/api/integrations/${id}/toggle`, {
-        method: 'PATCH', headers, body: JSON.stringify({ isActive: !isActive }),
-      });
-      await fetchIntegrations();
-    } catch (e) { alert('Guncelleme hatasi'); }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm('Bu entegrasyonu silmek istediginize emin misiniz?')) return;
-    try {
-      await fetch(`/api/integrations/${id}`, { method: 'DELETE', headers });
-      await fetchIntegrations();
-    } catch (e) { alert('Silme hatasi'); }
-  }
-
-  async function handleTest(id: string) {
-    setTesting(id);
-    setTestResult(null);
-    try {
-      const res = await fetch(`/api/integrations/${id}/test`, { method: 'POST', headers });
-      const data = await res.json();
-      setTestResult({ id, ...data });
-    } catch (e) { setTestResult({ id, success: false, message: 'Baglanti hatasi' }); }
-    finally { setTesting(null); }
-  }
-
-  async function handleSync(id: string) {
-    setSyncing(id);
-    try {
-      await fetch(`/api/integrations/${id}/sync`, { method: 'POST', headers });
-      await fetchIntegrations();
-    } catch (e) { alert('Senkronizasyon hatasi'); }
-    finally { setSyncing(null); }
-  }
-
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-gray-500">Yukleniyor...</div></div>;
-
-  const platformConfig = PLATFORMS.find(p => p.id === selectedPlatform);
+function getAuthToken() {
+  if (typeof window === "undefined") return "";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header with Back Button */}
-        <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => router.push('/dashboard')} className="flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Platform Entegrasyonlari</h1>
-            <p className="text-sm text-gray-500">Birden fazla magaza ekleyebilir ve her birini ayri yonetebilirsiniz</p>
-          </div>
-        </div>
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("restaurant_token") ||
+    localStorage.getItem("restoran_token") ||
+    localStorage.getItem("authToken") ||
+    ""
+  );
+}
 
-        {/* Platform Sections */}
-        {PLATFORMS.map(platform => {
-          const platformIntegrations = integrations.filter(i => i.platform === platform.id);
-          return (
-            <div key={platform.id} className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className={`w-7 h-7 ${platform.color} rounded-lg flex items-center justify-center text-white text-xs font-bold`}>{platform.letter}</span>
-                  <h2 className="text-lg font-semibold text-gray-800">{platform.name}</h2>
-                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{platformIntegrations.length} magaza</span>
-                </div>
-                {platform.fields.length > 0 && (
-                  <button onClick={() => openAddForm(platform.id)} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    Yeni Magaza Ekle
-                  </button>
-                )}
-              </div>
+async function copyTextFallback(text: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
 
-              {platform.fields.length === 0 ? (
-                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-                    <p className="font-semibold mb-2">API Basvurusu Gerekli</p>
-                    <p>Yemeksepeti API erisimi icin restoran partneri olarak basvuru yapmaniz gerekiyor. Onaylandiginda buradan entegrasyon ekleyebilirsiniz.</p>
-                  </div>
-                </div>
-              ) : platformIntegrations.length === 0 ? (
-                <div className="bg-white border border-gray-200 border-dashed rounded-xl p-8 text-center shadow-sm">
-                  <p className="text-gray-400 text-sm">Henuz magaza eklenmemis</p>
-                  <button onClick={() => openAddForm(platform.id)} className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium">+ Ilk magazanizi ekleyin</button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {platformIntegrations.map(integration => (
-                    <div key={integration.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${integration.isActive ? 'bg-green-400' : 'bg-gray-300'}`} />
-                          <div>
-                            <p className="font-medium text-gray-900">{integration.name || 'Isimsiz Magaza'}</p>
-                            <p className="text-xs text-gray-400">{integration.supplierId ? `ID: ${integration.supplierId}` : integration.apiKey ? `Key: ${integration.apiKey.slice(0, 8)}...` : ''}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* Toggle */}
-                          <button onClick={() => handleToggle(integration.id, integration.isActive)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${integration.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${integration.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
-                          </button>
-                          {/* Test */}
-                          <button onClick={() => handleTest(integration.id)} disabled={testing === integration.id} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-50">{testing === integration.id ? '...' : 'Test'}</button>
-                          {/* Sync */}
-                          <button onClick={() => handleSync(integration.id)} disabled={syncing === integration.id} className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 disabled:opacity-50">{syncing === integration.id ? '...' : 'Sync'}</button>
-                          {/* Edit */}
-                          <button onClick={() => openEditForm(integration)} className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">Duzenle</button>
-                          {/* Delete */}
-                          <button onClick={() => handleDelete(integration.id)} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100">Sil</button>
-                        </div>
-                      </div>
-                      {/* Test result inline */}
-                      {testResult && testResult.id === integration.id && (
-                        <div className={`mt-2 text-xs px-3 py-2 rounded-lg ${testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                          {testResult.success ? '\u2713' : '\u2717'} {testResult.message}
-                        </div>
-                      )}
-                      {integration.lastSyncAt && (
-                        <div className="mt-2 text-xs text-gray-400">
-                          Son sync: {new Date(integration.lastSyncAt).toLocaleString('tr-TR')}
-                          {integration.lastError && <span className="text-red-400 ml-2">Hata: {integration.lastError}</span>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  const ok = document.execCommand("copy");
+  document.body.removeChild(textarea);
+
+  return ok;
+}
+
+export default function IntegrationsPage() {
+  const [items, setItems] = useState<IntegrationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("Entegrasyon kayıtları yükleniyor...");
+  const [copied, setCopied] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadIntegrations() {
+      try {
+        const token = getAuthToken();
+
+        if (!token) {
+          if (!mounted) return;
+
+          setItems([]);
+          setMessage(
+            "Giriş tokenı bulunamadı. Panele yeniden giriş yapınca kayıtlı entegrasyonlar okunur. Hazırlık ekranı yine kullanılabilir.",
           );
-        })}
+          setDebugInfo("Token yok");
+          return;
+        }
 
-        {/* Add/Edit Modal */}
-        {showForm && platformConfig && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-              <div className="flex items-center gap-3 mb-5">
-                <span className={`w-8 h-8 ${platformConfig.color} rounded-lg flex items-center justify-center text-white font-bold text-sm`}>{platformConfig.letter}</span>
-                <h3 className="text-lg font-semibold text-gray-900">{editingId ? 'Magazayi Duzenle' : 'Yeni Magaza Ekle'}</h3>
+        const url = apiPath("/integrations");
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          const text = await response.text().catch(() => "");
+
+          throw new Error(
+            `HTTP ${response.status}${text ? ` - ${text.slice(0, 160)}` : ""}`,
+          );
+        }
+
+        const json = await response.json();
+
+        const list = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.data)
+            ? json.data
+            : Array.isArray(json?.items)
+              ? json.items
+              : [];
+
+        if (!mounted) return;
+
+        setItems(list);
+        setMessage(
+          list.length > 0
+            ? `${list.length} entegrasyon kaydı bulundu.`
+            : "Henüz kayıtlı entegrasyon yok. Trendyol mağaza bilgileri geldiğinde ilk kayıt buradan yapılacak.",
+        );
+        setDebugInfo(`API okundu: ${url}`);
+      } catch (error) {
+        if (!mounted) return;
+
+        setItems([]);
+        setMessage(
+          "Entegrasyon kayıtları okunamadı. Hazırlık ekranı kullanılabilir; API detayını aşağıda gösteriyorum.",
+        );
+        setDebugInfo(error instanceof Error ? error.message : "Bilinmeyen hata");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadIntegrations();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, IntegrationRecord[]>();
+
+    for (const item of items) {
+      const key = normalizePlatform(item.platform || item.provider);
+      const current = map.get(key) || [];
+      current.push(item);
+      map.set(key, current);
+    }
+
+    return map;
+  }, [items]);
+
+  async function copyChecklist(platformTitle: string, checklist: string[]) {
+    const text = `${platformTitle} test günü gerekli bilgiler:\n- ${checklist.join(
+      "\n-",
+    )}`;
+
+    try {
+      const ok = await copyTextFallback(text);
+
+      if (ok) {
+        setCopied(platformTitle);
+        setTimeout(() => setCopied(null), 1800);
+      } else {
+        setCopied(null);
+        setMessage(
+          "Kopyalama tarayıcı tarafından engellendi. Listeyi manuel seçip kopyalayabilirsin.",
+        );
+      }
+    } catch {
+      setCopied(null);
+      setMessage(
+        "Kopyalama tarayıcı tarafından engellendi. HTTP ortamında bazı tarayıcılar kopyalamaya izin vermeyebilir.",
+      );
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/80">
+          <div className="relative p-6 sm:p-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.13),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.10),transparent_34%)]" />
+            <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.28em] text-orange-600">
+                  Platform Entegrasyonları
+                </p>
+                <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+                  Paket platformlarını tek panelden yöneteceğiz
+                </h1>
+                <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
+                  Bu ekran Trendyol, Getir, Yemeksepeti ve Migros Yemek gibi
+                  platformlar için bağlantı hazırlığı, güvenli test adımları ve
+                  entegrasyon durumlarını takip etmek için düzenlendi.
+                </p>
               </div>
-              <form onSubmit={handleSave} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Magaza Adi</label>
-                  <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="orn: Kadikoy Subesi" required />
-                </div>
-                {platformConfig.fields.includes('supplierId') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Supplier ID</label>
-                    <input type="text" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Trendyol Supplier ID" required />
-                  </div>
-                )}
-                {platformConfig.fields.includes('apiKey') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-                    <input type="text" value={form.apiKey} onChange={e => setForm({ ...form, apiKey: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="API Key" required />
-                  </div>
-                )}
-                {platformConfig.fields.includes('apiSecret') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">API Secret</label>
-                    <input type="password" value={form.apiSecret} onChange={e => setForm({ ...form, apiSecret: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="API Secret" />
-                  </div>
-                )}
-                {platformConfig.fields.includes('baseUrl') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Base URL (opsiyonel)</label>
-                    <input type="text" value={form.baseUrl} onChange={e => setForm({ ...form, baseUrl: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Varsayilan URL kullanilacak" />
-                  </div>
-                )}
-                <div className="flex gap-3 pt-2">
-                  <button type="submit" className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition">{editingId ? 'Guncelle' : 'Ekle'}</button>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-200 transition">Iptal</button>
-                </div>
-              </form>
+
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="/dashboard"
+                  className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-200"
+                >
+                  Panele Dön
+                </a>
+                <a
+                  href="/dashboard/settings"
+                  className="rounded-2xl bg-orange-400 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-orange-300"
+                >
+                  Ayarlar
+                </a>
+              </div>
             </div>
           </div>
-        )}
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/80">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
+              Sistem Durumu
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">
+              {loading ? "Kontrol ediliyor" : "Hazır"}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{message}</p>
+            {debugInfo ? (
+              <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold leading-5 text-slate-500">
+                Detay: {debugInfo}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/80">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
+              Güvenlik Notu
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">
+              API bilgileri gizli tutulacak
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              API Key / Secret bilgileri GitHub’a, frontend dosyasına veya açık
+              loglara yazılmayacak.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/80">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">
+              İlk Hedef
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">
+              Trendyol mağaza testi
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Mağaza bilgileri geldiğinde önce bağlantı doğrulama, sonra sipariş
+              senkronizasyonu test edilecek.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-2">
+          {platforms.map((platform) => {
+            const records = grouped.get(platform.key) || [];
+            const firstRecord = records[0];
+
+            return (
+              <article
+                key={platform.key}
+                className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/80"
+              >
+                <div className={`bg-gradient-to-br ${platform.accent} p-5 sm:p-6`}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-2xl font-black text-slate-950">
+                          {platform.title}
+                        </h3>
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-700">
+                          {platform.badge}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        {platform.description}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+                      <p className="text-xs font-bold text-slate-500">
+                        Hazırlık
+                      </p>
+                      <p className="text-2xl font-black text-slate-950">
+                        %{platform.readiness}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className={`h-full rounded-full ${platform.bar}`}
+                      style={{ width: `${platform.readiness}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-black text-slate-950">
+                      Bağlantı Durumu
+                    </p>
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-black text-orange-700">
+                        {statusText(firstRecord)}
+                      </p>
+                      <p className="mt-2 text-xs leading-5 text-slate-500">
+                        Kayıt sayısı: {records.length}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Son güncelleme:{" "}
+                        {formatDate(
+                          firstRecord?.lastSyncAt ||
+                            firstRecord?.updatedAt ||
+                            firstRecord?.createdAt,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-black text-slate-950">
+                      Test Günü Gerekli Bilgiler
+                    </p>
+                    <ul className="mt-3 space-y-2">
+                      {platform.checklist.map((item) => (
+                        <li
+                          key={item}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+                        >
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyChecklist(platform.title, platform.checklist)
+                      }
+                      className="mt-3 w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-200"
+                    >
+                      {copied === platform.title
+                        ? "Kopyalandı"
+                        : "Listeyi Kopyala"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+
+        <section className="rounded-[2rem] border border-orange-200 bg-orange-50 p-5 sm:p-6">
+          <h2 className="text-xl font-black text-orange-900">
+            Trendyol test günü sırası
+          </h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            {[
+              "API bilgilerini güvenli al",
+              "Bağlantı doğrulama yap",
+              "Sipariş çekme testini çalıştır",
+              "Siparişi panele bağla",
+            ].map((step, index) => (
+              <div
+                key={step}
+                className="rounded-2xl border border-orange-200 bg-white px-4 py-3"
+              >
+                <p className="text-xs font-black text-orange-700">
+                  ADIM {index + 1}
+                </p>
+                <p className="mt-2 text-sm font-bold leading-6 text-slate-900">
+                  {step}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
