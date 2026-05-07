@@ -475,7 +475,7 @@ function getCallerRecentOrderStatusLabel(status?: string | null) {
 
 function getCallerRecentOrderStatusClass(status?: string | null) {
   const baseClass =
-    'inline-flex items-center justify-center rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] shadow-sm';
+    'inline-flex items-center justify-center rounded-full border px-3 py-2 text-xs font-black uppercase tracking-[0.12em] shadow-sm';
 
   if (status === 'DELIVERED') {
     return `${baseClass} border-emerald-200 bg-emerald-50 text-emerald-700`;
@@ -2043,13 +2043,13 @@ export default function DashboardPage() {
     return (
       <div className="rounded-[24px] border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-500 shadow-sm">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-9500 shadow-sm">
             Ø
           </div>
 
           <div>
             <p className="text-sm font-black text-slate-900">{message}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-500">
+            <p className="mt-1 text-xs font-semibold text-slate-9500">
               Bu bölümde aksiyon bekleyen kayıt olduğunda otomatik olarak listelenir.
             </p>
           </div>
@@ -2064,12 +2064,12 @@ export default function DashboardPage() {
 
     const primaryActionClass =
       primaryAction?.value === 'ACCEPTED'
-        ? 'border-emerald-700 bg-emerald-600 text-white shadow-[0_10px_24px_rgba(5,150,105,0.24)] hover:bg-emerald-700'
+        ? 'border-emerald-700 bg-emerald-600 text-slate-950 shadow-[0_10px_24px_rgba(5,150,105,0.24)] hover:bg-emerald-700'
         : primaryAction?.value === 'ON_DELIVERY'
-          ? 'border-sky-700 bg-sky-600 text-white shadow-[0_10px_24px_rgba(2,132,199,0.24)] hover:bg-sky-700'
+          ? 'border-sky-700 bg-sky-600 text-slate-950 shadow-[0_10px_24px_rgba(2,132,199,0.24)] hover:bg-sky-700'
           : primaryAction?.value === 'DELIVERED'
-            ? 'border-green-700 bg-green-600 text-white shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:bg-green-700'
-            : 'border-slate-800 bg-slate-900 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] hover:bg-slate-800';
+            ? 'border-green-700 bg-green-600 text-slate-950 shadow-[0_10px_24px_rgba(22,163,74,0.24)] hover:bg-green-700'
+            : 'border-slate-800 bg-white text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.18)] hover:bg-slate-50';
 
     const primaryButton = primaryAction ? (
       <button
@@ -2098,7 +2098,7 @@ export default function DashboardPage() {
             type="button"
             onClick={() => updateOrderStatus(order.id, 'CANCELLED')}
             disabled={updatingOrderId === order.id}
-            className="inline-flex h-[46px] min-w-[92px] items-center justify-center rounded-2xl border border-red-700 bg-red-600 px-4 text-xs font-black text-white shadow-[0_10px_24px_rgba(220,38,38,0.20)] transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-[46px] min-w-[92px] items-center justify-center rounded-2xl border border-red-700 bg-red-600 px-4 text-xs font-black text-slate-950 shadow-[0_10px_24px_rgba(220,38,38,0.20)] transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             İptal Et
           </button>
@@ -2136,7 +2136,7 @@ export default function DashboardPage() {
         <button
           type="button"
           onClick={() => setCourierChangeOrder(order)}
-          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-white px-3 py-1 text-xs font-black text-sky-700 transition hover:bg-slate-100"
+          className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-white px-3 py-2 text-xs font-black text-sky-700 transition hover:bg-slate-100"
           title="Kuryeyi değiştir"
         >
           Kurye: {courierName}
@@ -2145,7 +2145,7 @@ export default function DashboardPage() {
     }
 
     return (
-      <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-white px-3 py-1 text-xs font-black text-sky-700">
+      <div className="mt-2 inline-flex items-center rounded-full border border-cyan-300/40 bg-white px-3 py-2 text-xs font-black text-sky-700">
         Kurye: {courierName}
       </div>
     );
@@ -2165,16 +2165,16 @@ export default function DashboardPage() {
 
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-[0.22em] text-slate-9500">
                   {sectionMeta.eyebrow}
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-black uppercase tracking-[0.18em] text-slate-9500">
                   {sectionMeta.code}
                 </span>
               </div>
 
               <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{title}</h3>
-              <p className="mt-1 max-w-3xl text-sm font-medium text-slate-500">{description}</p>
+              <p className="mt-1 max-w-3xl text-sm font-medium text-slate-9500">{description}</p>
             </div>
           </div>
 
@@ -2189,19 +2189,19 @@ export default function DashboardPage() {
         ) : (
           <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white shadow-sm">
             <table className="w-full min-w-[1180px] overflow-hidden rounded-[24px] text-left text-sm">
-              <thead className="bg-slate-900">
+              <thead className="bg-white">
                 <tr>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white first:rounded-tl-[24px]">Kod</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Tip</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Müşteri</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Telefon</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Şube</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Durum</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Toplam</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Ödeme</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Tarih</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white">Detay</th>
-                  <th className="sticky right-0 z-20 min-w-[280px] rounded-tr-[24px] bg-slate-900 px-4 py-4 text-left text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-[-14px_0_24px_rgba(15,23,42,0.18)]">İşlem</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950 first:rounded-tl-[24px]">Kod</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Tip</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Müşteri</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Telefon</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Şube</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Durum</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Toplam</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Ödeme</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Tarih</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Detay</th>
+                  <th className="sticky right-0 z-20 min-w-[280px] rounded-tr-[24px] bg-white px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950 shadow-[-14px_0_24px_rgba(15,23,42,0.18)]">İşlem</th>
                 </tr>
               </thead>
 
@@ -2219,7 +2219,7 @@ export default function DashboardPage() {
                       <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">{order.code}</td>
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
-                        <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-black text-slate-800 shadow-sm">
+                        <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800 shadow-sm">
                           {typeLabel}
                         </span>
                       </td>
@@ -2227,7 +2227,7 @@ export default function DashboardPage() {
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         <div className="font-black text-slate-950">{order.customerName || '-'}</div>
                         {order.customerAddress ? (
-                          <div className="mt-1 max-w-[220px] truncate text-xs font-semibold text-slate-500">
+                          <div className="mt-1 max-w-[220px] truncate text-xs font-semibold text-slate-9500">
                             {order.customerAddress}
                           </div>
                         ) : null}
@@ -2243,7 +2243,7 @@ export default function DashboardPage() {
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         <span
-                          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${statusBadgeClass}`}
+                          className={`inline-flex items-center rounded-full border px-3 py-2 text-xs font-black ${statusBadgeClass}`}
                         >
                           {statusLabel}
                         </span>
@@ -2253,7 +2253,7 @@ export default function DashboardPage() {
                       <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">{formatMoney(order.total)}</td>
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
-                        <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-black text-slate-800 shadow-sm">
+                        <span className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-800 shadow-sm">
                           {paymentLabel}
                         </span>
                       </td>
@@ -2291,15 +2291,15 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen px-6 py-8 bg-slate-100 px-4 py-6 sm:px-6 lg:px-8 text-slate-950">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-black/20">
+      <div className="mx-auto max-w-[1480px] space-y-8">
+        <header className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)] shadow-slate-200/80">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
                 Restoran SaaS
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-tight">Ana Sayfa</h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-slate-9500">
                 {user ? `${user.name} • ${user.email} • ${roleLabel}` : 'Kullanıcı bilgisi yok'}
               </p>
             </div>
@@ -2398,12 +2398,12 @@ export default function DashboardPage() {
                   body: JSON.stringify({ autoApproveOrders: newVal }),
                 });
               }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${autoApproveOrders ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${autoApproveOrders ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-slate-100 text-slate-9500 hover:bg-slate-200'}`}
             >
               {autoApproveOrders ? '\u2713 Açık' : '\u2717 Kapalı'}
             </button>
           </div>
-          <div className="ml-auto text-xs text-slate-400">
+          <div className="ml-auto text-xs text-slate-500">
             Her 3 saniyede güncelleniyor
           </div>
         </div>
@@ -2480,7 +2480,7 @@ export default function DashboardPage() {
                   Caller ID Gelen Arama Paneli
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-slate-950">Operasyonda canlı arama</h2>
-                <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-500">
+                <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-9500">
                   Telefon araması geldiğinde müşteri ve adres bilgisi operasyon ekranında açılır. Cihazdan gelen çağrılar kullanıcı aksiyonuyla görüldü yapılır.
                 </p>
               </div>
@@ -2507,7 +2507,7 @@ export default function DashboardPage() {
               <div className="mt-5 rounded-[28px] border border-slate-200 bg-slate-50 p-5 shadow-inner">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-9500">
                       {incomingCall.isSearching ? 'Aranıyor' : callerPanelMode === 'known' ? 'Kayıtlı Müşteri' : 'Kayıtsız Numara'}
                     </p>
                     <h3 className="mt-2 text-3xl font-black text-slate-950">
@@ -2517,20 +2517,20 @@ export default function DashboardPage() {
                           ? `${incomingCall.customer.name} Arıyor...`
                           : `${incomingCall.phone} Arıyor...`}
                     </h3>
-                    <p className="mt-2 text-sm font-bold text-slate-500">Telefon: {incomingCall.phone}</p>
+                    <p className="mt-2 text-sm font-bold text-slate-9500">Telefon: {incomingCall.phone}</p>
 
                     {activeCallerEvent ? (
                       <div className="mt-4 grid gap-3 rounded-2xl border border-sky-200 bg-white p-4 text-sm shadow-sm md:grid-cols-3">
                         <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Kaynak</p>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kaynak</p>
                           <p className="mt-1 font-black text-slate-900">{activeCallerEvent.source || 'Caller ID cihazı'}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Durum</p>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Durum</p>
                           <p className="mt-1 font-black text-amber-700">Yeni çağrı</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Geliş zamanı</p>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Geliş zamanı</p>
                           <p className="mt-1 font-black text-slate-900">
                             {new Intl.DateTimeFormat('tr-TR', {
                               dateStyle: 'short',
@@ -2603,7 +2603,7 @@ export default function DashboardPage() {
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Ad Soyad</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Ad Soyad</span>
                         <input
                           value={callerRegistrationForm.name}
                           onChange={(event) => updateCallerRegistrationField('name', event.target.value)}
@@ -2613,7 +2613,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Telefon</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Telefon</span>
                         <input
                           value={callerRegistrationForm.phone}
                           onChange={(event) => updateCallerRegistrationField('phone', event.target.value)}
@@ -2622,7 +2622,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Adres Tipi</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Adres Tipi</span>
                         <select
                           value={callerRegistrationForm.addressType}
                           onChange={(event) => {
@@ -2638,7 +2638,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">İlçe</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">İlçe</span>
                         <input
                           value={callerRegistrationForm.district}
                           onChange={(event) => updateCallerRegistrationField('district', event.target.value)}
@@ -2648,7 +2648,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Mahalle</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Mahalle</span>
                         <input
                           value={callerRegistrationForm.neighborhood}
                           onChange={(event) => updateCallerRegistrationField('neighborhood', event.target.value)}
@@ -2658,7 +2658,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Cadde / Sokak</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Cadde / Sokak</span>
                         <input
                           value={callerRegistrationForm.street}
                           onChange={(event) => updateCallerRegistrationField('street', event.target.value)}
@@ -2668,7 +2668,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Bina No</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Bina No</span>
                         <input
                           value={callerRegistrationForm.buildingNo}
                           onChange={(event) => updateCallerRegistrationField('buildingNo', event.target.value)}
@@ -2678,7 +2678,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kat</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Kat</span>
                         <input
                           value={callerRegistrationForm.floorNo}
                           onChange={(event) => updateCallerRegistrationField('floorNo', event.target.value)}
@@ -2688,7 +2688,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Kapı No</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Kapı No</span>
                         <input
                           value={callerRegistrationForm.doorNo}
                           onChange={(event) => updateCallerRegistrationField('doorNo', event.target.value)}
@@ -2698,7 +2698,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2 md:col-span-2 xl:col-span-3">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Adres Açıklaması</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Adres Açıklaması</span>
                         <textarea
                           value={callerRegistrationForm.description}
                           onChange={(event) => updateCallerRegistrationField('description', event.target.value)}
@@ -2723,7 +2723,7 @@ export default function DashboardPage() {
                       <button
                         type="submit"
                         disabled={isSavingCallerCustomer}
-                        className="rounded-2xl bg-sky-600 px-6 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(2,132,199,0.18)] transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        className="rounded-2xl bg-sky-600 px-6 py-3 text-sm font-black text-slate-950 shadow-[0_10px_24px_rgba(2,132,199,0.18)] transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                       >
                         {isSavingCallerCustomer ? 'Kaydediliyor...' : 'Kaydet ve Siparişe Hazırla'}
                       </button>
@@ -2770,7 +2770,7 @@ export default function DashboardPage() {
                             </label>
                           ))
                         ) : (
-                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-bold text-slate-9500">
                             Bu müşteriye kayıtlı adres yok. Düzenle ile adres eklenebilir.
                           </div>
                         )}
@@ -2780,11 +2780,11 @@ export default function DashboardPage() {
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <p className="text-sm font-black text-slate-950">Son sipariş geçmişi</p>
-                            <p className="text-xs font-semibold text-slate-500">
+                            <p className="text-xs font-semibold text-slate-9500">
                               Aynı telefon numarasından açılmış son 5 sipariş.
                             </p>
                           </div>
-                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black text-slate-600">
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600">
                             {(incomingCall.customer.recentOrders || []).length} kayıt
                           </span>
                         </div>
@@ -2799,7 +2799,7 @@ export default function DashboardPage() {
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                   <div>
                                     <p className="text-sm font-black text-slate-950">{order.code || 'Sipariş'}</p>
-                                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                                    <p className="mt-1 text-xs font-semibold text-slate-9500">
                                       {order.createdAt ? new Date(order.createdAt).toLocaleString('tr-TR') : '-'}
                                     </p>
                                   </div>
@@ -2817,7 +2817,7 @@ export default function DashboardPage() {
                                       type="button"
                                       onClick={() => repeatRecentOrderToCart(order)}
                                       disabled={(order.items || []).every((item) => !(item.menuItemId || item.menuItem?.id))}
-                                      className="mt-3 rounded-full border border-emerald-200 bg-emerald-600 px-4 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-400"
+                                      className="mt-3 rounded-full border border-emerald-200 bg-emerald-600 px-4 py-2 text-xs font-black text-slate-950 shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-200 disabled:text-slate-500"
                                     >
                                       Tekrar Sepete Al
                                     </button>
@@ -2829,19 +2829,19 @@ export default function DashboardPage() {
                                     {order.items?.slice(0, 4).map((item) => (
                                       <span
                                         key={item.id || `${item.name}-${item.quantity}`}
-                                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600"
+                                        className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"
                                       >
                                         {item.quantity || 1}× {item.name || 'Ürün'}
                                       </span>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="mt-3 text-xs font-semibold text-slate-400">Ürün detayı yok.</p>
+                                  <p className="mt-3 text-xs font-semibold text-slate-500">Ürün detayı yok.</p>
                                 )}
                               </div>
                             ))
                           ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-500">
+                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-9500">
                               Bu müşteri için henüz sipariş geçmişi bulunamadı.
                             </div>
                           )}
@@ -2853,7 +2853,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={fillOrderFromIncomingCall}
-                        className="w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600"
+                        className="w-full rounded-2xl bg-emerald-500 px-5 py-4 text-sm font-black text-slate-950 shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600"
                       >
                         Siparişe Git
                       </button>
@@ -2864,7 +2864,7 @@ export default function DashboardPage() {
                       >
                         Düzenle
                       </button>
-                      <p className="text-xs font-semibold leading-5 text-slate-500">
+                      <p className="text-xs font-semibold leading-5 text-slate-9500">
                         Siparişe Git, müşteri bilgilerini aşağıdaki yeni sipariş formuna aktarır.
                       </p>
                     </div>
@@ -2882,14 +2882,14 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         disabled
-                        className="w-full cursor-not-allowed rounded-2xl bg-slate-200 px-5 py-4 text-sm font-black text-slate-500"
+                        className="w-full cursor-not-allowed rounded-2xl bg-slate-200 px-5 py-4 text-sm font-black text-slate-9500"
                       >
                         Siparişe Git
                       </button>
                       <button
                         type="button"
                         onClick={startUnknownCallerRegistration}
-                        className="w-full rounded-2xl bg-sky-600 px-5 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(2,132,199,0.18)] transition hover:bg-sky-700"
+                        className="w-full rounded-2xl bg-sky-600 px-5 py-4 text-sm font-black text-slate-950 shadow-[0_10px_24px_rgba(2,132,199,0.18)] transition hover:bg-sky-700"
                       >
                         Yeni Kayıt
                       </button>
@@ -2907,7 +2907,7 @@ export default function DashboardPage() {
                 Operasyon
               </p>
               <h2 className="mt-2 text-2xl font-black">Sipariş Operasyon Ekranı V2</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-9500">
                 Siparişler aşama aşama ilerler: Kabul Et → Yola Çıkar → Teslim Et. Teslim edilen ve iptal edilen siparişler Geçmiş Siparişler bölümüne aktarılır.
                 {lastOrdersRefreshAt ? ` Son güncelleme: ${lastOrdersRefreshAt}` : ''}
               </p>
@@ -2930,7 +2930,7 @@ export default function DashboardPage() {
                   Caller ID Sepet
                 </p>
                 <h3 className="mt-1 text-xl font-black text-slate-950">Telefon Siparişi Sepeti</h3>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
+                <p className="mt-1 text-sm font-semibold text-slate-9500">
                   Arayan müşteriyi seçtikten sonra ürünleri sepete ekle ve tek tuşla operasyon siparişi oluştur.
                 </p>
               </div>
@@ -2946,7 +2946,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-black text-slate-950">Müşteri Bilgisi</p>
 
                 <div className="mt-4 grid gap-3">
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
                     Ad Soyad
                     <input
                       value={customerName}
@@ -2956,7 +2956,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
                     Telefon
                     <input
                       value={customerPhone}
@@ -2966,7 +2966,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
                     Adres
                     <textarea
                       value={customerAddress}
@@ -2977,7 +2977,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
                     Ödeme
                     <select
                       value={orderPaymentMethod}
@@ -3001,7 +3001,7 @@ export default function DashboardPage() {
                     onClick={() => setOrderMenuCategoryId('')}
                     className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
                       !orderMenuCategoryId
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20'
+                        ? 'border-slate-900 bg-white text-slate-950 shadow-lg shadow-slate-900/20'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -3015,7 +3015,7 @@ export default function DashboardPage() {
                       onClick={() => setOrderMenuCategoryId(category.id)}
                       className={`shrink-0 rounded-2xl border px-4 py-2 text-xs font-black transition ${
                         orderMenuCategoryId === category.id
-                          ? 'border-emerald-700 bg-emerald-700 text-white shadow-lg shadow-emerald-700/20'
+                          ? 'border-emerald-700 bg-emerald-700 text-slate-950 shadow-lg shadow-emerald-700/20'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                       }`}
                     >
@@ -3037,7 +3037,7 @@ export default function DashboardPage() {
                           <div>
                             <p className="text-sm font-black text-slate-950">{menuItem.name}</p>
                             {(menuItem as any).description ? (
-                              <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-500">
+                              <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-9500">
                                 {(menuItem as any).description}
                               </p>
                             ) : null}
@@ -3047,9 +3047,9 @@ export default function DashboardPage() {
                           </span>
                         </div>
 
-                        <div className="mt-3 flex items-center justify-between text-xs font-black text-slate-500">
+                        <div className="mt-3 flex items-center justify-between text-xs font-black text-slate-9500">
                           <span>Sepete ekle</span>
-                          <span className="rounded-full bg-emerald-600 px-3 py-1 text-white transition group-hover:bg-emerald-700">
+                          <span className="rounded-full bg-emerald-600 px-3 py-2 text-slate-950 transition group-hover:bg-emerald-700">
                             + Ekle
                           </span>
                         </div>
@@ -3059,7 +3059,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
                     <p className="text-sm font-black text-slate-900">Bu kategoride ürün yok</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                    <p className="mt-1 text-xs font-semibold text-slate-9500">
                       Menü Yönetimi bölümünden ürün ekleyebilirsin.
                     </p>
                   </div>
@@ -3076,7 +3076,7 @@ export default function DashboardPage() {
                         setOrderCartItems([]);
                         setOrderTotal('');
                       }}
-                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-700 hover:bg-red-100"
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-black text-red-700 hover:bg-red-100"
                     >
                       Temizle
                     </button>
@@ -3090,7 +3090,7 @@ export default function DashboardPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-sm font-black text-slate-950">{cartItem.name}</p>
-                            <p className="mt-1 text-xs font-bold text-slate-500">
+                            <p className="mt-1 text-xs font-bold text-slate-9500">
                               {formatMoney(cartItem.unitPrice)} x {cartItem.quantity}
                             </p>
                           </div>
@@ -3139,13 +3139,13 @@ export default function DashboardPage() {
                 ) : (
                   <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
                     <p className="text-sm font-black text-slate-900">Sepet boş</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                    <p className="mt-1 text-xs font-semibold text-slate-9500">
                       Telefon siparişi için ürün seç.
                     </p>
                   </div>
                 )}
 
-                <label className="mt-4 block text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+                <label className="mt-4 block text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
                   Sipariş Notu
                   <textarea
                     value={orderNote}
@@ -3160,7 +3160,7 @@ export default function DashboardPage() {
                   type="button"
                   onClick={createCallerCartOrder}
                   disabled={isCreatingOrder || orderCartItems.length === 0}
-                  className="mt-4 w-full rounded-2xl bg-gradient-to-r from-emerald-700 to-slate-900 px-5 py-4 text-sm font-black text-white shadow-xl shadow-emerald-900/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-4 w-full rounded-2xl bg-gradient-to-r from-emerald-700 to-sky-50 px-5 py-4 text-sm font-black text-slate-950 shadow-xl shadow-emerald-900/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isCreatingOrder ? 'Sipariş Oluşturuluyor...' : 'Caller ID Siparişi Oluştur'}
                 </button>
@@ -3175,7 +3175,7 @@ export default function DashboardPage() {
                 <input
                   value={orderSearch}
                   onChange={(event) => setOrderSearch(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3.5 shadow-inner text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3.5 shadow-inner text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-emerald-400"
                   placeholder="Kod, masa no, müşteri, telefon, adres, not, şube..."
                 />
               </label>
@@ -3193,7 +3193,7 @@ export default function DashboardPage() {
           </div>
 
           {orderSearch && filteredOrders.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-9500">
               Bu arama sonucunda sipariş bulunamadı.
             </div>
           ) : (
@@ -3229,7 +3229,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-black text-slate-800">Kurye Seçimi</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-9500">
                   {dispatchCourierOrder.code} kodlu siparişi yola çıkarmak için kurye seç.
                 </p>
               </div>
@@ -3307,7 +3307,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-black text-slate-800">Kurye Seçimi</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-9500">
                   {courierChangeOrder.code} kodlu sipariş yolda kalır, sadece atanmış kuryesi değişir.
                 </p>
               </div>
@@ -3349,7 +3349,7 @@ export default function DashboardPage() {
                     </span>
 
                     {courier.id === courierChangeOrder.courierId ? (
-                      <span className="rounded-full border border-cyan-400/30 bg-white px-3 py-1 text-xs font-black text-sky-700">
+                      <span className="rounded-full border border-cyan-400/30 bg-white px-3 py-2 text-xs font-black text-sky-700">
                         Mevcut
                       </span>
                     ) : null}
@@ -3395,7 +3395,7 @@ export default function DashboardPage() {
                   Sipariş Detayı
                 </p>
                 <h3 className="mt-2 text-2xl font-black">{selectedOrder.code}</h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-9500">
                   {formatOrderDate(selectedOrder.createdAt)}
                 </p>
               </div>
@@ -3411,7 +3411,7 @@ export default function DashboardPage() {
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Sipariş Tipi
                 </p>
                 <p className="mt-2 text-lg font-bold">
@@ -3420,18 +3420,18 @@ export default function DashboardPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Masa No
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.tableNumber || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Durum
                 </p>
                 <span
-                  className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-bold ${
+                  className={`mt-2 inline-flex rounded-full border px-3 py-2 text-sm font-bold ${
                     ORDER_STATUS_BADGE_CLASSES[selectedOrder.status] ||
                     'border-slate-400/30 bg-slate-50/10 text-slate-700'
                   }`}
@@ -3441,28 +3441,28 @@ export default function DashboardPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Müşteri
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.customerName || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Telefon
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.customerPhone || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Şube
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.branch?.name || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Toplam
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.total} TL</p>
@@ -3488,7 +3488,7 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-500">
+                          <p className="text-sm font-semibold text-slate-9500">
                             {item.quantity} x {formatMoney(item.unitPrice)}
                           </p>
                           <p className="mt-1 text-base font-black text-emerald-300">
@@ -3502,7 +3502,7 @@ export default function DashboardPage() {
               ) : null}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
                   Adres
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
@@ -3521,7 +3521,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-6 border-t border-slate-200 pt-5">
-              <p className="mb-3 text-sm font-bold text-slate-500">Durum Güncelle</p>
+              <p className="mb-3 text-sm font-bold text-slate-9500">Durum Güncelle</p>
 
               {renderOrderActionArea(selectedOrder)}
             </div>
