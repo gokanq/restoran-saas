@@ -149,6 +149,7 @@ export class CouriersService {
     perPackageFee?: string | number | null;
     hourlyFee?: string | number | null;
     isActive?: boolean;
+    pinCode?: string | null;
   }) {
     const name = optionalText(data.name);
 
@@ -199,6 +200,7 @@ export class CouriersService {
     perPackageFee?: string | number | null;
     hourlyFee?: string | number | null;
     isActive?: boolean;
+    pinCode?: string | null;
   }) {
     const courier = await this.prisma.courier.findFirst({
       where: {
@@ -236,6 +238,7 @@ export class CouriersService {
           data.perPackageFee === undefined ? undefined : decimalNumber(data.perPackageFee),
         hourlyFee: data.hourlyFee === undefined ? undefined : decimalNumber(data.hourlyFee),
         isActive: data.isActive,
+        pinCode: data.pinCode === undefined ? undefined : (data.pinCode || null),
       },
       include: {
         branch: {

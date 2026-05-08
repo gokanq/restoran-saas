@@ -83,6 +83,8 @@ model Branch {
   name                 String
   address              String?
   phone                String?
+  latitude             Decimal?              @db.Decimal(10, 7)
+  longitude            Decimal?              @db.Decimal(10, 7)
   restaurant           Restaurant            @relation(fields: [restaurantId], references: [id])
   orders               Order[]
   couriers             Courier[]
@@ -358,20 +360,28 @@ model MenuItem {
 }
 
 model Courier {
-  id            String           @id @default(cuid())
-  restaurantId  String
-  branchId      String?
-  name          String
-  phone         String?
-  perPackageFee Decimal          @default(0) @db.Decimal(10, 2)
-  hourlyFee     Decimal          @default(0) @db.Decimal(10, 2)
-  isActive      Boolean          @default(true)
-  restaurant    Restaurant       @relation(fields: [restaurantId], references: [id])
-  branch        Branch?          @relation(fields: [branchId], references: [id])
-  orders        Order[]
-  workLogs      CourierWorkLog[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  restaurantId    String
+  branchId        String?
+  name            String
+  phone           String?
+  perPackageFee   Decimal          @default(0) @db.Decimal(10, 2)
+  hourlyFee       Decimal          @default(0) @db.Decimal(10, 2)
+  isActive        Boolean          @default(true)
+  latitude        Decimal?         @db.Decimal(10, 7)
+  longitude       Decimal?         @db.Decimal(10, 7)
+  isOnline        Boolean          @default(false)
+  isAvailable     Boolean          @default(true)
+  lastLocationAt  DateTime?
+  pinCode         String?
+  authToken       String?          @unique
+  restaurant      Restaurant       @relation(fields: [restaurantId], references: [id])
+  branch          Branch?          @relation(fields: [branchId], references: [id])
+  orders          Order[]
+  workLogs        CourierWorkLog[]
+  assignments     DeliveryAssignment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([restaurantId])
   @@index([branchId])
@@ -408,6 +418,8 @@ model Order {
   customerName    String?
   customerPhone   String?
   customerAddress String?
+  deliveryLat     Decimal?       @db.Decimal(10, 7)
+  deliveryLng     Decimal?       @db.Decimal(10, 7)
   courierId       String?
   courierName     String?
   note            String?
@@ -417,10 +429,12 @@ model Order {
   items           OrderItem[]
   tableSessions   TableSession[]
   callerEvents    CallerEvent[]
+  assignment      DeliveryAssignment?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   @@index([courierId])
+  @@index([status])
 }
 
 model OrderItem {
@@ -502,6 +516,18 @@ model OrderItemOption {
   @@index([optionId])
 }
 
+
+enum DeliveryAssignmentStatus {
+  PENDING
+  ASSIGNED
+  ACCEPTED
+  PICKED_UP
+  DELIVERING
+  DELIVERED
+  CANCELLED
+  REJECTED
+}
+
 enum PlatformType {
   TRENDYOL
   GETIR
@@ -557,4 +583,68 @@ model RestaurantSettings {
   updatedAt          DateTime @updatedAt
 
   @@index([restaurantId])
+}
+
+model LocationDistrict {
+  id            String                 @id @default(cuid())
+  city          String
+  name          String
+  sortOrder     Int                    @default(0)
+  isActive      Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  neighborhoods LocationNeighborhood[]
+
+  @@unique([city, name])
+  @@index([city, isActive])
+}
+
+model LocationNeighborhood {
+  id         String           @id @default(cuid())
+  districtId String
+  name       String
+  sortOrder  Int              @default(0)
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  district   LocationDistrict @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  @@unique([districtId, name])
+  @@index([districtId, isActive])
+}
+
+
+
+model DeliveryAssignment {
+  id              String    @id @default(cuid())
+  restaurantId    String
+  branchId        String?
+  orderId         String    @unique
+  courierId       String
+  status          DeliveryAssignmentStatus @default(PENDING)
+  distance        Decimal?  @db.Decimal(10, 2)
+  duration        Int?
+  routeGeometry   String?
+  pickupLat       Decimal?  @db.Decimal(10, 7)
+  pickupLng       Decimal?  @db.Decimal(10, 7)
+  dropoffLat      Decimal?  @db.Decimal(10, 7)
+  dropoffLng      Decimal?  @db.Decimal(10, 7)
+  earnings        Decimal?  @db.Decimal(10, 2)
+  proofPhotoUrl   String?
+  rejectionReason String?
+  assignedAt      DateTime  @default(now())
+  acceptedAt      DateTime?
+  pickedUpAt      DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  courier         Courier   @relation(fields: [courierId], references: [id])
+
+  @@index([restaurantId])
+  @@index([courierId])
+  @@index([status])
+  @@index([assignedAt])
 }

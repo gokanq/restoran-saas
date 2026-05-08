@@ -2350,6 +2350,12 @@ export default function DashboardPage() {
             </a>
 
             <a
+              href="/dashboard/deliveries"
+              className="rounded-2xl border border-blue-300 bg-blue-50 px-5 py-4 shadow-inner text-sm font-black text-blue-800 transition hover:bg-blue-100"
+            >
+              Canlı Teslimat / Harita
+            </a>
+            <a
               href="/dashboard/couriers"
               className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
             >
@@ -2471,7 +2477,7 @@ export default function DashboardPage() {
 
 
 
-        
+
 
                   <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

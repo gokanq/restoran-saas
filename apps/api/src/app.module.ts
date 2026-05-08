@@ -15,9 +15,13 @@ import { CallerDevicesModule } from './caller-devices/caller-devices.module';
 import { CallerDeviceEventsModule } from './caller-device-events/caller-device-events.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { RestaurantSettingsModule } from './restaurant-settings/restaurant-settings.module';
+import { LocationsModule } from './locations/locations.module';
+import { DeliveriesModule } from './deliveries/deliveries.module';
 
 @Module({
   imports: [
+    LocationsModule,
+    DeliveriesModule,
     AuthModule,
     PrismaModule,
     RestaurantsModule,

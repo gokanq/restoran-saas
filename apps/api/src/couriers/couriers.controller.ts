@@ -126,6 +126,7 @@ export class CouriersController {
       perPackageFee?: string | number | null;
       hourlyFee?: string | number | null;
       isActive?: boolean;
+      pinCode?: string | null;
     },
     @Req() req: AuthenticatedRequest,
   ) {
@@ -142,6 +143,7 @@ export class CouriersController {
       perPackageFee: body.perPackageFee,
       hourlyFee: body.hourlyFee,
       isActive: body.isActive,
+      pinCode: body.pinCode,
     });
   }
 

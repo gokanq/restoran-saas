@@ -3,6 +3,65 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+// __STEP2C_V3_GIRESUN_MERKEZ_NEIGHBORHOODS__
+const GIRESUN_MERKEZ_NEIGHBORHOOD_OPTIONS = [
+  'Aksu Mahallesi',
+  'Aydınlar Mahallesi',
+  'Cumhuriyet Mahallesi',
+  'Çağlayan Mahallesi',
+  'Çaykara Mahallesi',
+  'Çınarlar Mahallesi',
+  'Çıtlakkale Mahallesi',
+  'Demirci Mahallesi',
+  'Erikliman Mahallesi',
+  'Fevzi Çakmak Mahallesi',
+  'Gaziler Mahallesi',
+  'Gedikkaya Mahallesi',
+  'Gemilerçeği Mahallesi',
+  'Güre Mahallesi',
+  'Hacı Hüseyin Mahallesi',
+  'Hacımiktat Mahallesi',
+  'Hacısiyam Mahallesi',
+  'Homurlu Mahallesi',
+  'Kale Mahallesi',
+  'Kapu Mahallesi',
+  'Kavaklar Mahallesi',
+  'Kayadibi Mahallesi',
+  'Konacık Mahallesi',
+  'Küçükköy Mahallesi',
+  'Nizamiye Mahallesi',
+  'Osmaniye Mahallesi',
+  'Samanlıkkıranı Mahallesi',
+  'Seldeğirmeni Mahallesi',
+  'Sultan Selim Mahallesi',
+  'Şeyhkeramettin Mahallesi',
+  'Tekke Mahallesi',
+  'Teyyaredüzü Mahallesi',
+  'Yalı Mahallesi',
+] as const;
+
+
+// __STEP2C_V2_GIRESUN_DISTRICT_OPTIONS__
+const GIRESUN_DISTRICT_OPTIONS = [
+  'Alucra',
+  'Bulancak',
+  'Çamoluk',
+  'Çanakçı',
+  'Dereli',
+  'Doğankent',
+  'Espiye',
+  'Eynesil',
+  'Görele',
+  'Güce',
+  'Keşap',
+  'Merkez',
+  'Piraziz',
+  'Şebinkarahisar',
+  'Tirebolu',
+  'Yağlıdere',
+] as const;
+
+
 type Branch = {
   id: string;
   name: string;
@@ -468,11 +527,17 @@ export default function CallerIdPage() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [addressType, setAddressType] = useState<'Ev' | 'İş' | 'Diğer'>('Ev');
+  const [addressDistrict, setAddressDistrict] = useState('Merkez');
+  const [addressNeighborhood, setAddressNeighborhood] = useState('');
+  const [customerAddresses, setCustomerAddresses] = useState<any[]>([]);
+  const [selectedCustomerAddressId, setSelectedCustomerAddressId] = useState('');
+  const [isAddingCustomerAddress, setIsAddingCustomerAddress] = useState(false);
   const [total, setTotal] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
   const [isPhoneOrderStageOpen, setIsPhoneOrderStageOpen] = useState(false);
-  const [showNewCustomerOrderSection, setShowNewCustomerOrderSection] = useState(false);
+  const [showNewCustomerOrderSection, setShowNewCustomerOrderSection] = useState(true);
   const [phoneOrderMenuCategories, setPhoneOrderMenuCategories] = useState<PhoneOrderMenuCategory[]>([]);
   const [phoneOrderMenuItems, setPhoneOrderMenuItems] = useState<PhoneOrderMenuItem[]>([]);
   const [phoneOrderMenuCategoryId, setPhoneOrderMenuCategoryId] = useState('');
@@ -616,6 +681,12 @@ export default function CallerIdPage() {
     setCustomerPhone(phone);
     setCustomerName(event.customerName || latestOrderForCaller?.customerName || '');
     setCustomerAddress(latestOrderForCaller?.customerAddress || '');
+    setCustomerAddresses([]);
+    setSelectedCustomerAddressId('');
+    setIsAddingCustomerAddress(false);
+    setAddressType('Ev');
+    setAddressDistrict('Merkez');
+    setAddressNeighborhood('');
     setPaymentMethod(toPaymentMethod(String(latestOrderForCaller?.paymentMethod || 'CASH')));
     setNote(latestOrderForCaller?.note || '');
     setOrderType('DELIVERY');
@@ -641,21 +712,32 @@ export default function CallerIdPage() {
         if (response.ok) {
           const customer = await readJson(response);
           const addresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
+          const activeAddresses = addresses.filter((address: any) => address?.isActive !== false);
           const defaultAddress =
-            addresses.find((address: any) => address?.isDefault) ||
-            addresses[0] ||
+            activeAddresses.find((address: any) => address?.isDefault) ||
+            activeAddresses[0] ||
             null;
           const recentOrders = Array.isArray(customer?.recentOrders) ? customer.recentOrders : [];
           const latestCustomerOrder = recentOrders[0];
 
           setCustomerName(customer?.name || event.customerName || latestOrderForCaller?.customerName || '');
           setCustomerPhone(customer?.phone || phone);
-          setCustomerAddress(
-            defaultAddress?.fullAddress ||
+          setCustomerAddresses(activeAddresses);
+
+          if (defaultAddress) {
+            fillAddressFormFromCustomerAddress(defaultAddress);
+          } else {
+            setSelectedCustomerAddressId('');
+            setIsAddingCustomerAddress(true);
+            setAddressType('Ev');
+            setAddressDistrict('Merkez');
+            setAddressNeighborhood('');
+            setCustomerAddress(
               latestCustomerOrder?.customerAddress ||
-              latestOrderForCaller?.customerAddress ||
-              '',
-          );
+                latestOrderForCaller?.customerAddress ||
+                '',
+            );
+          }
 
           if (latestCustomerOrder?.paymentMethod) {
             setPaymentMethod(toPaymentMethod(String(latestCustomerOrder.paymentMethod)));
@@ -1077,6 +1159,62 @@ export default function CallerIdPage() {
     syncPhoneOrderCart(nextCartItems);
   }
 
+  // __STEP2B_REGISTERED_CUSTOMER_ADDRESSES__
+  function normalizeAddressTypeForUi(value: unknown): 'Ev' | 'İş' | 'Diğer' {
+    const normalized = String(value || '').toLocaleLowerCase('tr-TR');
+
+    if (normalized.includes('iş') || normalized.includes('work')) {
+      return 'İş';
+    }
+
+    if (normalized.includes('diğer') || normalized.includes('diger') || normalized.includes('other')) {
+      return 'Diğer';
+    }
+
+    return 'Ev';
+  }
+
+  function fillAddressFormFromCustomerAddress(address: any) {
+    setSelectedCustomerAddressId(String(address?.id || ''));
+    setIsAddingCustomerAddress(false);
+    setAddressType(normalizeAddressTypeForUi(address?.type || address?.title));
+    setAddressDistrict(String(address?.district || ''));
+    setAddressNeighborhood(String(address?.neighborhood || ''));
+    setCustomerAddress(
+      String(
+        address?.description ||
+          address?.fullAddress ||
+          address?.street ||
+          '',
+      ),
+    );
+  }
+
+  function startAddingCustomerAddress() {
+    setSelectedCustomerAddressId('');
+    setIsAddingCustomerAddress(true);
+    setAddressType('Ev');
+    setAddressDistrict('Merkez');
+    setAddressNeighborhood('');
+    setCustomerAddress('');
+  }
+
+  function getCustomerAddressLabel(address: any) {
+    return String(address?.title || address?.type || 'Adres');
+  }
+
+  function getCustomerAddressSummary(address: any) {
+    const pieces = [
+      address?.district,
+      address?.neighborhood,
+      address?.description || address?.fullAddress || address?.street,
+    ]
+      .map((piece) => String(piece || '').trim())
+      .filter(Boolean);
+
+    return pieces.length > 0 ? pieces.join(' / ') : 'Adres detayı yok';
+  }
+
   // __CALLER_ID_ORDER_STAGE_V2_STEP1_SAFE__
   function goToPhoneOrderStage() {
     if (orderType === 'DELIVERY' && !customerPhone.trim()) {
@@ -1314,6 +1452,13 @@ export default function CallerIdPage() {
     setActiveCallerEventId('');
     setError('');
     setSuccess('Yeni müşteri için sipariş formu hazırlandı.');
+    setShowNewCustomerOrderSection(true);
+    setTimeout(() => {
+      document.getElementById('caller-id-new-phone-order-anchor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 50);
 
     setTimeout(() => {
       const formElement =
@@ -1340,13 +1485,7 @@ export default function CallerIdPage() {
 
             {/* __CALLER_ID_NEW_CUSTOMER_BUTTON_MOVED_TO_HEADER_V2__ */}
             <div className="mt-4 flex flex-wrap items-center gap-3">
-{/* __CALLER_ID_NEW_CUSTOMER_LINKS_TO_SEPARATE_ROUTE__ */}
-                <a
-                  href="/dashboard/caller-id/yenimusteri"
-                  className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-black text-sky-800 transition hover:bg-sky-100"
-                >
-                  Yeni Müşteri
-                </a>
+{/* __STEP1D_REMOVE_REDUNDANT_NEW_CUSTOMER_BUTTON_IN_YENIMUSTERI__ */}
             </div>
               <p className="mt-2 text-sm text-slate-500">
 
@@ -1361,20 +1500,16 @@ export default function CallerIdPage() {
               >
                 Ana Sayfa
               </button>
-
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/orders/history')}
+              {/* __YENI_MUSTERI_TOP_NAV_V2_ANASAYFA_CALLER_ID_ONLY__ */}
+              <a
+                href="/dashboard/caller-id"
                 className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
               >
-                Geçmiş Siparişler
-              </button>
-                <a
-                  href="/dashboard/caller-id/cagrilar"
-                  className="caller-id-top-calls-button rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
-                >
-                  Çağrılar
-                </a>
+                Caller ID
+              </a>
+
+
+
             </div>
           </div>
 
@@ -1401,7 +1536,7 @@ export default function CallerIdPage() {
           </div>
         ) : null}
 
-        <section id="caller-id-calls-panel" className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/80">
+        <section id="caller-id-calls-panel" className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/80" style={{ display: "none" }}>
           <div className="border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-5 sm:p-6">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div>
@@ -2102,7 +2237,8 @@ export default function CallerIdPage() {
           </p>
           </div>
 
-          <div id="caller-id-order-stage-card" style={{ display: showNewCustomerOrderSection && !isPhoneOrderStageOpen ? "block" : "none" }} className={`${isPhoneOrderStageOpen ? 'hidden' : 'mb-4'} rounded-[24px] border border-sky-200 bg-sky-50 p-5 shadow-sm`}>
+          {/* __STEP1C_HIDE_CUSTOMER_STAGE_INFO_CARD__ */}
+          <div id="caller-id-order-stage-card" style={{ display: "none" }} className={`${isPhoneOrderStageOpen ? 'hidden' : 'mb-4'} rounded-[24px] border border-sky-200 bg-sky-50 p-5 shadow-sm`}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-700">
@@ -2387,46 +2523,19 @@ export default function CallerIdPage() {
             </div>
           ) : null}
 
+          {/* __STEP1_YENI_MUSTERI_CUSTOMER_FORM_NO_TOTAL_PAYMENT__ */}
           <form id="caller-id-order-form" style={{ display: showNewCustomerOrderSection && !isPhoneOrderStageOpen ? "grid" : "none" }} onSubmit={createOrder} className={`${isPhoneOrderStageOpen ? 'hidden' : 'grid'} gap-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5 md:grid-cols-2 xl:grid-cols-3`}>
-            <label className="block text-sm font-black text-slate-800">
-              Sipariş Kodu
-              <input
-                value={lastOrderCode || orderCodePreview}
-                readOnly
-                className="mt-2 w-full cursor-not-allowed rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 font-black text-cyan-900 shadow-inner outline-none"
-              />
-            </label>
 
-            <label className="block text-sm font-black text-slate-800">
-              Şube
-              <select
-                value={branchId}
-                onChange={(event) => setBranchId(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              >
-                <option value="">Şube seçilmedi</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              {/* __STEP1D_YENIMUSTERI_CUSTOMER_FORM_ONLY_CUSTOMER_FIELDS__: Sipariş Kodu müşteri aşamasından kaldırıldı */}
 
-            <label className="block text-sm font-black text-slate-800">
-              Sipariş Tipi
-              <select
-                value={orderType}
-                onChange={(event) => setOrderType(event.target.value as OrderType)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              >
-                {ORDER_TYPE_OPTIONS.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+
+
+              {/* __STEP1D_YENIMUSTERI_CUSTOMER_FORM_ONLY_CUSTOMER_FIELDS__: Şube müşteri aşamasından kaldırıldı */}
+
+
+
+              {/* __STEP1D_YENIMUSTERI_CUSTOMER_FORM_ONLY_CUSTOMER_FIELDS__: Sipariş Tipi müşteri aşamasından kaldırıldı */}
+
 
             {orderType === 'TABLE' ? (
               <label className="block text-sm font-black text-slate-800">
@@ -2461,41 +2570,185 @@ export default function CallerIdPage() {
             </label>
 
             {orderType === 'DELIVERY' ? (
-              <label className="block text-sm font-black text-slate-800 md:col-span-2">
-                Adres
-                <input
+              <>
+              {/* __STEP2B_VISIBLE_ADDRESS_INFO_HEADER__ */}
+              <div className="md:col-span-2 xl:col-span-3 rounded-[24px] border border-emerald-100 bg-emerald-50/70 p-4">
+                {/* __STEP2C_V2_ADD_ADDRESS_BUTTON_ALWAYS_VISIBLE__ */}
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.28em] text-emerald-700">Adres Bilgileri</p>
+                    <h3 className="mt-1 text-lg font-black text-slate-950">
+                      Teslimat adresini oluştur
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                      Yeni müşteri için ilk adresi buradan gir. Kayıtlı müşteri bulunduğunda kayıtlı adresler ayrıca listelenecek.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={startAddingCustomerAddress}
+                    className="w-full rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50 md:w-auto"
+                  >
+                    + Adres Ekle
+                  </button>
+                </div>
+
+                {isAddingCustomerAddress ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm font-black text-emerald-800">
+                    Yeni adres ekleme modu açık. Aşağıdaki alanları doldurabilirsin.
+                  </div>
+                ) : null}
+              </div>
+
+              {/* __STEP2A_V2_SPLIT_CUSTOMER_ADDRESS_FIELDS__ */}
+              {customerAddresses.length > 0 ? (
+                <div className="md:col-span-2 xl:col-span-3 rounded-[24px] border border-sky-100 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">Kayıtlı Adresler</p>
+                      <h3 className="mt-1 text-lg font-black text-slate-950">Bu müşterinin adresleri</h3>
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        Sipariş için kullanılacak adresi seç veya yeni adres ekle.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={startAddingCustomerAddress}
+                      className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 transition hover:bg-emerald-100"
+                    >
+                      + Adres Ekle
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {customerAddresses.map((address: any) => {
+                      const addressId = String(address?.id || '');
+                      const isSelected = !isAddingCustomerAddress && addressId === selectedCustomerAddressId;
+
+                      return (
+                        <button
+                          key={addressId || getCustomerAddressSummary(address)}
+                          type="button"
+                          onClick={() => fillAddressFormFromCustomerAddress(address)}
+                          className={`rounded-2xl border p-4 text-left transition ${
+                            isSelected
+                              ? 'border-sky-300 bg-sky-50 shadow-sm'
+                              : 'border-slate-200 bg-slate-50 hover:border-sky-200 hover:bg-sky-50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-slate-950">
+                                {getCustomerAddressLabel(address)}
+                                {address?.isDefault ? (
+                                  <span className="ml-2 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">
+                                    Varsayılan
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+                                {getCustomerAddressSummary(address)}
+                              </p>
+                            </div>
+
+                            <span
+                              className={`rounded-full px-3 py-1 text-[10px] font-black ${
+                                isSelected
+                                  ? 'bg-sky-500 text-white'
+                                  : 'bg-white text-slate-500 ring-1 ring-slate-200'
+                              }`}
+                            >
+                              {isSelected ? 'Seçili' : 'Seç'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isAddingCustomerAddress ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">
+                      Yeni adres ekleme modu açık. Aşağıdaki alanları doldurup siparişe devam edebilirsin.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <label className="block text-sm font-bold text-slate-700">
+                Adres Tipi
+                <select
+                  value={addressType}
+                  onChange={(event) => setAddressType(event.target.value as 'Ev' | 'İş' | 'Diğer')}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                >
+                  <option value="Ev">Ev</option>
+                  <option value="İş">İş</option>
+                  <option value="Diğer">Diğer</option>
+                </select>
+              </label>
+              <label className="block text-sm font-bold text-slate-700">
+                İlçe
+                <select
+                  value={addressDistrict}
+                  onChange={(event) => {
+                    const nextDistrict = event.target.value;
+                    setAddressDistrict(nextDistrict);
+                    setAddressNeighborhood('');
+                  }}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                >
+                  {GIRESUN_DISTRICT_OPTIONS.map((district) => (
+                    <option key={district} value={district}>
+                      {district}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm font-bold text-slate-700">
+                Mahalle
+                <select
+                  value={addressNeighborhood}
+                  onChange={(event) => setAddressNeighborhood(event.target.value)}
+                  disabled={addressDistrict !== 'Merkez'}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                >
+                  {addressDistrict === 'Merkez' ? (
+                    <>
+                      <option value="">Mahalle seç</option>
+                      {GIRESUN_MERKEZ_NEIGHBORHOOD_OPTIONS.map((neighborhood) => (
+                        <option key={neighborhood} value={neighborhood}>
+                          {neighborhood}
+                        </option>
+                      ))}
+                    </>
+                  ) : (
+                    <option value="">Bu ilçe için mahalle verisi sonraki adımda eklenecek</option>
+                  )}
+                </select>
+              </label>
+
+              <label className="block text-sm font-bold text-slate-700 md:col-span-2 xl:col-span-3">
+                Detay Adres
+                <textarea
                   value={customerAddress}
                   onChange={(event) => setCustomerAddress(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  placeholder="Teslimat adresi"
+                  placeholder="Sokak, bina no, kat, daire, tarif vb."
+                  rows={3}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
                 />
               </label>
+            </>
             ) : null}
 
-            <label className="block text-sm font-black text-slate-800">
-              Toplam Tutar
-              <input
-                value={total}
-                onChange={(event) => setTotal(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                placeholder="Örn: 250"
-              />
-            </label>
 
-            <label className="block text-sm font-black text-slate-800">
-              Ödeme Tipi
-              <select
-                value={paymentMethod}
-                onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-              >
-                {PAYMENT_METHOD_OPTIONS.map((method) => (
-                  <option key={method.value} value={method.value}>
-                    {method.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              {/* __STEP1_YENI_MUSTERI_CUSTOMER_FORM_NO_TOTAL_PAYMENT__: Toplam Tutar müşteri aşamasından kaldırıldı */}
+
+
+
+              {/* __STEP1_YENI_MUSTERI_CUSTOMER_FORM_NO_TOTAL_PAYMENT__: Ödeme Tipi müşteri aşamasından kaldırıldı */}
+
 
             <label className="block text-sm font-black text-slate-800 md:col-span-2 xl:col-span-3">
               Not
@@ -2508,12 +2761,23 @@ export default function CallerIdPage() {
             </label>
 
             <div className="md:col-span-2 xl:col-span-3">
+              {/* __STEP1C_CUSTOMER_FORM_BUTTON_SIPARISE_GIT__ */}
               <button
-                type="submit"
-                disabled={isSaving}
-                className="rounded-2xl bg-emerald-500 px-6 py-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(16,185,129,0.22)] transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setSuccess("");
+                  setIsPhoneOrderStageOpen(true);
+                  setTimeout(() => {
+                    document.getElementById("caller-id-menu-display")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
+                  }, 50);
+                }}
+                className="rounded-2xl bg-sky-500 px-6 py-4 text-sm font-black text-white shadow-lg shadow-sky-100 transition hover:bg-sky-600"
               >
-                {isSaving ? 'Oluşturuluyor...' : isPhoneOrderStageOpen ? 'Sipariş Oluştur' : 'Önce Siparişe Git'}
+                Siparişe Git
               </button>
             </div>
           </form>

@@ -39,6 +39,7 @@ function loadEnvFile(filePath) {
 }
 
 const apiEnv = loadEnvFile('/var/www/restoran-saas/apps/api/.env');
+const webEnv = loadEnvFile('/var/www/restoran-saas/apps/web/.env.local');
 
 module.exports = {
   apps: [
@@ -49,6 +50,7 @@ module.exports = {
       instances: 3,
       exec_mode: 'cluster',
       env: {
+        MAPBOX_TOKEN: apiEnv.MAPBOX_TOKEN || '',
         ...apiEnv,
         NODE_ENV: 'production',
         PORT: apiEnv.PORT || '4000',
@@ -64,6 +66,9 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: {
+        ...webEnv,
+        NEXT_PUBLIC_MAPBOX_TOKEN:
+          webEnv.NEXT_PUBLIC_MAPBOX_TOKEN || apiEnv.MAPBOX_TOKEN || '',
         NODE_ENV: 'production',
       },
       max_memory_restart: '512M',
