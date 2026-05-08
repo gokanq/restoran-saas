@@ -491,6 +491,15 @@ export default function CallerIdPage() {
   const [success, setSuccess] = useState('');
   const [callerIdPanelTab, setCallerIdPanelTab] = useState<CallerIdPanelTab>('CUSTOMERS');
   const [customerDirectorySearch, setCustomerDirectorySearch] = useState('');
+  function buildYeniMusteriHref(params: { phone?: string; name?: string; address?: string; callerEventId?: string }) {
+    const query = new URLSearchParams();
+    if (params.phone) query.set('phone', params.phone);
+    if (params.name) query.set('name', params.name);
+    if (params.address) query.set('address', params.address);
+    if (params.callerEventId) query.set('callerEventId', params.callerEventId);
+    const queryString = query.toString();
+    return `/dashboard/caller-id/yenimusteri${queryString ? `?${queryString}` : ''}`;
+  }
 
   async function loadOrdersForCode(token: string) {
     const response = await fetch('/api/orders', {
