@@ -369,7 +369,9 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
       throw new ForbiddenException('Bu siparişi güncelleme yetkiniz yok');
     }
 
-    return this.prisma.order.update({
+    // Atomik güncelleme: Order + DeliveryAssignment birlikte kapanır.
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.update({
       where: {
         id: data.orderId,
       },
@@ -390,5 +392,33 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
         },
       },
     });
+
+      if (
+        data.status === OrderStatus.DELIVERED ||
+        data.status === OrderStatus.CANCELLED
+      ) {
+        const assignmentStatus =
+          data.status === OrderStatus.DELIVERED ? 'DELIVERED' : 'CANCELLED';
+        const timestampField =
+          data.status === OrderStatus.DELIVERED
+            ? { deliveredAt: new Date() }
+            : { cancelledAt: new Date() };
+
+        await tx.deliveryAssignment.updateMany({
+          where: {
+            orderId: data.orderId,
+            status: { notIn: ['DELIVERED', 'CANCELLED'] },
+          },
+          data: {
+            status: assignmentStatus,
+            ...timestampField,
+          },
+        });
+      }
+
+      return order;
+    });
+
+    return updatedOrder;
   }
 }
