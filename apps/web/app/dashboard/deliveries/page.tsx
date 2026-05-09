@@ -6,7 +6,13 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
-const DEFAULT_CENTER: [number, number] = [29.0271, 40.9923];
+const BRANCH_LOCATION = {
+  lat: 40.915186,
+  lng: 38.3905965,
+  label: 'Papos - Fast Food - Cafe',
+} as const;
+const DEFAULT_CENTER: [number, number] = [BRANCH_LOCATION.lng, BRANCH_LOCATION.lat];
+const DEFAULT_ZOOM = 14;
 
 interface Courier {
   id: string;
@@ -129,6 +135,7 @@ export default function DeliveriesPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const branchMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const routeLayersRef = useRef<string[]>([]);
   const mapReadyRef = useRef(false);
 
@@ -160,6 +167,9 @@ export default function DeliveriesPage() {
 
   // Map init
   useEffect(() => {
+    // İlk render'da loading ekranı açık olduğu için mapContainer henüz DOM'da olmaz.
+    // Loading bittikten sonra effect tekrar çalışmalı; yoksa Mapbox hiç initialize olmaz.
+    if (loading) return;
     if (!mapContainer.current || map.current) return;
     if (!MAPBOX_TOKEN) {
       setTokenError(true);
@@ -171,7 +181,7 @@ export default function DeliveriesPage() {
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center: DEFAULT_CENTER,
-      zoom: 12,
+      zoom: DEFAULT_ZOOM,
       attributionControl: false,
     });
 
@@ -183,14 +193,47 @@ export default function DeliveriesPage() {
 
     map.current.on('load', () => {
       mapReadyRef.current = true;
+
+      // Sabit şube/mağaza marker'ı: polling sırasında silinmez ve yeniden yaratılmaz.
+      if (branchMarkerRef.current || !map.current) return;
+
+      const el = document.createElement('div');
+      el.style.width = '40px';
+      el.style.height = '40px';
+      el.style.borderRadius = '50%';
+      el.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+      el.style.border = '3px solid white';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.color = 'white';
+      el.style.fontWeight = '800';
+      el.style.fontSize = '16px';
+      el.style.cursor = 'pointer';
+      el.title = BRANCH_LOCATION.label;
+      el.innerText = 'Ş';
+
+      const branchPopup = new mapboxgl.Popup({
+        offset: 28,
+        closeButton: false,
+        className: 'rs-popup',
+      }).setText(BRANCH_LOCATION.label);
+
+      branchMarkerRef.current = new mapboxgl.Marker(el)
+        .setLngLat([BRANCH_LOCATION.lng, BRANCH_LOCATION.lat])
+        .setPopup(branchPopup)
+        .addTo(map.current);
     });
 
     return () => {
+      branchMarkerRef.current?.remove();
+      branchMarkerRef.current = null;
       map.current?.remove();
       map.current = null;
       mapReadyRef.current = false;
     };
-  }, []);
+  }, [loading]);
 
   // Fetch
   const fetchAll = useCallback(
@@ -279,7 +322,7 @@ export default function DeliveriesPage() {
       dot.style.fontWeight = '700';
       dot.style.position = 'relative';
       dot.style.zIndex = '2';
-      dot.innerText = c.name.charAt(0).toUpperCase();
+      dot.innerText = 'K';
       wrapper.appendChild(dot);
 
       const popup = new mapboxgl.Popup({ offset: 28, closeButton: false, className: 'rs-popup' })
@@ -445,29 +488,9 @@ export default function DeliveriesPage() {
     });
   }, [couriers, unassigned, active, tokenError]);
 
-  // Auto-fit bounds (sadece ilk yüklemede)
-  const [hasFit, setHasFit] = useState(false);
-  useEffect(() => {
-    if (!map.current || hasFit || tokenError || !mapReadyRef.current) return;
-    const points: [number, number][] = [];
-    couriers.forEach((c) => {
-      if (c.latitude && c.longitude) points.push([Number(c.longitude), Number(c.latitude)]);
-    });
-    unassigned.forEach((o) => {
-      if (o.deliveryLat && o.deliveryLng) points.push([Number(o.deliveryLng), Number(o.deliveryLat)]);
-    });
-    active.forEach((a) => {
-      if (a.dropoffLat && a.dropoffLng) points.push([Number(a.dropoffLng), Number(a.dropoffLat)]);
-    });
-    if (points.length > 1) {
-      const bounds = points.reduce(
-        (b, p) => b.extend(p),
-        new mapboxgl.LngLatBounds(points[0], points[0]),
-      );
-      map.current.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 800 });
-      setHasFit(true);
-    }
-  }, [couriers, unassigned, active, hasFit, tokenError]);
+  // Auto-fit devre dışı: harita BRANCH_LOCATION + DEFAULT_ZOOM ile sabit açılır.
+  // Polling/veri yenilemede ekran kullanıcıdan kaymasın diye fitBounds çağrılmıyor.
+  // Kullanıcı list item'a tıklayarak yine flyTo edebilir (focusOnMap effect aşağıda).
 
   // Focus on map (when user clicks list item)
   useEffect(() => {
