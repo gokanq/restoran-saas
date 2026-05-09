@@ -37,12 +37,22 @@ type MenuItemOptionGroup = {
   options?: MenuItemOption[];
 };
 
+type MenuChannel = 'QR' | 'TABLE_SERVICE' | 'CALLER_ID' | 'MOBILE' | 'WHATSAPP';
+
+type MenuItemChannelSetting = {
+  id?: string;
+  channel: MenuChannel;
+  isEnabled?: boolean;
+  customPrice?: string | number | null;
+};
+
 type MenuItem = {
   id: string;
   name: string;
   description?: string | null;
   imageUrl?: string | null;
   isActive?: boolean;
+  channelSettings?: MenuItemChannelSetting[];
   price: string | number;
   categoryId?: string | null;
   branchId?: string | null;
@@ -62,6 +72,26 @@ function formatMoney(value: string | number) {
     style: 'currency',
     currency: 'TRY',
   }).format(toNumber(value));
+}
+
+const MENU_CHANNELS: Array<{ key: MenuChannel; label: string; shortLabel: string }> = [
+  { key: 'QR', label: 'QR Sipariş', shortLabel: 'QR' },
+  { key: 'TABLE_SERVICE', label: 'Masa Servis', shortLabel: 'Masa' },
+  { key: 'CALLER_ID', label: 'Caller ID', shortLabel: 'Caller' },
+  { key: 'MOBILE', label: 'Mobil Uygulama', shortLabel: 'Mobil' },
+  { key: 'WHATSAPP', label: 'WhatsApp', shortLabel: 'WhatsApp' },
+];
+
+function getMenuItemChannelSetting(item: MenuItem, channel: MenuChannel) {
+  return item.channelSettings?.find((setting) => setting.channel === channel);
+}
+
+function getChannelPriceValue(setting?: MenuItemChannelSetting) {
+  if (!setting || setting.customPrice === null || setting.customPrice === undefined) {
+    return '';
+  }
+
+  return String(setting.customPrice);
 }
 
 function uniqueOptionGroups(groups: MenuItemOptionGroup[]) {
@@ -657,6 +687,44 @@ export default function DashboardMenuPage() {
     }
   }
 
+  async function updateMenuItemChannelSetting(
+    item: MenuItem,
+    channel: MenuChannel,
+    patch: {
+      isEnabled?: boolean;
+      customPrice?: string | number | null;
+    },
+  ) {
+    const existingSetting = getMenuItemChannelSetting(item, channel);
+
+    try {
+      setError('');
+      setMessage('');
+
+      await apiRequest(`/api/menu/items/${item.id}/channel-settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          settings: [
+            {
+              channel,
+              isEnabled: patch.isEnabled ?? existingSetting?.isEnabled ?? true,
+              customPrice:
+                patch.customPrice === undefined
+                  ? existingSetting?.customPrice ?? null
+                  : patch.customPrice,
+            },
+          ],
+        }),
+      });
+
+      setMessage('Kanal ayarı güncellendi.');
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Kanal ayarı güncellenemedi.');
+    }
+  }
+
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -917,6 +985,70 @@ export default function DashboardMenuPage() {
                       <p className="mt-3 text-xl font-black text-emerald-600">
                         {formatMoney(item.price)}
                       </p>
+
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                            Kanal Ayarları
+                          </p>
+                          <span className="rounded-full bg-sky-50 px-3 py-1 text-[11px] font-black text-sky-700">
+                            Tek menü altyapısı
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-3">
+                          {MENU_CHANNELS.map((channel) => {
+                            const setting = getMenuItemChannelSetting(item, channel.key);
+                            const isChannelEnabled = setting?.isEnabled ?? true;
+
+                            return (
+                              <div
+                                key={channel.key}
+                                className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm font-black text-slate-900">{channel.label}</p>
+                                    <p className="text-xs font-semibold text-slate-500">
+                                      {isChannelEnabled ? 'Bu kanalda satışta' : 'Bu kanalda kapalı'}
+                                    </p>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateMenuItemChannelSetting(item, channel.key, {
+                                        isEnabled: !isChannelEnabled,
+                                      })
+                                    }
+                                    className={`rounded-xl px-3 py-2 text-xs font-black transition ${
+                                      isChannelEnabled
+                                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                    }`}
+                                  >
+                                    {isChannelEnabled ? 'Açık' : 'Kapalı'}
+                                  </button>
+                                </div>
+
+                                <label className="mt-3 block text-xs font-black text-slate-500">
+                                  Kanal fiyatı
+                                </label>
+                                <input
+                                  defaultValue={getChannelPriceValue(setting)}
+                                  onBlur={(event) =>
+                                    updateMenuItemChannelSetting(item, channel.key, {
+                                      customPrice: event.currentTarget.value.trim() || null,
+                                    })
+                                  }
+                                  placeholder={`Boşsa ana fiyat: ${formatMoney(item.price)}`}
+                                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition focus:border-sky-400"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
 
                       <button
                           type="button"
