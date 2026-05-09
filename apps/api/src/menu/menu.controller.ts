@@ -104,6 +104,60 @@ export class MenuController {
     });
   }
 
+  @Patch('items/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateItem(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      branchId?: string | null;
+      categoryId?: string | null;
+      name?: string;
+      description?: string | null;
+      imageUrl?: string | null;
+      price?: string | number;
+      isActive?: boolean;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.updateItem(req.user.restaurantId, id, body);
+  }
+
+  @Patch('items/:id/channel-settings')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateItemChannelSettings(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      settings: Array<{
+        channel: string;
+        isEnabled?: boolean;
+        customPrice?: string | number | null;
+      }>;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.updateItemChannelSettings(req.user.restaurantId, id, body.settings);
+  }
+
+  @Delete('items/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  deleteItem(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.deleteItem(req.user.restaurantId, id);
+  }
+
   @Get('option-groups')
   findOptionGroups(@Req() req: AuthenticatedRequest) {
     if (!req.user.restaurantId) {

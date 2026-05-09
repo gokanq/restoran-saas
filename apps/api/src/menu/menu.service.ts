@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, MenuChannel } from '@prisma/client';
 
 function optionalText(value?: string | null) {
   if (typeof value !== 'string') {
@@ -34,6 +35,71 @@ function positiveIntegerOrDefault(value: unknown, defaultValue: number) {
   const numericValue = Math.floor(numberOrDefault(value, defaultValue));
 
   return numericValue < 0 ? defaultValue : numericValue;
+}
+
+
+const MENU_ITEM_INCLUDE: Prisma.MenuItemInclude = {
+  branch: true,
+  category: true,
+  menuItemChannelSettings: {
+    orderBy: {
+      channel: 'asc' as const,
+    },
+  },
+  optionGroups: {
+    include: {
+      options: {
+        orderBy: [
+          {
+            sortOrder: 'asc' as const,
+          },
+          {
+            name: 'asc' as const,
+          },
+        ],
+      },
+    },
+    orderBy: [
+      {
+        sortOrder: 'asc' as const,
+      },
+      {
+        name: 'asc' as const,
+      },
+    ],
+  },
+};
+
+function parseOptionalPrice(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === '') {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    throw new BadRequestException('Fiyat geçerli olmalıdır');
+  }
+
+  return numericValue;
+}
+
+function parseMenuChannel(value: unknown) {
+  if (typeof value !== 'string') {
+    throw new BadRequestException('Menü kanalı zorunludur');
+  }
+
+  const normalizedValue = value.trim().toUpperCase();
+
+  if (!Object.values(MenuChannel).includes(normalizedValue as MenuChannel)) {
+    throw new BadRequestException('Menü kanalı geçerli değildir');
+  }
+
+  return normalizedValue as MenuChannel;
 }
 
 @Injectable()
@@ -148,33 +214,9 @@ export class MenuService {
     return this.prisma.menuItem.findMany({
       where: {
         restaurantId,
+        deletedAt: null,
       },
-      include: {
-        branch: true,
-        category: true,
-        optionGroups: {
-          include: {
-            options: {
-              orderBy: [
-                {
-                  sortOrder: 'asc',
-                },
-                {
-                  name: 'asc',
-                },
-              ],
-            },
-          },
-          orderBy: [
-            {
-              sortOrder: 'asc',
-            },
-            {
-              name: 'asc',
-            },
-          ],
-        },
-      },
+      include: MENU_ITEM_INCLUDE,
       orderBy: [
         {
           category: {
@@ -194,6 +236,7 @@ export class MenuService {
     categoryId?: string | null;
     name: string;
     description?: string | null;
+    imageUrl?: string | null;
     price: string | number;
     isActive?: boolean;
   }) {
@@ -248,18 +291,171 @@ export class MenuService {
         categoryId,
         name,
         description: optionalText(data.description),
+        imageUrl: optionalText(data.imageUrl),
         price: numericPrice,
         isActive: data.isActive ?? true,
       },
-      include: {
-        branch: true,
-        category: true,
-        optionGroups: {
-          include: {
-            options: true,
+      include: MENU_ITEM_INCLUDE,
+    });
+  }
+
+  private async validateMenuItemForRestaurant(restaurantId: string, itemId: string) {
+    const item = await this.prisma.menuItem.findFirst({
+      where: {
+        id: itemId,
+        restaurantId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+        branchId: true,
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Ürün bulunamadı');
+    }
+
+    return item;
+  }
+
+  async updateItem(
+    restaurantId: string,
+    itemId: string,
+    data: {
+      branchId?: string | null;
+      categoryId?: string | null;
+      name?: string;
+      description?: string | null;
+      imageUrl?: string | null;
+      price?: string | number;
+      isActive?: boolean;
+    },
+  ) {
+    const currentItem = await this.validateMenuItemForRestaurant(restaurantId, itemId);
+
+    const branchId = data.branchId === undefined ? undefined : optionalText(data.branchId);
+    const categoryId = data.categoryId === undefined ? undefined : optionalText(data.categoryId);
+
+    if (branchId) {
+      await this.validateBranch(restaurantId, branchId);
+    }
+
+    if (categoryId) {
+      const category = await this.prisma.menuCategory.findUnique({
+        where: {
+          id: categoryId,
+        },
+        select: {
+          id: true,
+          restaurantId: true,
+          branchId: true,
+        },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Kategori bulunamadı');
+      }
+
+      if (category.restaurantId !== restaurantId) {
+        throw new ForbiddenException('Bu kategori için işlem yapma yetkiniz yok');
+      }
+
+      const effectiveBranchId = branchId === undefined ? currentItem.branchId : branchId;
+
+      if (effectiveBranchId && category.branchId && category.branchId !== effectiveBranchId) {
+        throw new BadRequestException('Ürün şubesi ile kategori şubesi uyuşmuyor');
+      }
+    }
+
+    const name = data.name === undefined ? undefined : optionalText(data.name);
+
+    if (data.name !== undefined && !name) {
+      throw new BadRequestException('Ürün adı zorunludur');
+    }
+
+    const price = data.price === undefined ? undefined : parseOptionalPrice(data.price);
+
+    return this.prisma.menuItem.update({
+      where: {
+        id: itemId,
+      },
+      data: {
+        branchId,
+        categoryId,
+        name: name ?? undefined,
+        description: data.description === undefined ? undefined : optionalText(data.description),
+        imageUrl: data.imageUrl === undefined ? undefined : optionalText(data.imageUrl),
+        price: price === null ? 0 : price,
+        isActive: data.isActive,
+      },
+      include: MENU_ITEM_INCLUDE,
+    });
+  }
+
+  async deleteItem(restaurantId: string, itemId: string) {
+    await this.validateMenuItemForRestaurant(restaurantId, itemId);
+
+    return this.prisma.menuItem.update({
+      where: {
+        id: itemId,
+      },
+      data: {
+        isActive: false,
+        deletedAt: new Date(),
+      },
+      include: MENU_ITEM_INCLUDE,
+    });
+  }
+
+  async updateItemChannelSettings(
+    restaurantId: string,
+    itemId: string,
+    settings: Array<{
+      channel: string;
+      isEnabled?: boolean;
+      customPrice?: string | number | null;
+    }>,
+  ) {
+    const item = await this.validateMenuItemForRestaurant(restaurantId, itemId);
+
+    if (!Array.isArray(settings)) {
+      throw new BadRequestException('Kanal ayarları liste olarak gönderilmelidir');
+    }
+
+    for (const setting of settings) {
+      const channel = parseMenuChannel(setting.channel);
+      const customPrice = parseOptionalPrice(setting.customPrice);
+
+      await this.prisma.menuItemChannelSetting.upsert({
+        where: {
+          menuItemId_channel: {
+            menuItemId: item.id,
+            channel,
           },
         },
+        update: {
+          isEnabled: setting.isEnabled ?? true,
+          customPrice,
+          branchId: item.branchId,
+        },
+        create: {
+          restaurantId,
+          branchId: item.branchId,
+          menuItemId: item.id,
+          channel,
+          isEnabled: setting.isEnabled ?? true,
+          customPrice,
+        },
+      });
+    }
+
+    return this.prisma.menuItem.findUnique({
+      where: {
+        id: item.id,
       },
+      include: MENU_ITEM_INCLUDE,
     });
   }
 
