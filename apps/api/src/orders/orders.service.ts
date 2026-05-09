@@ -358,6 +358,7 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
       select: {
         id: true,
         restaurantId: true,
+        branchId: true,
       },
     });
 
@@ -392,6 +393,43 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
         },
       },
     });
+
+
+      // ON_DELIVERY: DeliveryAssignment yoksa oluştur veya mevcut kaydı tekrar aktif hale getir.
+      // Sipariş panelinden "Yola Çıkar" yapıldığında teslimat panelinin Aktif listesi bu kayda bakıyor.
+      if (data.status === OrderStatus.ON_DELIVERY && optionalText(data.courierId)) {
+        const courierId = optionalText(data.courierId)!;
+        const existingAssignment = await tx.deliveryAssignment.findUnique({
+          where: {
+            orderId: data.orderId,
+          },
+        });
+
+        if (existingAssignment) {
+          await tx.deliveryAssignment.update({
+            where: {
+              id: existingAssignment.id,
+            },
+            data: {
+              courierId,
+              status: 'ASSIGNED',
+              assignedAt: new Date(),
+              deliveredAt: null,
+              cancelledAt: null,
+            },
+          });
+        } else {
+          await tx.deliveryAssignment.create({
+            data: {
+              restaurantId: data.restaurantId,
+              branchId: order.branchId,
+              orderId: data.orderId,
+              courierId,
+              status: 'ASSIGNED',
+            },
+          });
+        }
+      }
 
       if (
         data.status === OrderStatus.DELIVERED ||
