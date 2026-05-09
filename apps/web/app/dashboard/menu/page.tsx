@@ -41,6 +41,8 @@ type MenuItem = {
   id: string;
   name: string;
   description?: string | null;
+  imageUrl?: string | null;
+  isActive?: boolean;
   price: string | number;
   categoryId?: string | null;
   branchId?: string | null;
@@ -104,6 +106,8 @@ export default function DashboardMenuPage() {
   const [itemCategoryId, setItemCategoryId] = useState('');
   const [itemName, setItemName] = useState('');
   const [itemDescription, setItemDescription] = useState('');
+  const [itemImageUrl, setItemImageUrl] = useState('');
+  const [itemIsActive, setItemIsActive] = useState(true);
   const [itemPrice, setItemPrice] = useState('');
 
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -347,13 +351,16 @@ export default function DashboardMenuPage() {
           categoryId: itemCategoryId || null,
           name: itemName.trim(),
           description: itemDescription.trim() || null,
+          imageUrl: itemImageUrl.trim() || null,
+          isActive: itemIsActive,
           price: toNumber(itemPrice),
-          isActive: true,
         }),
       });
 
       setItemName('');
       setItemDescription('');
+      setItemImageUrl('');
+      setItemIsActive(true);
       setItemPrice('');
       setMessage('Ürün eklendi.');
       await loadData();
@@ -606,6 +613,50 @@ export default function DashboardMenuPage() {
     link.click();
   }
 
+
+  async function toggleMenuItemActive(item: MenuItem) {
+    try {
+      setError('');
+      setMessage('');
+
+      await apiRequest(`/api/menu/items/${item.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          isActive: !item.isActive,
+        }),
+      });
+
+      setMessage(item.isActive ? 'Ürün pasife alındı.' : 'Ürün aktif edildi.');
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Ürün durumu güncellenemedi.');
+    }
+  }
+
+  async function deleteMenuItem(item: MenuItem) {
+    const confirmed = window.confirm(`${item.name} ürünü silinsin mi? Bu işlem geçmiş siparişleri bozmaz, ürünü menüden pasife alır.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError('');
+      setMessage('');
+
+      await apiRequest(`/api/menu/items/${item.id}`, {
+        method: 'DELETE',
+      });
+
+      setMessage('Ürün menüden kaldırıldı.');
+      if (selectedItemId === item.id) {
+        setSelectedItemId('');
+      }
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Ürün silinemedi.');
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -782,6 +833,31 @@ export default function DashboardMenuPage() {
                   />
                 </label>
 
+                  <label className="space-y-2">
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                      Ürün görsel URL
+                    </span>
+                    <input
+                      value={itemImageUrl}
+                      onChange={(event) => setItemImageUrl(event.target.value)}
+                      placeholder="https://.../urun-gorseli.jpg"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none transition focus:border-sky-400"
+                    />
+                    <span className="block text-xs font-semibold text-slate-400">
+                      V1 için görsel URL kullanıyoruz. İleride dosya yükleme desteği eklenebilir.
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={itemIsActive}
+                      onChange={(event) => setItemIsActive(event.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    Ürün aktif olarak yayınlansın
+                  </label>
+
                 <label className="block text-sm font-bold">
                   Fiyat
                   <input
@@ -813,7 +889,25 @@ export default function DashboardMenuPage() {
                 ) : (
                   items.map((item) => (
                     <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-                      <p className="text-lg font-black text-slate-950">{item.name}</p>
+                      {item.imageUrl ? (
+                        <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="h-40 w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="mb-4 flex h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-sm font-black text-slate-400">
+                          Ürün görseli yok
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-lg font-black text-slate-950">{item.name}</p>
+                        <span className={`rounded-full px-3 py-1 text-xs font-black ${item.isActive === false ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {item.isActive === false ? 'Pasif ürün' : 'Aktif ürün'}
+                        </span>
+                      </div>
                       <p className="mt-1 text-sm text-slate-500">
                         {item.category?.name || 'Kategori yok'} • {item.branch?.name || 'Genel'}
                       </p>
@@ -825,6 +919,22 @@ export default function DashboardMenuPage() {
                       </p>
 
                       <button
+                          type="button"
+                          onClick={() => toggleMenuItemActive(item)}
+                          className={`rounded-2xl px-4 py-3 text-sm font-black transition ${item.isActive === false ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200'}`}
+                        >
+                          {item.isActive === false ? 'Aktif Et' : 'Pasife Al'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteMenuItem(item)}
+                          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100"
+                        >
+                          Sil / Kaldır
+                        </button>
+
+                        <button
                         type="button"
                         onClick={() => {
                           setSelectedItemId(item.id);

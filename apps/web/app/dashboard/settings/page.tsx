@@ -1,5 +1,12 @@
 const settingsCards = [
   {
+    title: "Menü Yönetimi",
+    description:
+      "Ürün görselleri, aktif/pasif ürünler, opsiyonlar ve kanal bazlı menü ayarları için merkezi yönetim.",
+    href: "/dashboard/menu",
+    badge: "Tek Menü Omurgası",
+  },
+  {
     title: "Restoran Bilgileri",
     description:
       "Restoran adı, şube bilgileri, iletişim ve operasyon ayarları için temel alan.",
