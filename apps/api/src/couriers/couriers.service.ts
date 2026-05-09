@@ -29,12 +29,21 @@ function parseWorkDate(value: unknown) {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
+function stripCourierSensitiveFields<T extends object>(courier: T) {
+  const publicCourier = { ...courier } as Record<string, unknown>;
+
+  delete publicCourier.pinCode;
+  delete publicCourier.authToken;
+
+  return publicCourier;
+}
+
 @Injectable()
 export class CouriersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByRestaurant(restaurantId: string) {
-    return this.prisma.courier.findMany({
+  async findByRestaurant(restaurantId: string) {
+    const couriers = await this.prisma.courier.findMany({
       where: {
         restaurantId,
       },
@@ -55,6 +64,8 @@ export class CouriersService {
         },
       ],
     });
+
+    return couriers.map(stripCourierSensitiveFields);
   }
 
   async findWorkLogs(data: { restaurantId: string; startDate?: string; endDate?: string }) {
@@ -170,7 +181,7 @@ export class CouriersService {
       }
     }
 
-    return this.prisma.courier.create({
+    const courier = await this.prisma.courier.create({
       data: {
         restaurantId: data.restaurantId,
         branchId: optionalText(data.branchId) || null,
@@ -189,6 +200,8 @@ export class CouriersService {
         },
       },
     });
+
+    return stripCourierSensitiveFields(courier);
   }
 
   async update(data: {
@@ -226,7 +239,7 @@ export class CouriersService {
       }
     }
 
-    return this.prisma.courier.update({
+    const updatedCourier = await this.prisma.courier.update({
       where: {
         id: data.id,
       },
@@ -249,6 +262,8 @@ export class CouriersService {
         },
       },
     });
+
+    return stripCourierSensitiveFields(updatedCourier);
   }
 
   async deactivate(id: string, restaurantId: string) {
@@ -263,7 +278,7 @@ export class CouriersService {
       throw new NotFoundException('Kurye bulunamadı');
     }
 
-    return this.prisma.courier.update({
+    const deactivatedCourier = await this.prisma.courier.update({
       where: {
         id,
       },
@@ -271,5 +286,7 @@ export class CouriersService {
         isActive: false,
       },
     });
+
+    return stripCourierSensitiveFields(deactivatedCourier);
   }
 }
