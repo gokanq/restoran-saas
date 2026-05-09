@@ -827,6 +827,24 @@ export default function CallerIdPage() {
     loadInitialData();
   }, [router]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const phone = params.get('phone') || '';
+    const name = params.get('name') || '';
+    const address = params.get('address') || '';
+    const callerEventId = params.get('callerEventId') || '';
+
+    if (phone) setCustomerPhone(phone);
+    if (name) setCustomerName(name);
+    if (address) setCustomerAddress(address);
+    if (callerEventId) setActiveCallerEventId(callerEventId);
+  }, []);
+
+
   const customerPhoneKey = getComparablePhone(customerPhone);
   const customerHistory =
     customerPhoneKey.length >= 7

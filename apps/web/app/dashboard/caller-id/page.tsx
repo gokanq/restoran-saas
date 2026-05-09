@@ -492,6 +492,23 @@ export default function CallerIdPage() {
   const [callerIdPanelTab, setCallerIdPanelTab] = useState<CallerIdPanelTab>('CUSTOMERS');
   const [customerDirectorySearch, setCustomerDirectorySearch] = useState('');
 
+  function buildYeniMusteriHref(params: {
+    phone?: string;
+    name?: string;
+    address?: string;
+    callerEventId?: string;
+  }) {
+    const query = new URLSearchParams();
+
+    if (params.phone) query.set('phone', params.phone);
+    if (params.name) query.set('name', params.name);
+    if (params.address) query.set('address', params.address);
+    if (params.callerEventId) query.set('callerEventId', params.callerEventId);
+
+    const queryString = query.toString();
+    return `/dashboard/caller-id/yenimusteri${queryString ? `?${queryString}` : ''}`;
+  }
+
   async function loadOrdersForCode(token: string) {
     const response = await fetch('/api/orders', {
       headers: {
@@ -600,7 +617,6 @@ export default function CallerIdPage() {
 
   async function startOrderFromCallerEvent(event: CallerEvent) {
     const phone = event.phone || '';
-    setActiveCallerEventId(event.id);
     const phoneKey = getComparablePhone(phone);
 
     if (!phone.trim()) {
@@ -613,17 +629,8 @@ export default function CallerIdPage() {
         ? sortNewestOrders(orders).find((order) => getComparablePhone(order.customerPhone) === phoneKey)
         : undefined;
 
-    setCustomerPhone(phone);
-    setCustomerName(event.customerName || latestOrderForCaller?.customerName || '');
-    setCustomerAddress(latestOrderForCaller?.customerAddress || '');
-    setPaymentMethod(toPaymentMethod(String(latestOrderForCaller?.paymentMethod || 'CASH')));
-    setNote(latestOrderForCaller?.note || '');
-    setOrderType('DELIVERY');
-    setTotal('0');
-    setIsPhoneOrderStageOpen(false);
-    setPhoneOrderCartItems([]);
-    setLastOrderCode('');
-    setError('');
+    let resolvedName = event.customerName || latestOrderForCaller?.customerName || '';
+    let resolvedAddress = latestOrderForCaller?.customerAddress || '';
 
     try {
       const authToken =
@@ -648,22 +655,12 @@ export default function CallerIdPage() {
           const recentOrders = Array.isArray(customer?.recentOrders) ? customer.recentOrders : [];
           const latestCustomerOrder = recentOrders[0];
 
-          setCustomerName(customer?.name || event.customerName || latestOrderForCaller?.customerName || '');
-          setCustomerPhone(customer?.phone || phone);
-          setCustomerAddress(
+          resolvedName = customer?.name || event.customerName || latestOrderForCaller?.customerName || '';
+          resolvedAddress =
             defaultAddress?.fullAddress ||
-              latestCustomerOrder?.customerAddress ||
-              latestOrderForCaller?.customerAddress ||
-              '',
-          );
-
-          if (latestCustomerOrder?.paymentMethod) {
-            setPaymentMethod(toPaymentMethod(String(latestCustomerOrder.paymentMethod)));
-          }
-
-          if (latestCustomerOrder?.note) {
-            setNote(latestCustomerOrder.note);
-          }
+            latestCustomerOrder?.customerAddress ||
+            latestOrderForCaller?.customerAddress ||
+            '';
 
           setSuccess('Kayıtlı müşteri bulundu ve sipariş formuna aktarıldı.');
         } else if (response.status === 404) {
@@ -683,17 +680,16 @@ export default function CallerIdPage() {
       setSuccess('Çağrı bilgileri sipariş formuna aktarıldı.');
     }
 
-    setTimeout(() => {
-      const formElement =
-        document.getElementById('caller-id-order-form') ||
-        document.querySelector('form');
-
-      formElement?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
+    router.push(
+      buildYeniMusteriHref({
+        phone,
+        name: resolvedName,
+        address: resolvedAddress,
+        callerEventId: event.id,
+      }),
+    );
   }
+
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -1274,57 +1270,29 @@ export default function CallerIdPage() {
       : callerIdPanelTab === 'CONVERTED'
         ? convertedCallerEvents
         : callerEvents;
+  const sortedCallerEvents = [...callerEvents].sort((first, second) => {
+    return getTimeValue(second.receivedAt) - getTimeValue(first.receivedAt);
+  });
+  const activeIncomingCall = [...pendingCallerEvents].sort((first, second) => {
+    return getTimeValue(second.receivedAt) - getTimeValue(first.receivedAt);
+  })[0] || sortedCallerEvents[0];
+  const activeIncomingCallCustomer = activeIncomingCall
+    ? customerDirectoryRows.find((row) => getComparablePhone(row.phone) === getComparablePhone(activeIncomingCall.phone))
+    : null;
+  const passiveDeviceCount = Math.max(callerDevices.length - activeCallerDevices.length, 0);
 
   function startOrderFromCustomerRow(row: CustomerDirectoryRow) {
-    setOrderType('DELIVERY');
-    setCustomerName(row.name === 'Yeni müşteri' ? '' : row.name);
-    setCustomerPhone(row.phone || '');
-    setCustomerAddress(row.address || '');
-    setPaymentMethod(toPaymentMethod(String(row.lastPaymentMethod || 'CASH')));
-    setNote(row.lastNote || '');
-    setTotal('0');
-    setIsPhoneOrderStageOpen(false);
-    setLastOrderCode('');
-    setActiveCallerEventId('');
-    setError('');
-    setSuccess('Müşteri bilgileri sipariş formuna aktarıldı.');
-
-    setTimeout(() => {
-      const formElement =
-        document.getElementById('caller-id-order-form') ||
-        document.querySelector('form');
-
-      formElement?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
+    router.push(
+      buildYeniMusteriHref({
+        phone: row.phone || '',
+        name: row.name === 'Yeni müşteri' ? '' : row.name,
+        address: row.address || '',
+      }),
+    );
   }
 
   function startNewCustomerOrder() {
-    setOrderType('DELIVERY');
-    setCustomerName('');
-    setCustomerPhone('');
-    setCustomerAddress('');
-    setPaymentMethod('CASH');
-    setNote('');
-    setTotal('0');
-    setIsPhoneOrderStageOpen(false);
-    setLastOrderCode('');
-    setActiveCallerEventId('');
-    setError('');
-    setSuccess('Yeni müşteri için sipariş formu hazırlandı.');
-
-    setTimeout(() => {
-      const formElement =
-        document.getElementById('caller-id-order-form') ||
-        document.querySelector('form');
-
-      formElement?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
+    router.push('/dashboard/caller-id/yenimusteri');
   }
 
   return (
@@ -1400,6 +1368,106 @@ export default function CallerIdPage() {
             {success}
           </div>
         ) : null}
+
+        <section className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+          <article className="rounded-[28px] border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-6 shadow-xl shadow-slate-200/80">
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">Canlı Gelen Çağrı</p>
+            {activeIncomingCall ? (
+              <>
+                <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950">{activeIncomingCall.phone || '-'}</h2>
+                <p className="mt-2 text-sm font-bold text-slate-600">
+                  {activeIncomingCall.customerName || activeIncomingCallCustomer?.name || 'Yeni müşteri'} • {formatDate(activeIncomingCall.receivedAt)}
+                </p>
+                <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-black ${activeIncomingCall.status !== 'SEEN' && !activeIncomingCall.seenAt ? 'border-amber-200 bg-amber-100 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+                  {activeIncomingCall.orderCode ? `Siparişe dönüştü: ${activeIncomingCall.orderCode}` : activeIncomingCall.status !== 'SEEN' && !activeIncomingCall.seenAt ? 'Yeni çağrı' : 'Görüldü'}
+                </span>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => startOrderFromCallerEvent(activeIncomingCall)} className="rounded-2xl bg-sky-500 px-5 py-3 text-sm font-black text-white transition hover:bg-sky-600">
+                    Telefon Siparişi Başlat
+                  </button>
+                  <a href="/dashboard/caller-id/yenimusteri" className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-50">
+                    Yeni Telefon Siparişi
+                  </a>
+                </div>
+              </>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-5">
+                <p className="text-sm font-black text-slate-900">Bekleyen canlı çağrı yok</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">Yeni çağrı geldiğinde operatör önceliğiyle burada gösterilecek.</p>
+              </div>
+            )}
+          </article>
+          <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/80">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Müşteri Zekâ Kartı</p>
+            {activeIncomingCallCustomer ? (
+              <div className="mt-4 space-y-2 text-sm">
+                <p className="text-lg font-black text-slate-950">{activeIncomingCallCustomer.name || 'Yeni müşteri'}</p>
+                <p className="font-bold text-slate-700">{activeIncomingCallCustomer.phone || '-'}</p>
+                <p className="text-slate-600">{activeIncomingCallCustomer.orderCount > 0 ? 'Geri dönen müşteri' : 'Yeni müşteri'}</p>
+                <p className="text-slate-600">Son sipariş: {activeIncomingCallCustomer.lastOrderAt ? formatDate(activeIncomingCallCustomer.lastOrderAt) : 'Henüz sipariş yok'}</p>
+                <p className="text-slate-600">Sipariş sayısı: {activeIncomingCallCustomer.orderCount}</p>
+                <p className="text-slate-600">Toplam harcama: {formatMoney(activeIncomingCallCustomer.totalSpent)}</p>
+                <p className="text-slate-600">Son adres: {activeIncomingCallCustomer.address || 'Adres bulunamadı'}</p>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
+                Eşleşen kayıtlı müşteri bulunamadı. Yeni telefon siparişiyle kayıt başlatabilirsiniz.
+              </div>
+            )}
+          </article>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-4">
+          <a href="/dashboard/caller-id/yenimusteri" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50">Yeni Telefon Siparişi</a>
+          <a href="/dashboard/caller-id/cagrilar" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50">Çağrı Geçmişi</a>
+          <a href="/dashboard/orders/history" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50">Müşteri Siparişleri</a>
+          <a href="/dashboard/settings/cagrilar" className="rounded-3xl border border-slate-200 bg-white p-5 text-sm font-black text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50">Caller ID Cihazları</a>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1.8fr_1fr]">
+          <article className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <h3 className="text-lg font-black text-slate-950">Son Çağrılar</h3>
+            </div>
+            {isLoadingCallerEvents ? (
+              <p className="px-5 py-8 text-sm font-bold text-slate-600">Çağrılar yükleniyor...</p>
+            ) : callerEventsMessage ? (
+              <p className="px-5 py-8 text-sm font-bold text-red-600">{callerEventsMessage}</p>
+            ) : sortedCallerEvents.length === 0 ? (
+              <p className="px-5 py-8 text-sm font-bold text-slate-500">Henüz çağrı kaydı yok.</p>
+            ) : (
+              <div className="divide-y divide-slate-200">
+                {sortedCallerEvents.slice(0, 8).map((event) => (
+                  <div key={event.id} className="grid gap-2 px-5 py-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center">
+                    <p className="font-black text-slate-900">{event.phone || '-'}</p>
+                    <p className="text-sm font-bold text-slate-600">{event.customerName || 'Yeni müşteri'}</p>
+                    <p className="text-xs font-bold text-slate-500">{formatDate(event.receivedAt)}</p>
+                    <button type="button" onClick={() => startOrderFromCallerEvent(event)} className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-black text-white hover:bg-sky-600">Siparişe Git</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+          <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Cihaz Sağlığı</p>
+            <p className={`mt-3 text-sm font-black ${activeCallerDevices.length > 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+              {activeCallerDevices.length > 0 ? 'Aktif Caller ID cihazı çevrimiçi' : 'Uyarı: Aktif Caller ID cihazı yok'}
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs font-black uppercase text-emerald-700">Aktif</p>
+                <p className="mt-1 text-2xl font-black text-emerald-900">{activeCallerDevices.length}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-black uppercase text-slate-600">Pasif</p>
+                <p className="mt-1 text-2xl font-black text-slate-900">{passiveDeviceCount}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs font-semibold text-slate-500">
+              Son sinyal: {latestCallerDevice ? formatDate(latestCallerDevice.lastSeenAt || latestCallerDevice.updatedAt || latestCallerDevice.createdAt) : 'Henüz sinyal yok'}
+            </p>
+          </article>
+        </section>
 
         <section id="caller-id-calls-panel" className="mb-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/80">
           <div className="border-b border-slate-200 bg-gradient-to-r from-sky-50 via-white to-emerald-50 p-5 sm:p-6">
