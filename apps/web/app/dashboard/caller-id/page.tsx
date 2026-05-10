@@ -1169,6 +1169,7 @@ export default function CallerIdPage() {
       menuItemId: cartItem.menuItemId,
       quantity: cartItem.quantity,
       note: cartItem.note.trim() || null,
+      selectedOptionIds: [],
     }));
 
     const finalOrderTotal =
@@ -1202,6 +1203,7 @@ export default function CallerIdPage() {
         },
         body: JSON.stringify({
           branchId: branchId || null,
+          channel: 'CALLER_ID',
           type: orderType,
           tableNumber: orderType === 'TABLE' ? tableNumber.trim() : null,
           total: finalOrderTotal,

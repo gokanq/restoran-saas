@@ -276,6 +276,7 @@ function QrPageContent() {
         },
         body: JSON.stringify({
           branchId,
+          channel: 'QR',
           tableNumber,
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
@@ -284,6 +285,7 @@ function QrPageContent() {
             menuItemId: item.menuItemId,
             quantity: item.quantity,
             optionIds: item.optionIds,
+            selectedOptionIds: item.optionIds || [],
           })),
         }),
       });

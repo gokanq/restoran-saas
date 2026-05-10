@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { OrderType } from '@prisma/client';
+import { MenuChannel, OrderType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 function optionalText(value?: string | null) {
@@ -20,6 +20,20 @@ function normalizeQuantity(value: unknown) {
   }
 
   return quantity;
+}
+
+function normalizeIdList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter((item) => item.length > 0),
+    ),
+  );
 }
 
 @Injectable()
@@ -61,6 +75,7 @@ export class PublicService {
         items: {
           where: {
             isActive: true,
+            deletedAt: null,
             OR: [
               {
                 branchId: null,
@@ -71,6 +86,11 @@ export class PublicService {
             ],
           },
           include: {
+            menuItemChannelSettings: {
+              where: {
+                channel: MenuChannel.QR,
+              },
+            },
             optionGroups: {
               where: {
                 isActive: true,
@@ -115,6 +135,20 @@ export class PublicService {
       ],
     });
 
+    const qrCategories = categories.map((category) => ({
+      ...category,
+      items: category.items
+        .filter((item) => item.menuItemChannelSettings[0]?.isEnabled !== false)
+        .map((item) => {
+          const qrSetting = item.menuItemChannelSettings[0] || null;
+
+          return {
+            ...item,
+            price: qrSetting?.customPrice ?? item.price,
+          };
+        }),
+    }));
+
     return {
       restaurant: {
         id: branch.restaurant.id,
@@ -127,12 +161,13 @@ export class PublicService {
         address: branch.address,
         phone: branch.phone,
       },
-      categories,
+      categories: qrCategories,
     };
   }
 
   async createTableOrder(data: {
     branchId: string;
+    channel?: MenuChannel;
     tableNumber: string;
     customerName?: string | null;
     customerPhone?: string | null;
@@ -141,6 +176,7 @@ export class PublicService {
       menuItemId: string;
       quantity: number;
       note?: string | null;
+      selectedOptionIds?: string[];
       optionIds?: string[];
     }[];
   }) {
@@ -157,6 +193,8 @@ export class PublicService {
     if (!Array.isArray(data.items) || data.items.length === 0) {
       throw new BadRequestException('En az bir ürün seçilmelidir');
     }
+
+    const channel = data.channel === MenuChannel.QR ? MenuChannel.QR : MenuChannel.QR;
 
     const branch = await this.prisma.branch.findUnique({
       where: {
@@ -176,9 +214,11 @@ export class PublicService {
       menuItemId: item.menuItemId,
       quantity: normalizeQuantity(item.quantity),
       note: optionalText(item.note),
-      optionIds: Array.isArray(item.optionIds)
-        ? Array.from(new Set(item.optionIds.filter((optionId) => typeof optionId === 'string' && optionId.trim().length > 0)))
-        : [],
+      selectedOptionIds: normalizeIdList(
+        Array.isArray(item.selectedOptionIds) && item.selectedOptionIds.length > 0
+          ? item.selectedOptionIds
+          : item.optionIds,
+      ),
     }));
 
     if (normalizedItems.some((item) => !item.menuItemId || !item.quantity)) {
@@ -194,6 +234,7 @@ export class PublicService {
         },
         restaurantId: branch.restaurantId,
         isActive: true,
+        deletedAt: null,
         OR: [
           {
             branchId: null,
@@ -204,6 +245,11 @@ export class PublicService {
         ],
       },
       include: {
+        menuItemChannelSettings: {
+          where: {
+            channel,
+          },
+        },
         optionGroups: {
           where: {
             isActive: true,
@@ -232,12 +278,18 @@ export class PublicService {
         throw new BadRequestException('Ürün bilgisi geçersiz');
       }
 
+      const channelSetting = menuItem.menuItemChannelSettings[0] || null;
+
+      if (channelSetting?.isEnabled === false) {
+        throw new BadRequestException('Seçilen ürün QR sipariş kanalında kapalı');
+      }
+
       const optionMap = new Map(
         menuItem.optionGroups.flatMap((group) =>
           group.options.map((option) => [
             option.id,
             {
-              id: option.id,
+              optionId: option.id,
               groupName: group.name,
               optionName: option.name,
               priceDelta: Number(option.priceDelta),
@@ -246,7 +298,7 @@ export class PublicService {
         ),
       );
 
-      const selectedOptions = item.optionIds.map((optionId) => optionMap.get(optionId));
+      const selectedOptions = item.selectedOptionIds.map((optionId) => optionMap.get(optionId));
 
       if (selectedOptions.some((option) => !option)) {
         throw new BadRequestException('Seçilen opsiyonlardan bazıları geçersiz');
@@ -254,20 +306,25 @@ export class PublicService {
 
       const safeSelectedOptions = selectedOptions.filter((option): option is NonNullable<typeof option> => Boolean(option));
       const optionTotal = safeSelectedOptions.reduce((sum, option) => sum + option.priceDelta, 0);
-      const unitPrice = Number(menuItem.price) + optionTotal;
-      const totalPrice = unitPrice * item.quantity;
-      const optionText = safeSelectedOptions.length > 0 ? ` (${safeSelectedOptions.map((option) => option.optionName).join(', ')})` : '';
+      const basePriceSnapshot = Number(menuItem.price);
+      const hasChannelCustomPrice = channelSetting?.customPrice !== null && channelSetting?.customPrice !== undefined;
+      const unitPrice = hasChannelCustomPrice ? Number(channelSetting.customPrice) : basePriceSnapshot;
+      const appliedPriceSource = hasChannelCustomPrice ? 'CHANNEL_CUSTOM' : 'BASE';
+      const totalPrice = (unitPrice + optionTotal) * item.quantity;
 
       return {
         menuItemId: menuItem.id,
-        name: `${menuItem.name}${optionText}`,
+        name: menuItem.name,
         quantity: item.quantity,
         unitPrice,
+        basePriceSnapshot,
+        channelSnapshot: channel,
+        appliedPriceSource,
         totalPrice,
         note: item.note,
         options: {
           create: safeSelectedOptions.map((option) => ({
-            optionId: option.id,
+            optionId: option.optionId,
             groupName: option.groupName,
             optionName: option.optionName,
             priceDelta: option.priceDelta,
@@ -285,6 +342,7 @@ export class PublicService {
         branchId: branch.id,
         code,
         type: OrderType.TABLE,
+        channel,
         tableNumber,
         total,
         customerName: optionalText(data.customerName),
@@ -296,7 +354,11 @@ export class PublicService {
       },
       include: {
         branch: true,
-        items: true,
+        items: {
+          include: {
+            options: true,
+          },
+        },
       },
     });
   }

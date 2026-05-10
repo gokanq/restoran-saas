@@ -9,7 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { OrderStatus, OrderType, UserRole, PaymentMethod } from '@prisma/client';
+import { MenuChannel, OrderStatus, OrderType, UserRole, PaymentMethod } from '@prisma/client';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -57,6 +57,7 @@ export class OrdersController {
       branchId: string;
       code?: string;
       type?: OrderType;
+      channel?: MenuChannel;
       tableNumber?: string;
       status?: OrderStatus;
       total?: string | number;
@@ -69,6 +70,8 @@ export class OrdersController {
         menuItemId?: string;
         quantity?: number | string;
         note?: string | null;
+        selectedOptionIds?: string[];
+        optionIds?: string[];
       }[];
     },
     @Req() req: AuthenticatedRequest,
@@ -82,6 +85,7 @@ export class OrdersController {
       branchId: body.branchId,
       code: body.code,
       type: body.type,
+      channel: body.channel,
       tableNumber: body.tableNumber,
       status: body.status,
       total: body.total,

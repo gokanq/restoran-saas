@@ -4,12 +4,39 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, OrderType, PaymentMethod } from '@prisma/client';
+import { MenuChannel, OrderStatus, OrderType, PaymentMethod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ORDER_STATUSES = Object.values(OrderStatus);
 const ORDER_TYPES = Object.values(OrderType);
 const PAYMENT_METHODS = Object.values(PaymentMethod);
+const MENU_CHANNELS = Object.values(MenuChannel);
+
+type RequestedOrderItem = {
+  menuItemId?: string;
+  quantity?: number | string;
+  note?: string | null;
+  selectedOptionIds?: string[];
+  optionIds?: string[];
+};
+
+type NormalizedOrderItem = {
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  basePriceSnapshot: number;
+  channelSnapshot: MenuChannel;
+  appliedPriceSource: 'BASE' | 'CHANNEL_CUSTOM';
+  totalPrice: number;
+  note: string | null;
+  selectedOptions: {
+    optionId: string;
+    groupName: string;
+    optionName: string;
+    priceDelta: number;
+  }[];
+};
 
 function optionalText(value?: string | null) {
   if (typeof value !== 'string') {
@@ -19,6 +46,36 @@ function optionalText(value?: string | null) {
   const trimmedValue = value.trim();
 
   return trimmedValue.length > 0 ? trimmedValue : null;
+}
+
+function normalizeQuantity(value: unknown) {
+  const quantity = Number(value);
+
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    return 1;
+  }
+
+  return quantity;
+}
+
+function normalizeIdList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter((item) => item.length > 0),
+    ),
+  );
+}
+
+function parseMoney(value: unknown) {
+  const parsedValue = Number(String(value ?? 0).replace(',', '.'));
+
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
 @Injectable()
@@ -58,6 +115,9 @@ export class OrdersService {
         items: {
           orderBy: {
             createdAt: 'asc',
+          },
+          include: {
+            options: true,
           },
         },
       },
@@ -119,6 +179,7 @@ export class OrdersService {
     branchId: string;
     code?: string;
     type?: OrderType;
+    channel?: MenuChannel;
     tableNumber?: string;
     status?: OrderStatus;
     total?: string | number;
@@ -127,16 +188,13 @@ export class OrdersService {
     customerPhone?: string;
     customerAddress?: string;
     note?: string;
-    items?: {
-      menuItemId?: string;
-      quantity?: number | string;
-      note?: string | null;
-    }[];
+    items?: RequestedOrderItem[];
   }) {
     if (!data.branchId) {
       throw new BadRequestException('branchId zorunludur');
     }
-if (data.type && !ORDER_TYPES.includes(data.type)) {
+
+    if (data.type && !ORDER_TYPES.includes(data.type)) {
       throw new BadRequestException('Geçersiz sipariş tipi');
     }
 
@@ -144,18 +202,22 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
       throw new BadRequestException('Geçersiz sipariş durumu');
     }
 
-    if (data.total !== undefined && Number(data.total) < 0) {
-      throw new BadRequestException('total negatif olamaz');
-    }
-
-    const orderType = data.type ?? OrderType.DELIVERY;
-    const orderCode = data.code?.trim() || (await this.generateOrderCode(data.restaurantId));
-    const paymentMethod = data.paymentMethod ?? PaymentMethod.CASH;
-
     if (data.paymentMethod && !PAYMENT_METHODS.includes(data.paymentMethod)) {
       throw new BadRequestException('Geçersiz ödeme tipi');
     }
 
+    if (data.channel && !MENU_CHANNELS.includes(data.channel)) {
+      throw new BadRequestException('Geçersiz sipariş kanalı');
+    }
+
+    if (data.total !== undefined && parseMoney(data.total) < 0) {
+      throw new BadRequestException('total negatif olamaz');
+    }
+
+    const orderType = data.type ?? OrderType.DELIVERY;
+    const orderChannel = data.channel ?? MenuChannel.CALLER_ID;
+    const orderCode = data.code?.trim() || (await this.generateOrderCode(data.restaurantId));
+    const paymentMethod = data.paymentMethod ?? PaymentMethod.CASH;
     const tableNumber = optionalText(data.tableNumber);
 
     if (orderType === OrderType.TABLE && !tableNumber) {
@@ -189,6 +251,10 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
       ),
     ];
 
+    if (requestedItems.length > 0 && requestedMenuItemIds.length === 0) {
+      throw new BadRequestException('Siparişe eklenecek geçerli ürün bulunamadı');
+    }
+
     const menuItems =
       requestedMenuItemIds.length > 0
         ? await this.prisma.menuItem.findMany({
@@ -198,6 +264,7 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
               },
               restaurantId: data.restaurantId,
               isActive: true,
+              deletedAt: null,
               OR: [
                 {
                   branchId: null,
@@ -207,17 +274,51 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
                 },
               ],
             },
-            select: {
-              id: true,
-              name: true,
-              price: true,
+            include: {
+              menuItemChannelSettings: {
+                where: {
+                  channel: orderChannel,
+                },
+              },
+              optionGroups: {
+                where: {
+                  isActive: true,
+                  OR: [
+                    {
+                      branchId: null,
+                    },
+                    {
+                      branchId: data.branchId,
+                    },
+                  ],
+                },
+                include: {
+                  options: {
+                    where: {
+                      isActive: true,
+                      OR: [
+                        {
+                          branchId: null,
+                        },
+                        {
+                          branchId: data.branchId,
+                        },
+                      ],
+                    },
+                  },
+                },
+              },
             },
           })
         : [];
 
+    if (requestedMenuItemIds.length > 0 && menuItems.length !== requestedMenuItemIds.length) {
+      throw new BadRequestException('Seçilen ürünlerden bazıları bulunamadı veya aktif değil');
+    }
+
     const menuItemMap = new Map(menuItems.map((menuItem) => [menuItem.id, menuItem]));
 
-    const normalizedItems = requestedItems
+    const normalizedItems: NormalizedOrderItem[] = requestedItems
       .map((item) => {
         const menuItemId = optionalText(item.menuItemId);
 
@@ -228,86 +329,157 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
         const menuItem = menuItemMap.get(menuItemId);
 
         if (!menuItem) {
-          return null;
+          throw new BadRequestException('Ürün bilgisi geçersiz');
         }
 
-        const rawQuantity = Number(item.quantity ?? 1);
-        const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? Math.floor(rawQuantity) : 1;
-        const unitPrice = Number(menuItem.price);
-        const totalPrice = unitPrice * quantity;
+        const channelSetting = menuItem.menuItemChannelSettings[0] || null;
+
+        if (channelSetting?.isEnabled === false) {
+          throw new BadRequestException('Seçilen ürün bu sipariş kanalında kapalı');
+        }
+
+        const rawOptionIds =
+          Array.isArray(item.selectedOptionIds) && item.selectedOptionIds.length > 0
+            ? item.selectedOptionIds
+            : item.optionIds;
+
+        const selectedOptionIds = normalizeIdList(rawOptionIds);
+        const optionMap = new Map(
+          menuItem.optionGroups.flatMap((group) =>
+            group.options.map((option) => [
+              option.id,
+              {
+                optionId: option.id,
+                groupName: group.name,
+                optionName: option.name,
+                priceDelta: Number(option.priceDelta),
+              },
+            ]),
+          ),
+        );
+
+        const selectedOptions = selectedOptionIds.map((optionId) => optionMap.get(optionId));
+
+        if (selectedOptions.some((option) => !option)) {
+          throw new BadRequestException('Seçilen opsiyonlardan bazıları geçersiz');
+        }
+
+        const safeSelectedOptions = selectedOptions.filter(
+          (option): option is NonNullable<typeof option> => Boolean(option),
+        );
+        const basePriceSnapshot = Number(menuItem.price);
+        const hasChannelCustomPrice = channelSetting?.customPrice !== null && channelSetting?.customPrice !== undefined;
+        const unitPrice = hasChannelCustomPrice ? Number(channelSetting.customPrice) : basePriceSnapshot;
+        const appliedPriceSource = hasChannelCustomPrice ? 'CHANNEL_CUSTOM' : 'BASE';
+        const optionTotal = safeSelectedOptions.reduce((sum, option) => sum + option.priceDelta, 0);
+        const quantity = normalizeQuantity(item.quantity);
+        const totalPrice = (unitPrice + optionTotal) * quantity;
 
         return {
           menuItemId: menuItem.id,
           name: menuItem.name,
           quantity,
           unitPrice,
+          basePriceSnapshot,
+          channelSnapshot: orderChannel,
+          appliedPriceSource,
           totalPrice,
           note: optionalText(item.note),
+          selectedOptions: safeSelectedOptions,
         };
       })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      .filter((item): item is NormalizedOrderItem => Boolean(item));
 
     if (requestedItems.length > 0 && normalizedItems.length === 0) {
       throw new BadRequestException('Siparişe eklenecek geçerli ürün bulunamadı');
     }
 
     const itemsTotal = normalizedItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    const calculatedOrderTotal = normalizedItems.length > 0 ? itemsTotal : data.total ?? 0;
+    const calculatedOrderTotal = normalizedItems.length > 0 ? itemsTotal : parseMoney(data.total);
 
-    const order = await this.prisma.order.create({
-      data: {
-        restaurantId: data.restaurantId,
-        branchId: data.branchId,
-        code: orderCode,
-        type: orderType,
-        tableNumber: orderType === OrderType.TABLE ? tableNumber : null,
-        status: data.status,
-        paymentMethod,
-        total: calculatedOrderTotal,
-        customerName: optionalText(data.customerName),
-        customerPhone: optionalText(data.customerPhone),
-        customerAddress: orderType === OrderType.DELIVERY ? optionalText(data.customerAddress) : null,
-        note: optionalText(data.note),
-        ...(normalizedItems.length > 0
-          ? {
-              items: {
-                create: normalizedItems.map((item) => ({
-                  menuItemId: item.menuItemId,
-                  name: item.name,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  totalPrice: item.totalPrice,
-                  note: item.note,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        branch: true,
-        items: {
-          orderBy: {
-            createdAt: 'asc',
+    const order = await this.prisma.$transaction(async (tx) => {
+      const createdOrder = await tx.order.create({
+        data: {
+          restaurantId: data.restaurantId,
+          branchId: data.branchId,
+          code: orderCode,
+          type: orderType,
+          channel: orderChannel,
+          tableNumber: orderType === OrderType.TABLE ? tableNumber : null,
+          status: data.status,
+          paymentMethod,
+          total: calculatedOrderTotal,
+          customerName: optionalText(data.customerName),
+          customerPhone: optionalText(data.customerPhone),
+          customerAddress: orderType === OrderType.DELIVERY ? optionalText(data.customerAddress) : null,
+          note: optionalText(data.note),
+          ...(normalizedItems.length > 0
+            ? {
+                items: {
+                  create: normalizedItems.map((item) => ({
+                    menuItemId: item.menuItemId,
+                    name: item.name,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    basePriceSnapshot: item.basePriceSnapshot,
+                    channelSnapshot: item.channelSnapshot,
+                    appliedPriceSource: item.appliedPriceSource,
+                    totalPrice: item.totalPrice,
+                    note: item.note,
+                    ...(item.selectedOptions.length > 0
+                      ? {
+                          options: {
+                            create: item.selectedOptions.map((option) => ({
+                              optionId: option.optionId,
+                              groupName: option.groupName,
+                              optionName: option.optionName,
+                              priceDelta: option.priceDelta,
+                            })),
+                          },
+                        }
+                      : {}),
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          branch: true,
+          items: {
+            orderBy: {
+              createdAt: 'asc',
+            },
+            include: {
+              options: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    // Auto-approve if enabled
-    try {
-      const settings = await this.prisma.restaurantSettings.findUnique({
+      const settings = await tx.restaurantSettings.findUnique({
         where: { restaurantId: data.restaurantId },
       });
-      if (settings?.autoApproveOrders && order.status === 'PENDING') {
-        await this.prisma.order.update({
-          where: { id: order.id },
-          data: { status: 'ACCEPTED' },
+
+      if (settings?.autoApproveOrders && createdOrder.status === OrderStatus.PENDING) {
+        return tx.order.update({
+          where: { id: createdOrder.id },
+          data: { status: OrderStatus.ACCEPTED },
+          include: {
+            branch: true,
+            items: {
+              orderBy: {
+                createdAt: 'asc',
+              },
+              include: {
+                options: true,
+              },
+            },
+          },
         });
-        order.status = 'ACCEPTED';
       }
-    } catch (e) {
-      // ignore auto-approve errors
-    }
+
+      return createdOrder;
+    });
 
     return order;
   }
@@ -370,33 +542,32 @@ if (data.type && !ORDER_TYPES.includes(data.type)) {
       throw new ForbiddenException('Bu siparişi güncelleme yetkiniz yok');
     }
 
-    // Atomik güncelleme: Order + DeliveryAssignment birlikte kapanır.
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.update({
-      where: {
-        id: data.orderId,
-      },
-      data: {
-        status: data.status,
-        courierId:
-          data.status === OrderStatus.ON_DELIVERY && optionalText(data.courierId)
-            ? optionalText(data.courierId) || undefined
-            : undefined,
-        courierName: data.status === OrderStatus.ON_DELIVERY ? courierSnapshotName : undefined,
-      },
-      include: {
-        branch: true,
-        items: {
-          orderBy: {
-            createdAt: 'asc',
+        where: {
+          id: data.orderId,
+        },
+        data: {
+          status: data.status,
+          courierId:
+            data.status === OrderStatus.ON_DELIVERY && optionalText(data.courierId)
+              ? optionalText(data.courierId) || undefined
+              : undefined,
+          courierName: data.status === OrderStatus.ON_DELIVERY ? courierSnapshotName : undefined,
+        },
+        include: {
+          branch: true,
+          items: {
+            orderBy: {
+              createdAt: 'asc',
+            },
+            include: {
+              options: true,
+            },
           },
         },
-      },
-    });
+      });
 
-
-      // ON_DELIVERY: DeliveryAssignment yoksa oluştur veya mevcut kaydı tekrar aktif hale getir.
-      // Sipariş panelinden "Yola Çıkar" yapıldığında teslimat panelinin Aktif listesi bu kayda bakıyor.
       if (data.status === OrderStatus.ON_DELIVERY && optionalText(data.courierId)) {
         const courierId = optionalText(data.courierId)!;
         const existingAssignment = await tx.deliveryAssignment.findUnique({
