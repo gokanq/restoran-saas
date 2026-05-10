@@ -2296,9 +2296,9 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-400">
-                Restoran SaaS
+                RestoMerkez
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">Ana Sayfa</h1>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">Operasyon Merkezi</h1>
               <p className="mt-2 text-sm text-slate-600">
                 {user ? `${user.name} • ${user.email} • ${roleLabel}` : 'Kullanıcı bilgisi yok'}
               </p>
