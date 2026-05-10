@@ -2442,48 +2442,48 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => setOrderFilter('PENDING')}
-            className="rounded-3xl border border-yellow-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
+            className="rounded-[28px] border border-amber-200 bg-amber-50 p-5 text-left shadow-sm shadow-amber-900/10 transition hover:-translate-y-0.5 hover:bg-amber-100"
           >
-            <p className="text-sm font-semibold text-amber-700">Bekleyen</p>
+            <p className="text-sm font-semibold text-amber-700">Yeni Sipariş</p>
             <p className="mt-2 text-3xl font-black tracking-tight text-amber-700">{operationalSummary.pending}</p>
-            <p className="mt-1 text-xs text-amber-700/70">Aksiyon bekleyen sipariş</p>
+            <p className="mt-1 text-xs text-amber-700/70">Operatör onayı bekliyor</p>
           </button>
           <button
             type="button"
             onClick={() => setOrderFilter('PREPARING')}
-            className="rounded-3xl border border-orange-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
+            className="rounded-[28px] border border-orange-200 bg-orange-50 p-5 text-left shadow-sm shadow-orange-900/10 transition hover:-translate-y-0.5 hover:bg-orange-100"
           >
-            <p className="text-sm font-semibold text-orange-700">Hazırlanıyor</p>
+            <p className="text-sm font-semibold text-orange-700">Hazırlık / Yola Hazır</p>
             <p className="mt-2 text-3xl font-black tracking-tight text-orange-700">{operationalSummary.preparing}</p>
-            <p className="mt-1 text-xs text-orange-700/70">Mutfakta olan sipariş</p>
+            <p className="mt-1 text-xs text-orange-700/70">Mutfak ve hazırlık kuyruğu</p>
           </button>
 
           <button
             type="button"
             onClick={() => setOrderFilter('ON_DELIVERY')}
-            className="rounded-3xl border border-cyan-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
+            className="rounded-[28px] border border-sky-200 bg-sky-50 p-5 text-left shadow-sm shadow-sky-900/10 transition hover:-translate-y-0.5 hover:bg-sky-100"
           >
-            <p className="text-sm font-semibold text-sky-700">Yolda</p>
+            <p className="text-sm font-semibold text-sky-700">Teslimatta</p>
             <p className="mt-2 text-3xl font-black tracking-tight text-sky-700">{operationalSummary.onDelivery}</p>
-            <p className="mt-1 text-xs text-sky-700/70">Kurye teslimatında</p>
+            <p className="mt-1 text-xs text-sky-700/70">Kurye üzerinde olan sipariş</p>
           </button>
 
           <button
             type="button"
             onClick={() => setOrderFilter('ALL')}
-            className="rounded-3xl border border-emerald-400/20 bg-white p-5 text-left shadow-sm shadow-black/10 transition hover:bg-slate-100"
+            className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 text-left shadow-sm shadow-emerald-900/10 transition hover:-translate-y-0.5 hover:bg-emerald-100"
           >
-            <p className="text-sm font-semibold text-emerald-700">Bugünkü Sipariş</p>
+            <p className="text-sm font-semibold text-emerald-700">Bugünkü Siparişler</p>
             <p className="mt-2 text-3xl font-black tracking-tight text-emerald-700">
               {operationalSummary.todayOrderCount}
             </p>
-            <p className="mt-1 text-xs text-emerald-700/70">Bugün oluşturulan sipariş</p>
+            <p className="mt-1 text-xs text-emerald-700/70">Günlük operasyon adedi</p>
           </button>
 
-          <div className="rounded-3xl border border-purple-400/20 bg-white p-5 shadow-sm shadow-black/10">
+          <div className="rounded-[28px] border border-violet-200 bg-violet-50 p-5 shadow-sm shadow-violet-900/10">
             <p className="text-sm font-semibold text-violet-700">Bugünkü Ciro</p>
             <p className="mt-2 text-3xl font-black tracking-tight text-violet-700">{formattedTodayRevenue}</p>
-            <p className="mt-1 text-xs text-violet-700/70">Bugünkü sipariş toplamı</p>
+            <p className="mt-1 text-xs text-violet-700/70">Günlük tahmini toplam ciro</p>
           </div>
         </section>
 
