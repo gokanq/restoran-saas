@@ -2193,11 +2193,11 @@ export default function DashboardPage() {
                 <tr>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950 first:rounded-tl-[24px]">Kod</th>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Tip</th>
-                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Müşteri</th>
-                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Telefon</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Müşteri / Adres</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">İletişim</th>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Şube</th>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Durum</th>
-                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Toplam</th>
+                  <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Tutar</th>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Ödeme</th>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Tarih</th>
                   <th className="px-4 py-4 text-left text-xs font-black uppercase tracking-[0.18em] text-slate-950">Detay</th>
@@ -2215,8 +2215,12 @@ export default function DashboardPage() {
                     'border-slate-300 bg-slate-100 text-slate-800';
 
                   return (
-                    <tr key={order.id} className="bg-white transition hover:bg-slate-50">
-                      <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">{order.code}</td>
+                    <tr key={order.id} className="bg-white transition hover:bg-emerald-50/40">
+                      <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">
+                          <span className="inline-flex rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 font-black text-slate-950 shadow-sm">
+                            {order.code}
+                          </span>
+                        </td>
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         <span className="rounded-full border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800 shadow-sm">
@@ -2238,7 +2242,11 @@ export default function DashboardPage() {
                         ) : null}
                       </td>
 
-                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">{order.customerPhone || '-'}</td>
+                      <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
+                          <span className="inline-flex rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 font-black text-sky-800 shadow-sm">
+                            {order.customerPhone || '-'}
+                          </span>
+                        </td>
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">{order.branch?.name || '-'}</td>
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
@@ -2250,12 +2258,16 @@ export default function DashboardPage() {
                         {renderCourierAssignment(order)}
                       </td>
 
-                      <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">{formatMoney(order.total)}</td>
+                      <td className="px-4 py-4 align-middle text-xs font-black text-slate-950">
+                          <span className="inline-flex rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-800 shadow-sm">
+                            {formatMoney(order.total)}
+                          </span>
+                        </td>
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
-                        <span className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-800 shadow-sm">
-                          {paymentLabel}
-                        </span>
+                        <span className="inline-flex rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 shadow-sm">
+                            {paymentLabel}
+                          </span>
                       </td>
 
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
