@@ -2512,7 +2512,23 @@ export default function CallerIdPage() {
                     </p>
                   </div>
 
-                  <button
+                                      {/* __CALLER_ID_CART_PAYMENT_METHOD_VISIBLE__ */}
+                    <label className="w-full text-sm font-black text-slate-800 md:max-w-xs">
+                      Ödeme Tipi
+                      <select
+                        value={paymentMethod}
+                        onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                        className="mt-2 w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-slate-950 shadow-inner outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                      >
+                        {PAYMENT_METHOD_OPTIONS.map((method) => (
+                          <option key={method.value} value={method.value}>
+                            {method.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+<button
                     type="submit"
                     form="caller-id-order-form"
                     disabled={isSaving || phoneOrderCartItems.length === 0}
