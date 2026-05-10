@@ -214,6 +214,12 @@ type PhoneOrderMenuCategory = {
   isActive?: boolean | null;
 };
 
+type PhoneOrderMenuChannelSetting = {
+  channel: 'QR' | 'TABLE_SERVICE' | 'CALLER_ID' | 'MOBILE' | 'WHATSAPP';
+  isEnabled?: boolean | null;
+  customPrice?: string | number | null;
+};
+
 type PhoneOrderMenuItem = {
   id: string;
   name: string;
@@ -225,6 +231,8 @@ type PhoneOrderMenuItem = {
   } | null;
   price?: string | number | null;
   totalPrice?: string | number | null;
+  channelSettings?: PhoneOrderMenuChannelSetting[];
+  menuItemChannelSettings?: PhoneOrderMenuChannelSetting[];
   isActive?: boolean | null;
 };
 
@@ -235,12 +243,34 @@ type PhoneOrderCartItem = {
   quantity: number;
 };
 
-function getPhoneOrderMenuItemPrice(menuItem: PhoneOrderMenuItem) {
-  const rawPrice = menuItem.totalPrice ?? menuItem.price ?? 0;
-  const numericPrice = Number(rawPrice);
+function getCallerIdChannelSetting(menuItem: PhoneOrderMenuItem) {
+  const settings = Array.isArray(menuItem.channelSettings)
+    ? menuItem.channelSettings
+    : Array.isArray(menuItem.menuItemChannelSettings)
+      ? menuItem.menuItemChannelSettings
+      : [];
 
-  return Number.isFinite(numericPrice) ? numericPrice : 0;
+  return settings.find((setting) => setting.channel === 'CALLER_ID') || null;
 }
+
+function isPhoneOrderMenuItemEnabledForCallerId(menuItem: PhoneOrderMenuItem) {
+  const callerIdSetting = getCallerIdChannelSetting(menuItem);
+
+  if (callerIdSetting?.isEnabled === false) {
+    return false;
+  }
+
+  return menuItem.isActive !== false;
+}
+
+function getPhoneOrderMenuItemPrice(menuItem: PhoneOrderMenuItem) {
+  const callerIdSetting = getCallerIdChannelSetting(menuItem);
+  const rawPrice = callerIdSetting?.customPrice ?? menuItem.totalPrice ?? menuItem.price ?? 0;
+  const parsedPrice = Number(rawPrice);
+
+  return Number.isFinite(parsedPrice) ? parsedPrice : 0;
+}
+
 
 const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string }[] = [
   { value: 'CASH', label: 'Nakit' },
@@ -978,8 +1008,11 @@ export default function CallerIdPage() {
       const safeCategories = Array.isArray(categoriesData) ? categoriesData : [];
       const safeItems = Array.isArray(itemsData) ? itemsData : [];
 
-      const activeCategories = safeCategories.filter((category) => category.isActive !== false);
-      const activeItems = safeItems.filter((item) => item.isActive !== false);
+      const activeItems = safeItems.filter(isPhoneOrderMenuItemEnabledForCallerId);
+      const activeCategoryIds = new Set(activeItems.map((item) => item.categoryId).filter(Boolean));
+      const activeCategories = safeCategories.filter(
+        (category) => category.isActive !== false && activeCategoryIds.has(category.id),
+      );
 
       setPhoneOrderMenuCategories(activeCategories);
       setPhoneOrderMenuItems(activeItems);
