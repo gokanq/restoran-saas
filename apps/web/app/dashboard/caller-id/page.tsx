@@ -241,6 +241,7 @@ type PhoneOrderCartItem = {
   name: string;
   unitPrice: number;
   quantity: number;
+  note: string;
 };
 
 function getCallerIdChannelSetting(menuItem: PhoneOrderMenuItem) {
@@ -1068,6 +1069,7 @@ export default function CallerIdPage() {
               name: menuItem.name,
               unitPrice,
               quantity: 1,
+              note: '',
             },
           ];
 
@@ -1104,6 +1106,14 @@ export default function CallerIdPage() {
     const nextCartItems = phoneOrderCartItems.filter((cartItem) => cartItem.menuItemId !== menuItemId);
 
     syncPhoneOrderCart(nextCartItems);
+  }
+
+  function updatePhoneOrderCartItemNote(menuItemId: string, noteValue: string) {
+    setPhoneOrderCartItems((currentCartItems) =>
+      currentCartItems.map((cartItem) =>
+        cartItem.menuItemId === menuItemId ? { ...cartItem, note: noteValue } : cartItem,
+      ),
+    );
   }
 
   // __CALLER_ID_ORDER_STAGE_V2_STEP1_SAFE__
@@ -1158,7 +1168,7 @@ export default function CallerIdPage() {
     const callerIdCartItemsPayload = phoneOrderCartItems.map((cartItem) => ({
       menuItemId: cartItem.menuItemId,
       quantity: cartItem.quantity,
-      note: null,
+      note: cartItem.note.trim() || null,
     }));
 
     const finalOrderTotal =
@@ -2213,7 +2223,7 @@ export default function CallerIdPage() {
                   Önce müşteri bilgisini kontrol et
                 </h3>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                  Çağrıdan gelen numara ve müşteri bilgisi hazırsa Siparişe Git butonuna bas. Sonraki adımda menü ve sepet bu aşamadan sonra açılacak.
+                  Çağrıdan gelen numara ve müşteri bilgisi hazırsa Siparişe Git butonuna bas. Telefon sipariş ekranında kategori, ürün ve sepet akışı açılacak.
                 </p>
               </div>
 
@@ -2244,7 +2254,7 @@ export default function CallerIdPage() {
                   Sipariş aşaması açıldı.
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-600">
-                  Şimdilik mevcut form korunuyor. Menü ve sepeti sonraki adımda buraya bağlayacağız.
+                  Telefon sipariş ekranı aktif. Kategori seç, ürünü sepete ekle ve siparişi tamamla.
                 </p>
               </div>
             ) : null}
@@ -2283,7 +2293,7 @@ export default function CallerIdPage() {
                     Telefon siparişi için menü ürünleri
                   </h3>
                   <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-                    Bu adımda sadece ürünleri görüntülüyoruz. Sonraki adımda + Ekle ve sepet alanını bağlayacağız.
+                    Kategori seç, ürünü sepete ekle ve miktarı sepetten yönet.
                   </p>
                 </div>
 
