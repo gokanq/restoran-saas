@@ -2043,13 +2043,13 @@ export default function DashboardPage() {
     return (
       <div className="rounded-[24px] border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-9500 shadow-sm">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-600 shadow-sm">
             Ø
           </div>
 
           <div>
             <p className="text-sm font-black text-slate-900">{message}</p>
-            <p className="mt-1 text-xs font-semibold text-slate-9500">
+            <p className="mt-1 text-xs font-semibold text-slate-600">
               Bu bölümde aksiyon bekleyen kayıt olduğunda otomatik olarak listelenir.
             </p>
           </div>
@@ -2165,16 +2165,16 @@ export default function DashboardPage() {
 
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-[0.22em] text-slate-9500">
+                <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-[0.22em] text-slate-600">
                   {sectionMeta.eyebrow}
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-black uppercase tracking-[0.18em] text-slate-9500">
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-black uppercase tracking-[0.18em] text-slate-600">
                   {sectionMeta.code}
                 </span>
               </div>
 
               <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950">{title}</h3>
-              <p className="mt-1 max-w-3xl text-sm font-medium text-slate-9500">{description}</p>
+              <p className="mt-1 max-w-3xl text-sm font-medium text-slate-600">{description}</p>
             </div>
           </div>
 
@@ -2227,7 +2227,7 @@ export default function DashboardPage() {
                       <td className="px-4 py-4 align-middle text-xs font-bold text-slate-900">
                         <div className="font-black text-slate-950">{order.customerName || '-'}</div>
                         {order.customerAddress ? (
-                          <div className="mt-1 max-w-[220px] truncate text-xs font-semibold text-slate-9500">
+                          <div className="mt-1 max-w-[220px] truncate text-xs font-semibold text-slate-600">
                             {order.customerAddress}
                           </div>
                         ) : null}
@@ -2299,7 +2299,7 @@ export default function DashboardPage() {
                 Restoran SaaS
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-tight">Ana Sayfa</h1>
-              <p className="mt-2 text-sm text-slate-9500">
+              <p className="mt-2 text-sm text-slate-600">
                 {user ? `${user.name} • ${user.email} • ${roleLabel}` : 'Kullanıcı bilgisi yok'}
               </p>
             </div>
@@ -2404,7 +2404,7 @@ export default function DashboardPage() {
                   body: JSON.stringify({ autoApproveOrders: newVal }),
                 });
               }}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${autoApproveOrders ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-slate-100 text-slate-9500 hover:bg-slate-200'}`}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${autoApproveOrders ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               {autoApproveOrders ? '\u2713 Açık' : '\u2717 Kapalı'}
             </button>
@@ -2486,7 +2486,7 @@ export default function DashboardPage() {
                   Caller ID Gelen Arama Paneli
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-slate-950">Operasyonda canlı arama</h2>
-                <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-9500">
+                <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-600">
                   Telefon araması geldiğinde müşteri ve adres bilgisi operasyon ekranında açılır. Cihazdan gelen çağrılar kullanıcı aksiyonuyla görüldü yapılır.
                 </p>
               </div>
@@ -2513,7 +2513,7 @@ export default function DashboardPage() {
               <div className="mt-5 rounded-[28px] border border-slate-200 bg-slate-50 p-5 shadow-inner">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-9500">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-600">
                       {incomingCall.isSearching ? 'Aranıyor' : callerPanelMode === 'known' ? 'Kayıtlı Müşteri' : 'Kayıtsız Numara'}
                     </p>
                     <h3 className="mt-2 text-3xl font-black text-slate-950">
@@ -2523,7 +2523,7 @@ export default function DashboardPage() {
                           ? `${incomingCall.customer.name} Arıyor...`
                           : `${incomingCall.phone} Arıyor...`}
                     </h3>
-                    <p className="mt-2 text-sm font-bold text-slate-9500">Telefon: {incomingCall.phone}</p>
+                    <p className="mt-2 text-sm font-bold text-slate-600">Telefon: {incomingCall.phone}</p>
 
                     {activeCallerEvent ? (
                       <div className="mt-4 grid gap-3 rounded-2xl border border-sky-200 bg-white p-4 text-sm shadow-sm md:grid-cols-3">
@@ -2609,7 +2609,7 @@ export default function DashboardPage() {
 
                     <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Ad Soyad</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Ad Soyad</span>
                         <input
                           value={callerRegistrationForm.name}
                           onChange={(event) => updateCallerRegistrationField('name', event.target.value)}
@@ -2619,7 +2619,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Telefon</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Telefon</span>
                         <input
                           value={callerRegistrationForm.phone}
                           onChange={(event) => updateCallerRegistrationField('phone', event.target.value)}
@@ -2628,7 +2628,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Adres Tipi</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Adres Tipi</span>
                         <select
                           value={callerRegistrationForm.addressType}
                           onChange={(event) => {
@@ -2644,7 +2644,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">İlçe</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">İlçe</span>
                         <input
                           value={callerRegistrationForm.district}
                           onChange={(event) => updateCallerRegistrationField('district', event.target.value)}
@@ -2654,7 +2654,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Mahalle</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Mahalle</span>
                         <input
                           value={callerRegistrationForm.neighborhood}
                           onChange={(event) => updateCallerRegistrationField('neighborhood', event.target.value)}
@@ -2664,7 +2664,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Cadde / Sokak</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Cadde / Sokak</span>
                         <input
                           value={callerRegistrationForm.street}
                           onChange={(event) => updateCallerRegistrationField('street', event.target.value)}
@@ -2674,7 +2674,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Bina No</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Bina No</span>
                         <input
                           value={callerRegistrationForm.buildingNo}
                           onChange={(event) => updateCallerRegistrationField('buildingNo', event.target.value)}
@@ -2684,7 +2684,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Kat</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Kat</span>
                         <input
                           value={callerRegistrationForm.floorNo}
                           onChange={(event) => updateCallerRegistrationField('floorNo', event.target.value)}
@@ -2694,7 +2694,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Kapı No</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Kapı No</span>
                         <input
                           value={callerRegistrationForm.doorNo}
                           onChange={(event) => updateCallerRegistrationField('doorNo', event.target.value)}
@@ -2704,7 +2704,7 @@ export default function DashboardPage() {
                       </label>
 
                       <label className="space-y-2 md:col-span-2 xl:col-span-3">
-                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-9500">Adres Açıklaması</span>
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-600">Adres Açıklaması</span>
                         <textarea
                           value={callerRegistrationForm.description}
                           onChange={(event) => updateCallerRegistrationField('description', event.target.value)}
@@ -2776,7 +2776,7 @@ export default function DashboardPage() {
                             </label>
                           ))
                         ) : (
-                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-bold text-slate-9500">
+                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm font-bold text-slate-600">
                             Bu müşteriye kayıtlı adres yok. Düzenle ile adres eklenebilir.
                           </div>
                         )}
@@ -2786,7 +2786,7 @@ export default function DashboardPage() {
                         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <p className="text-sm font-black text-slate-950">Son sipariş geçmişi</p>
-                            <p className="text-xs font-semibold text-slate-9500">
+                            <p className="text-xs font-semibold text-slate-600">
                               Aynı telefon numarasından açılmış son 5 sipariş.
                             </p>
                           </div>
@@ -2805,7 +2805,7 @@ export default function DashboardPage() {
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                   <div>
                                     <p className="text-sm font-black text-slate-950">{order.code || 'Sipariş'}</p>
-                                    <p className="mt-1 text-xs font-semibold text-slate-9500">
+                                    <p className="mt-1 text-xs font-semibold text-slate-600">
                                       {order.createdAt ? new Date(order.createdAt).toLocaleString('tr-TR') : '-'}
                                     </p>
                                   </div>
@@ -2847,7 +2847,7 @@ export default function DashboardPage() {
                               </div>
                             ))
                           ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-9500">
+                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-bold text-slate-600">
                               Bu müşteri için henüz sipariş geçmişi bulunamadı.
                             </div>
                           )}
@@ -2870,7 +2870,7 @@ export default function DashboardPage() {
                       >
                         Düzenle
                       </button>
-                      <p className="text-xs font-semibold leading-5 text-slate-9500">
+                      <p className="text-xs font-semibold leading-5 text-slate-600">
                         Siparişe Git, müşteri bilgilerini aşağıdaki yeni sipariş formuna aktarır.
                       </p>
                     </div>
@@ -2888,7 +2888,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         disabled
-                        className="w-full cursor-not-allowed rounded-2xl bg-slate-200 px-5 py-4 text-sm font-black text-slate-9500"
+                        className="w-full cursor-not-allowed rounded-2xl bg-slate-200 px-5 py-4 text-sm font-black text-slate-600"
                       >
                         Siparişe Git
                       </button>
@@ -2913,7 +2913,7 @@ export default function DashboardPage() {
                 Operasyon
               </p>
               <h2 className="mt-2 text-2xl font-black">Sipariş Operasyon Ekranı V2</h2>
-              <p className="mt-1 text-sm text-slate-9500">
+              <p className="mt-1 text-sm text-slate-600">
                 Siparişler aşama aşama ilerler: Kabul Et → Yola Çıkar → Teslim Et. Teslim edilen ve iptal edilen siparişler Geçmiş Siparişler bölümüne aktarılır.
                 {lastOrdersRefreshAt ? ` Son güncelleme: ${lastOrdersRefreshAt}` : ''}
               </p>
@@ -2936,7 +2936,7 @@ export default function DashboardPage() {
                   Caller ID Sepet
                 </p>
                 <h3 className="mt-1 text-xl font-black text-slate-950">Telefon Siparişi Sepeti</h3>
-                <p className="mt-1 text-sm font-semibold text-slate-9500">
+                <p className="mt-1 text-sm font-semibold text-slate-600">
                   Arayan müşteriyi seçtikten sonra ürünleri sepete ekle ve tek tuşla operasyon siparişi oluştur.
                 </p>
               </div>
@@ -2952,7 +2952,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-black text-slate-950">Müşteri Bilgisi</p>
 
                 <div className="mt-4 grid gap-3">
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                     Ad Soyad
                     <input
                       value={customerName}
@@ -2962,7 +2962,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                     Telefon
                     <input
                       value={customerPhone}
@@ -2972,7 +2972,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                     Adres
                     <textarea
                       value={customerAddress}
@@ -2983,7 +2983,7 @@ export default function DashboardPage() {
                     />
                   </label>
 
-                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
+                  <label className="text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                     Ödeme
                     <select
                       value={orderPaymentMethod}
@@ -3043,7 +3043,7 @@ export default function DashboardPage() {
                           <div>
                             <p className="text-sm font-black text-slate-950">{menuItem.name}</p>
                             {(menuItem as any).description ? (
-                              <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-9500">
+                              <p className="mt-1 line-clamp-2 text-xs font-semibold text-slate-600">
                                 {(menuItem as any).description}
                               </p>
                             ) : null}
@@ -3053,7 +3053,7 @@ export default function DashboardPage() {
                           </span>
                         </div>
 
-                        <div className="mt-3 flex items-center justify-between text-xs font-black text-slate-9500">
+                        <div className="mt-3 flex items-center justify-between text-xs font-black text-slate-600">
                           <span>Sepete ekle</span>
                           <span className="rounded-full bg-emerald-600 px-3 py-2 text-slate-950 transition group-hover:bg-emerald-700">
                             + Ekle
@@ -3065,7 +3065,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
                     <p className="text-sm font-black text-slate-900">Bu kategoride ürün yok</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-9500">
+                    <p className="mt-1 text-xs font-semibold text-slate-600">
                       Menü Yönetimi bölümünden ürün ekleyebilirsin.
                     </p>
                   </div>
@@ -3096,7 +3096,7 @@ export default function DashboardPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-sm font-black text-slate-950">{cartItem.name}</p>
-                            <p className="mt-1 text-xs font-bold text-slate-9500">
+                            <p className="mt-1 text-xs font-bold text-slate-600">
                               {formatMoney(cartItem.unitPrice)} x {cartItem.quantity}
                             </p>
                           </div>
@@ -3145,13 +3145,13 @@ export default function DashboardPage() {
                 ) : (
                   <div className="mt-4 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center">
                     <p className="text-sm font-black text-slate-900">Sepet boş</p>
-                    <p className="mt-1 text-xs font-semibold text-slate-9500">
+                    <p className="mt-1 text-xs font-semibold text-slate-600">
                       Telefon siparişi için ürün seç.
                     </p>
                   </div>
                 )}
 
-                <label className="mt-4 block text-xs font-black uppercase tracking-[0.16em] text-slate-9500">
+                <label className="mt-4 block text-xs font-black uppercase tracking-[0.16em] text-slate-600">
                   Sipariş Notu
                   <textarea
                     value={orderNote}
@@ -3199,7 +3199,7 @@ export default function DashboardPage() {
           </div>
 
           {orderSearch && filteredOrders.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-9500">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">
               Bu arama sonucunda sipariş bulunamadı.
             </div>
           ) : (
@@ -3235,7 +3235,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-black text-slate-800">Kurye Seçimi</h3>
-                <p className="mt-1 text-sm text-slate-9500">
+                <p className="mt-1 text-sm text-slate-600">
                   {dispatchCourierOrder.code} kodlu siparişi yola çıkarmak için kurye seç.
                 </p>
               </div>
@@ -3313,7 +3313,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-xl font-black text-slate-800">Kurye Seçimi</h3>
-                <p className="mt-1 text-sm text-slate-9500">
+                <p className="mt-1 text-sm text-slate-600">
                   {courierChangeOrder.code} kodlu sipariş yolda kalır, sadece atanmış kuryesi değişir.
                 </p>
               </div>
@@ -3401,7 +3401,7 @@ export default function DashboardPage() {
                   Sipariş Detayı
                 </p>
                 <h3 className="mt-2 text-2xl font-black">{selectedOrder.code}</h3>
-                <p className="mt-1 text-sm text-slate-9500">
+                <p className="mt-1 text-sm text-slate-600">
                   {formatOrderDate(selectedOrder.createdAt)}
                 </p>
               </div>
@@ -3417,7 +3417,7 @@ export default function DashboardPage() {
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Sipariş Tipi
                 </p>
                 <p className="mt-2 text-lg font-bold">
@@ -3426,14 +3426,14 @@ export default function DashboardPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Masa No
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.tableNumber || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Durum
                 </p>
                 <span
@@ -3447,28 +3447,28 @@ export default function DashboardPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Müşteri
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.customerName || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Telefon
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.customerPhone || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Şube
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.branch?.name || '-'}</p>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Toplam
                 </p>
                 <p className="mt-2 text-lg font-bold">{selectedOrder.total} TL</p>
@@ -3494,7 +3494,7 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-9500">
+                          <p className="text-sm font-semibold text-slate-600">
                             {item.quantity} x {formatMoney(item.unitPrice)}
                           </p>
                           <p className="mt-1 text-base font-black text-emerald-300">
@@ -3508,7 +3508,7 @@ export default function DashboardPage() {
               ) : null}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-9500">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
                   Adres
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
@@ -3527,7 +3527,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="mt-6 border-t border-slate-200 pt-5">
-              <p className="mb-3 text-sm font-bold text-slate-9500">Durum Güncelle</p>
+              <p className="mb-3 text-sm font-bold text-slate-600">Durum Güncelle</p>
 
               {renderOrderActionArea(selectedOrder)}
             </div>
