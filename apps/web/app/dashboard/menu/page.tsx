@@ -12,6 +12,7 @@ type MenuCategory = {
   id: string;
   name: string;
   branchId?: string | null;
+  isActive?: boolean;
   branch?: Branch | null;
 };
 
@@ -132,6 +133,10 @@ export default function DashboardMenuPage() {
   const [categoryBranchId, setCategoryBranchId] = useState('');
   const [categoryName, setCategoryName] = useState('');
 
+  const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [editCategoryActive, setEditCategoryActive] = useState(true);
+
   const [itemBranchId, setItemBranchId] = useState('');
   const [itemCategoryId, setItemCategoryId] = useState('');
   const [itemName, setItemName] = useState('');
@@ -178,6 +183,7 @@ export default function DashboardMenuPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   const [isSavingItem, setIsSavingItem] = useState(false);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
   const [isSavingOption, setIsSavingOption] = useState(false);
@@ -642,6 +648,69 @@ export default function DashboardMenuPage() {
     }
   }
 
+  function openCategoryEditModal(category: MenuCategory) {
+    setEditingCategory(category);
+    setEditCategoryName(category.name);
+    setEditCategoryActive(category.isActive !== false);
+    setError('');
+    setMessage('');
+  }
+
+  async function updateCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingCategory) return;
+
+    if (!editCategoryName.trim()) {
+      setError('Kategori adı boş olamaz.');
+      return;
+    }
+
+    setIsUpdatingCategory(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/categories/${editingCategory.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editCategoryName.trim(),
+          isActive: editCategoryActive,
+        }),
+      });
+
+      setEditingCategory(null);
+      setMessage('Kategori güncellendi.');
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Kategori güncellenemedi.');
+    } finally {
+      setIsUpdatingCategory(false);
+    }
+  }
+
+  async function deleteCategory(category: MenuCategory) {
+    const confirmed = window.confirm(
+      `${category.name} kategorisi silinsin mi? Bağlı ürünlerin kategorisi boşaltılır.`,
+    );
+
+    if (!confirmed) return;
+
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/categories/${category.id}`, {
+        method: 'DELETE',
+      });
+
+      setMessage('Kategori silindi.');
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Kategori silinemedi.');
+    }
+  }
+
   async function deleteOptionGroup(group: MenuItemOptionGroup) {
     const confirmed = window.confirm(
       `${group.name} opsiyon grubunu ve içindeki tüm seçenekleri silmek istiyor musunuz?`,
@@ -904,6 +973,59 @@ export default function DashboardMenuPage() {
                 >
                   {isSavingCategory ? 'Ekleniyor...' : 'Kategori Ekle'}
                 </button>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-slate-950">Mevcut Kategoriler</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        Kategori adını düzenleyebilir veya boşaltarak silebilirsin.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600">
+                      {categories.length} kategori
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-2">
+                    {categories.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-sm font-semibold text-slate-500">
+                        Henüz kategori yok.
+                      </div>
+                    ) : (
+                      categories.map((category) => (
+                        <div
+                          key={category.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3"
+                        >
+                          <div>
+                            <p className="text-sm font-black text-slate-900">{category.name}</p>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                              {category.branch?.name || 'Genel'} • {category.isActive === false ? 'Pasif' : 'Aktif'}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openCategoryEditModal(category)}
+                              className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-black text-sky-700 transition hover:bg-sky-100"
+                            >
+                              Düzenle
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteCategory(category)}
+                              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700 transition hover:bg-red-100"
+                            >
+                              Sil
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </form>
 
@@ -1733,6 +1855,56 @@ export default function DashboardMenuPage() {
           </form>
         </div>
       ) : null}
+        {editingCategory ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+            <form
+              onSubmit={updateCategory}
+              className="w-full max-w-xl rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-2xl"
+            >
+              <h2 className="text-2xl font-black text-slate-950">Kategoriyi Düzenle</h2>
+
+              <div className="mt-6 space-y-4">
+                <label className="block text-sm font-bold">
+                  Kategori Adı
+                  <input
+                    value={editCategoryName}
+                    onChange={(event) => setEditCategoryName(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 outline-none focus:border-emerald-400"
+                  />
+                </label>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-800">
+                  <input
+                    checked={editCategoryActive}
+                    onChange={(event) => setEditCategoryActive(event.target.checked)}
+                    type="checkbox"
+                    className="h-5 w-5"
+                  />
+                  Aktif olarak göster
+                </label>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingCategory(null)}
+                  className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 hover:bg-slate-50"
+                >
+                  Vazgeç
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isUpdatingCategory}
+                  className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+                >
+                  {isUpdatingCategory ? 'Kaydediliyor...' : 'Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
     </main>
   );
 }
