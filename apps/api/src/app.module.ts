@@ -17,6 +17,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { RestaurantSettingsModule } from './restaurant-settings/restaurant-settings.module';
 import { LocationsModule } from './locations/locations.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
     PublicModule,
     IntegrationsModule,
     RestaurantSettingsModule,
+    UploadModule,
   ],
 })
 export class AppModule {}
