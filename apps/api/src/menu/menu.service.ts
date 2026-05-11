@@ -683,6 +683,8 @@ export class MenuService {
       select: {
         id: true,
         restaurantId: true,
+        minSelect: true,
+        maxSelect: true,
       },
     });
 
@@ -731,8 +733,8 @@ export class MenuService {
       updateData.maxSelect = maxSelect;
     }
 
-    const finalMinSelect = updateData.minSelect ?? 0;
-    const finalMaxSelect = updateData.maxSelect ?? 1;
+    const finalMinSelect = updateData.minSelect ?? optionGroup.minSelect;
+    const finalMaxSelect = updateData.maxSelect ?? optionGroup.maxSelect;
 
     if (finalMinSelect > finalMaxSelect) {
       throw new BadRequestException('Minimum seçim maksimum seçimden büyük olamaz');

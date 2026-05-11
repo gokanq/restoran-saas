@@ -1098,6 +1098,7 @@ export default function DashboardMenuPage() {
                                   Kanal fiyatı
                                 </label>
                                 <input
+                                  key={`${item.id}-${channel.key}-${getChannelPriceValue(setting)}`}
                                   defaultValue={getChannelPriceValue(setting)}
                                   onBlur={(event) =>
                                     updateMenuItemChannelSetting(item, channel.key, {
