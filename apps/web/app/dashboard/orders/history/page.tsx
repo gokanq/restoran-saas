@@ -253,12 +253,12 @@ export default function OrderHistoryPage() {
               Ana Sayfa
             </a>
 
-            <a
-              href="/dashboard/menu"
-              className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
-            >
-              Menü
-            </a>
+              <a
+                href="/dashboard/settings"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
+              >
+                Ayarlar
+              </a>
           </div>
         </header>
 

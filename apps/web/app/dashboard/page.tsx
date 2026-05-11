@@ -2346,14 +2346,6 @@ export default function DashboardPage() {
             >
               Masa Servis
             </a>
-
-<a
-              href="/dashboard/menu"
-              className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
-            >
-              Menü
-            </a>
-
             <a
               href="/dashboard/orders/history"
               className="rounded-2xl border border-slate-300 bg-white px-5 py-4 shadow-inner text-sm font-black text-slate-700 transition hover:bg-slate-50/80"
