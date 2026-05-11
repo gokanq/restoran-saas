@@ -210,6 +210,112 @@ export class MenuService {
     });
   }
 
+
+  async updateCategory(
+    restaurantId: string,
+    id: string,
+    data: {
+      name?: string;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const category = await this.prisma.menuCategory.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Kategori bulunamadı');
+    }
+
+    if (category.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu kategori için işlem yapma yetkiniz yok');
+    }
+
+    const updateData: {
+      name?: string;
+      sortOrder?: number;
+      isActive?: boolean;
+    } = {};
+
+    if (data.name !== undefined) {
+      const name = optionalText(data.name);
+
+      if (!name) {
+        throw new BadRequestException('Kategori adı zorunludur');
+      }
+
+      updateData.name = name;
+    }
+
+    if (data.sortOrder !== undefined) {
+      updateData.sortOrder = positiveIntegerOrDefault(data.sortOrder, 0);
+    }
+
+    if (data.isActive !== undefined) {
+      updateData.isActive = data.isActive;
+    }
+
+    return this.prisma.menuCategory.update({
+      where: {
+        id,
+      },
+      data: updateData,
+      include: {
+        branch: true,
+        items: true,
+      },
+    });
+  }
+
+  async deleteCategory(restaurantId: string, id: string) {
+    const category = await this.prisma.menuCategory.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+        restaurantId: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Kategori bulunamadı');
+    }
+
+    if (category.restaurantId !== restaurantId) {
+      throw new ForbiddenException('Bu kategori için işlem yapma yetkiniz yok');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.menuItem.updateMany({
+        where: {
+          categoryId: id,
+          restaurantId,
+        },
+        data: {
+          categoryId: null,
+        },
+      }),
+      this.prisma.menuCategory.delete({
+        where: {
+          id,
+        },
+      }),
+    ]);
+
+    return {
+      success: true,
+    };
+  }
+
+
   async findItems(restaurantId: string) {
     return this.prisma.menuItem.findMany({
       where: {

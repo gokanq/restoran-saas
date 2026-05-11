@@ -66,6 +66,37 @@ export class MenuController {
     });
   }
 
+
+  @Patch('categories/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateCategory(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      name?: string;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.updateCategory(req.user.restaurantId, id, body);
+  }
+
+  @Delete('categories/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  deleteCategory(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    if (!req.user.restaurantId) {
+      throw new ForbiddenException('Restaurant bilgisi bulunamadı');
+    }
+
+    return this.menuService.deleteCategory(req.user.restaurantId, id);
+  }
+
+
   @Get('items')
   findItems(@Req() req: AuthenticatedRequest) {
     if (!req.user.restaurantId) {
