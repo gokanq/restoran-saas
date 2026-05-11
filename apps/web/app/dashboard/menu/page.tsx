@@ -162,6 +162,14 @@ export default function DashboardMenuPage() {
   const [editOptionPriceDelta, setEditOptionPriceDelta] = useState('0');
   const [editOptionActive, setEditOptionActive] = useState(true);
 
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editItemName, setEditItemName] = useState('');
+  const [editItemDescription, setEditItemDescription] = useState('');
+  const [editItemImageUrl, setEditItemImageUrl] = useState('');
+  const [editItemPrice, setEditItemPrice] = useState('');
+  const [editItemCategoryId, setEditItemCategoryId] = useState('');
+  const [editItemIsActive, setEditItemIsActive] = useState(true);
+
   const [qrBranchId, setQrBranchId] = useState('');
   const [qrTableNumber, setQrTableNumber] = useState('1');
   const [publicBaseUrl, setPublicBaseUrl] = useState('');
@@ -175,6 +183,7 @@ export default function DashboardMenuPage() {
   const [isSavingOption, setIsSavingOption] = useState(false);
   const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
   const [isUpdatingOption, setIsUpdatingOption] = useState(false);
+  const [isUpdatingItem, setIsUpdatingItem] = useState(false);
 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -507,6 +516,18 @@ export default function DashboardMenuPage() {
     setMessage('');
   }
 
+  function openItemEditModal(item: MenuItem) {
+    setEditingItem(item);
+    setEditItemName(item.name);
+    setEditItemDescription(item.description || '');
+    setEditItemImageUrl(item.imageUrl || '');
+    setEditItemPrice(String(toNumber(item.price)));
+    setEditItemCategoryId(item.categoryId || item.category?.id || '');
+    setEditItemIsActive(item.isActive !== false);
+    setError('');
+    setMessage('');
+  }
+
   async function updateOptionGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -576,6 +597,48 @@ export default function DashboardMenuPage() {
       setError(requestError instanceof Error ? requestError.message : 'Opsiyon güncellenemedi.');
     } finally {
       setIsUpdatingOption(false);
+    }
+  }
+
+  async function updateItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingItem) return;
+
+    if (!editItemName.trim()) {
+      setError('Ürün adı boş olamaz.');
+      return;
+    }
+
+    if (toNumber(editItemPrice) < 0) {
+      setError('Fiyat negatif olamaz.');
+      return;
+    }
+
+    setIsUpdatingItem(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await apiRequest(`/api/menu/items/${editingItem.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editItemName.trim(),
+          description: editItemDescription.trim() || null,
+          imageUrl: editItemImageUrl.trim() || null,
+          price: toNumber(editItemPrice),
+          categoryId: editItemCategoryId || null,
+          isActive: editItemIsActive,
+        }),
+      });
+
+      setEditingItem(null);
+      setMessage('Ürün güncellendi.');
+      await loadData();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Ürün güncellenemedi.');
+    } finally {
+      setIsUpdatingItem(false);
     }
   }
 
@@ -1064,6 +1127,14 @@ export default function DashboardMenuPage() {
                           className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100"
                         >
                           Sil / Kaldır
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openItemEditModal(item)}
+                          className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-black text-sky-700 shadow-sm transition hover:bg-sky-100"
+                        >
+                          Düzenle
                         </button>
 
                         <button
@@ -1564,6 +1635,98 @@ export default function DashboardMenuPage() {
                 className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-60"
               >
                 {isUpdatingOption ? 'Kaydediliyor...' : 'Kaydet'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {editingItem ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-8">
+          <form
+            onSubmit={updateItem}
+            className="w-full max-w-xl rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-2xl"
+          >
+            <h2 className="text-2xl font-black text-slate-950">Ürünü Düzenle</h2>
+
+            <div className="mt-6 space-y-4">
+              <label className="block text-sm font-bold">
+                Ürün Adı
+                <input
+                  value={editItemName}
+                  onChange={(event) => setEditItemName(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <label className="block text-sm font-bold">
+                Açıklama
+                <input
+                  value={editItemDescription}
+                  onChange={(event) => setEditItemDescription(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <label className="block text-sm font-bold">
+                Ürün görsel URL
+                <input
+                  value={editItemImageUrl}
+                  onChange={(event) => setEditItemImageUrl(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <label className="block text-sm font-bold">
+                Fiyat
+                <input
+                  value={editItemPrice}
+                  onChange={(event) => setEditItemPrice(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 outline-none focus:border-emerald-400"
+                />
+              </label>
+
+              <label className="block text-sm font-bold">
+                Kategori
+                <select
+                  value={editItemCategoryId}
+                  onChange={(event) => setEditItemCategoryId(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-950 outline-none focus:border-emerald-400"
+                >
+                  <option value="">Kategori yok</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-800">
+                <input
+                  checked={editItemIsActive}
+                  onChange={(event) => setEditItemIsActive(event.target.checked)}
+                  type="checkbox"
+                  className="h-5 w-5"
+                />
+                Aktif olarak göster
+              </label>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-800 hover:bg-slate-50"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="submit"
+                disabled={isUpdatingItem}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+              >
+                {isUpdatingItem ? 'Kaydediliyor...' : 'Kaydet'}
               </button>
             </div>
           </form>
